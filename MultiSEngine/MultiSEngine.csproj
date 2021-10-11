@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+	  <LangVersion>preview</LangVersion>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Main.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="TrProtocol">
+      <HintPath>..\..\TrProtocol\Protocal\TrProtocol\bin\Debug\net5.0\TrProtocol.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>
