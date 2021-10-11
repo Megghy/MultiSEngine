@@ -20,10 +20,10 @@ namespace MultiSEngine.Modules
         /// </summary>
         /// <param name="client"></param>
         /// <param name="server"></param>
-        public static void Join(this ClientInfo client, ServerInfo server)
+        public static void Join(this ClientData client, ServerInfo server)
         {
             Logs.Info($"Switching {client.Name} to the server: {server.Name}");
-            client.State = ClientInfo.ClientState.ReadyToSwitch;
+            client.State = ClientData.ClientState.ReadyToSwitch;
             if (Utils.TryParseAddress(server.IP, out var ip))
             {
                 client.GameServerConnection?.Close();
@@ -32,7 +32,7 @@ namespace MultiSEngine.Modules
                     client.GameServerConnection = new();
                     client.GameServerConnection.Connect(server.IP, server.Port);
                     client.Server = server;
-                    client.State = ClientInfo.ClientState.Switching;
+                    client.State = ClientData.ClientState.Switching;
 
                     Task.Run(() => RecieveLoop(client));
 
@@ -43,9 +43,15 @@ namespace MultiSEngine.Modules
                 }
                 catch (Exception ex)
                 {
-                    client.State = ClientInfo.ClientState.Disconnect;
+                    client.State = ClientData.ClientState.Disconnect;
                     Logs.Error($"Unable to connect to server {server.IP}:{server.Port}{Environment.NewLine}{ex}");
-                    client.SendErrorMessage(string.Format(Localization.Get("Prompt_CannotConnect"), server.Name));
+                    if (server == Config.Instance.MainServer)
+                        client.SendErrorMessage("The main server is not responding, please try to join the following other servers:");
+                    else
+                    {
+                        client.SendErrorMessage(string.Format(Localization.Get("Prompt_CannotConnect"), server.Name));
+                        client.Back();
+                    }
                 }
             }
             else
@@ -55,8 +61,8 @@ namespace MultiSEngine.Modules
         /// 返回到默认的初始服务器
         /// </summary>
         /// <param name="client"></param>
-        public static void Back(this ClientInfo client) => client.Join(Config.Instance.MainServer);
-        private static void RecieveLoop(ClientInfo client)
+        public static void Back(this ClientData client) => client.Join(Config.Instance.MainServer);
+        private static void RecieveLoop(ClientData client)
         {
             byte[] buffer = new byte[131070];
             while (true)
@@ -74,7 +80,7 @@ namespace MultiSEngine.Modules
                 }
             }
         }
-        private static void CheckBuffer(ClientInfo client, int size, byte[] buffer)
+        private static void CheckBuffer(ClientData client, int size, byte[] buffer)
         {
             try
             {
@@ -105,7 +111,7 @@ namespace MultiSEngine.Modules
         /// <param name="buffer"></param>
         /// <param name="startIndex"></param>
         /// <param name="length"></param>
-        private static bool DeserilizeGameServerPacket(ClientInfo client, byte[] buffer, int startIndex, int length)
+        private static bool DeserilizeGameServerPacket(ClientData client, byte[] buffer, int startIndex, int length)
         {
             try
             {
@@ -116,7 +122,7 @@ namespace MultiSEngine.Modules
                         switch (packet)
                         {
                             case Kick kick:
-                                client.State = ClientInfo.ClientState.Disconnect;
+                                client.State = ClientData.ClientState.Disconnect;
                                 Logs.Info($"Player {client.Player.Name} is removed from server {client.Server.Name}, for the following reason:{kick.Reason}");
                                 client.SendErrorMessage(string.Format(Localization.Get("Prompt_Disconnect"), client.Server.Name, kick.Reason));
                                 client.Back();
@@ -127,7 +133,7 @@ namespace MultiSEngine.Modules
                             case WorldData worldData:
                                 client.Player.SpawnX = BitConverter.ToInt16(buffer, startIndex + 13);
                                 client.Player.SpawnY = BitConverter.ToInt16(buffer, startIndex + 15);
-                                if (client.State < ClientInfo.ClientState.InGame)
+                                if (client.State < ClientData.ClientState.InGame)
                                 {
                                     client.SendDataToGameServer(new RequestTileData() { Position = new() { X = -1, Y = -1 } });
                                     client.SendDataToGameServer(new SpawnPlayer()
@@ -150,12 +156,12 @@ namespace MultiSEngine.Modules
                                             Position = new(client.Server.SpawnX, client.Server.SpawnY),
                                             Style = 1
                                         });
-                                    client.State = ClientInfo.ClientState.InGame;
+                                    client.State = ClientData.ClientState.InGame;
                                     Logs.Success($"Player {client.Name} successfully joined the server: {client.Server.Name}");
                                 }
                                 return true;
                             case RequestPassword requestPassword:
-                                client.State = ClientInfo.ClientState.RequestingPassword;
+                                client.State = ClientData.ClientState.RequestingPassword;
                                 client.SendErrorMessage(string.Format(Localization.Get("Prompt_NeedPassword"), client.Server.Name, Localization.Get("Help_Password")));
                                 return false;
                             default:
@@ -174,7 +180,7 @@ namespace MultiSEngine.Modules
     }
     public static partial class ClientHelper
     {
-        public static void SendDataToClient(this ClientInfo client, byte[] buffer, int? index = null, int? length = null)
+        public static void SendDataToClient(this ClientData client, byte[] buffer, int? index = null, int? length = null)
         {
             try
             {
@@ -182,14 +188,14 @@ namespace MultiSEngine.Modules
             }
             catch(Exception ex)
             {
-                if(client.State != ClientInfo.ClientState.Disconnect)
+                if(client.State != ClientData.ClientState.Disconnect)
                 {
                     Logs.Info($"Disconnected from {client.Player.Name ?? client.Address}{Environment.NewLine}{ex}");
                     client.Dispose();
                 }
             }
         }
-        public static void SendDataToGameServer(this ClientInfo client, byte[] buffer, int? index = null, int? length = null)
+        public static void SendDataToGameServer(this ClientData client, byte[] buffer, int? index = null, int? length = null)
         {
             try
             {
@@ -201,15 +207,15 @@ namespace MultiSEngine.Modules
                 client.Back();
             }
         }
-        public static void SendDataToClient<T>(this ClientInfo client, T data) where T : Packet => client.SendDataToClient(data?.Serilize());
-        public static void SendDataToGameServer<T>(this ClientInfo client, T data) where T : Packet => client.SendDataToGameServer(data?.Serilize());
-        public static void Disconnect(this ClientInfo client, string reason = "unknown")
+        public static void SendDataToClient<T>(this ClientData client, T data) where T : Packet => client.SendDataToClient(data?.Serilize());
+        public static void SendDataToGameServer<T>(this ClientData client, T data) where T : Packet => client.SendDataToGameServer(data?.Serilize());
+        public static void Disconnect(this ClientData client, string reason = "unknown")
         {
             client.SendDataToClient(Net.Instance.Serializer.Serialize(new Kick() { Reason = new(reason, NetworkText.Mode.Literal) }));
             client.Dispose();
         }
 
-        public static void SendMessage(this ClientInfo client, string text, Color color)
+        public static void SendMessage(this ClientData client, string text, Color color)
         {
             using (var writer = new BinaryWriter(new MemoryStream()))
             {
@@ -220,12 +226,12 @@ namespace MultiSEngine.Modules
                 }.Serilize());
             }
         }
-        public static void SendInfoMessage(this ClientInfo client, string text) => SendMessage(client, text, new());
-        public static void SendSuccessMessage(this ClientInfo client, string text)
+        public static void SendInfoMessage(this ClientData client, string text) => SendMessage(client, text, new());
+        public static void SendSuccessMessage(this ClientData client, string text)
         {
 
         }
-        public static void SendErrorMessage(this ClientInfo client, string text)
+        public static void SendErrorMessage(this ClientData client, string text)
         {
 
         }

@@ -4,7 +4,7 @@ using System.Net.Sockets;
 
 namespace MultiSEngine.Modules.DataStruct
 {
-    public class ClientInfo
+    public class ClientData
     {
         public enum ClientState
         {
@@ -16,7 +16,7 @@ namespace MultiSEngine.Modules.DataStruct
             FinishSendInventory,
             InGame,
         }
-        public ClientInfo(Socket connection)
+        public ClientData(Socket connection)
         {
             if (connection is null)
                 throw new ArgumentNullException(nameof(connection));

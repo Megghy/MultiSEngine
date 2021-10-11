@@ -10,7 +10,6 @@ namespace MultiSEngine.Modules.DataStruct
     {
         public bool Visible { get; set; } = true;
         public string Name { get; set; }
-        public string Permission { get; set; }
         public string IP { get; set; }
         public int Port { get; set; }
         public int SpawnX { get; set; } = -1;

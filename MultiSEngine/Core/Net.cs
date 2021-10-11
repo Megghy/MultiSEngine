@@ -46,7 +46,7 @@ namespace MultiSEngine.Core
                 {
                     connection = SocketServer.Accept();
 
-                    var client = new ClientInfo(connection);
+                    var client = new ClientData(connection);
 
                     Data.Clients.Add(client);
                     Logs.Info($"{connection.RemoteEndPoint} trying to connect...");
@@ -67,7 +67,7 @@ namespace MultiSEngine.Core
     /// </summary>
     public partial class Net
     {
-        public void CheckAlive(ClientInfo client)
+        public void CheckAlive(ClientData client)
         {
             while (client.ClientConnection is { Connected: true })
             {
@@ -82,7 +82,7 @@ namespace MultiSEngine.Core
                 }
             }
         }
-        public void RecieveLoop(ClientInfo client)
+        public void RecieveLoop(ClientData client)
         {
             byte[] buffer = new byte[131070];
             while (client.ClientConnection is { Connected: true })
@@ -101,7 +101,7 @@ namespace MultiSEngine.Core
             }
             Logs.Text($"{client.Name} disconnect.");
         }
-        private void CheckBuffer(ClientInfo client, int size, byte[] buffer)
+        private void CheckBuffer(ClientData client, int size, byte[] buffer)
         {
             try
             {
@@ -116,12 +116,12 @@ namespace MultiSEngine.Core
                         var tempLength = BitConverter.ToUInt16(buffer, position);
                         if (tempLength == 0)
                             break;
-                        if (ProcessClientPacket(client, buffer, position, tempLength))
+                        if (DeserilizeClientPacket(client, buffer, position, tempLength))
                             client.SendDataToGameServer(buffer, position, tempLength);
                         position += tempLength;
                     }
                 }
-                else if (ProcessClientPacket(client, buffer, 0, size))
+                else if (DeserilizeClientPacket(client, buffer, 0, size))
                     client.SendDataToGameServer(buffer, 0, size);
             }
             catch { }
@@ -132,17 +132,17 @@ namespace MultiSEngine.Core
         /// <param name="buffer"></param>
         /// <param name="startIndex"></param>
         /// <param name="length"></param>
-        private bool ProcessClientPacket(ClientInfo client, byte[] buffer, int startIndex, int length)
+        private bool DeserilizeClientPacket(ClientData client, byte[] buffer, int startIndex, int length)
         {
             try
             {
-                if (buffer[startIndex + 2] is 1 or 4)
+                if (buffer[startIndex + 2] is 1 or 4 or 82)
                     using (var reader = new BinaryReader(new MemoryStream(buffer, startIndex, length)))
                     {
                         switch (Serializer.Deserialize(reader))
                         {
                             case ClientHello connect:
-                                if (client.State is ClientInfo.ClientState.NewConnection) //首次连接时默认进入主服务器
+                                if (client.State is ClientData.ClientState.NewConnection) //首次连接时默认进入主服务器
                                 {
                                     if (Config.Instance.MainServer is { })
                                     {
@@ -159,6 +159,11 @@ namespace MultiSEngine.Core
                             case SyncPlayer playerInfo:
                                 client.Player.Name = playerInfo.Name;
                                 return true;
+                            case TrProtocol.Packets.Modules.NetTextModuleC2S modules:
+                                if (Command.HandleCommand(client, modules.Text, out var c) && c)
+                                    return false;
+                                else
+                                    return true;
                             default:
                                 return true;
                         }

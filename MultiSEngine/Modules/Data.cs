@@ -4,6 +4,6 @@ namespace MultiSEngine.Modules
 {
     internal class Data
     {
-        public static List<DataStruct.ClientInfo> Clients { get; set; } = new();
+        public static List<DataStruct.ClientData> Clients { get; set; } = new();
     }
 }
