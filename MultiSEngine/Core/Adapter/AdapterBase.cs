@@ -15,7 +15,7 @@ namespace MultiSEngine.Core.Adapter
             Client = client;
             Connection = connection;
         }
-        public virtual PacketSerializer Serilizer { get; set; } = new(true);
+        public virtual PacketSerializer Serializer { get; set; } = new(true);
         public ClientData Client { get; set; }
         public Socket Connection { get; set; }
         /// <summary>
@@ -40,7 +40,7 @@ namespace MultiSEngine.Core.Adapter
                 {
                     try
                     {
-                        var packet = Serilizer.Deserialize(reader);
+                        var packet = Serializer.Deserialize(reader);
                         if (GetData(packet))
                             SendData(packet);
                     }

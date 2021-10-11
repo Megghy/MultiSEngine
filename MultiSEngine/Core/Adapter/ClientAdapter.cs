@@ -13,7 +13,7 @@ namespace MultiSEngine.Core.Adapter
         public ClientAdapter(ClientData client, Socket connection) : base(client, connection)
         {
         }
-        public override PacketSerializer Serilizer { get; set; } = new(false);
+        public override PacketSerializer Serializer { get; set; } = new(false);
         public override bool GetData(Packet packet)
         {
             try
