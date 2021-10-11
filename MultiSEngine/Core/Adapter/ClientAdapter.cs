@@ -8,12 +8,12 @@ using TrProtocol.Packets;
 
 namespace MultiSEngine.Core.Adapter
 {
-    internal class ClientAdapter : AdapterBase
+    public class ClientAdapter : AdapterBase
     {
         public ClientAdapter(ClientData client, Socket connection) : base(client, connection)
         {
         }
-
+        public override PacketSerializer Serilizer { get; set; } = new(false);
         public override bool GetData(Packet packet)
         {
             try
@@ -39,7 +39,12 @@ namespace MultiSEngine.Core.Adapter
                         Client.Player.Name = playerInfo.Name;
                         return true;
                     case TrProtocol.Packets.Modules.NetTextModuleC2S modules:
-                        return Command.HandleCommand(Client, modules.Text, out var c) && c;
+                        if (modules.Command == "Say")
+                        {
+                            Command.HandleCommand(Client, modules.Text, out var c);
+                            return c;
+                        }
+                        return true;
                     default:
                         return true;
                 }

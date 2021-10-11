@@ -10,12 +10,11 @@ using TrProtocol.Packets;
 namespace MultiSEngine.Core.Adapter
 {
 
-    internal class ServerAdapter : AdapterBase
+    public class ServerAdapter : AdapterBase
     {
         public ServerAdapter(ClientData client, Socket connection) : base(client, connection)
         {
         }
-        public override PacketSerializer Serializer { get; set; } = new(true);
         public override AdapterBase Start()
         {
             Task.Run(RecieveLoop);
@@ -41,7 +40,7 @@ namespace MultiSEngine.Core.Adapter
         public override bool GetData(Packet packet)
         {
             try
-            {
+            { 
                 switch (packet)
                 {
                     case Kick kick:
@@ -84,7 +83,7 @@ namespace MultiSEngine.Core.Adapter
                         }
                         return true;
                     case RequestPassword requestPassword:
-                        Client.State = ClientData.ClientState.RequestingPassword;
+                        Client.State = ClientData.ClientState.RequestPassword;
                         Client.SendErrorMessage(string.Format(Localization.Get("Prompt_NeedPassword"), Client.Server.Name, Localization.Get("Help_Password")));
                         return false;
                     default:

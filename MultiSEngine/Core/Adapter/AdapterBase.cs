@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 using MultiSEngine.Modules.DataStruct;
 using TrProtocol;
+using TrProtocol.Models;
 
 namespace MultiSEngine.Core.Adapter
 {
@@ -14,22 +15,9 @@ namespace MultiSEngine.Core.Adapter
             Client = client;
             Connection = connection;
         }
-        public virtual PacketSerializer Serializer { get; set; } = new(false);
+        public virtual PacketSerializer Serilizer { get; set; } = new(true);
         public ClientData Client { get; set; }
         public Socket Connection { get; set; }
-        public virtual Packet GetOriginData(byte[] buffer, int start, int length)
-        {
-            try
-            {
-                using (var reader = new BinaryReader(new MemoryStream(buffer, start, length)))
-                    return Serializer.Deserialize(reader);
-            }
-            catch (Exception ex)
-            {
-                Logs.Error($"An error occurred while serializing the packet{Environment.NewLine}{ex}");
-                return null;
-            }
-        }
         /// <summary>
         /// 返回是否要继续传递给给定的socket
         /// </summary>
@@ -47,49 +35,21 @@ namespace MultiSEngine.Core.Adapter
         }
         internal void RecieveLoop()
         {
-            byte[] buffer = new byte[131070];
-            while (true)
-            {
-                try
+            using (var reader = new BinaryReader(new NetworkStream(Connection)))
+                while (true)
                 {
-                    CheckBuffer(Connection?.Receive(buffer) ?? -1, buffer);
-                    Array.Clear(buffer, 0, buffer.Length);
-                }
-                catch (Exception ex)
-                {
-                    Logs.Error($"Socket connection abnormally terminated.\r\n{ex}");
-                    break;
-                }
-            }
-        }
-        internal void CheckBuffer(int size, byte[] buffer)
-        {
-            try
-            {
-                if (size <= 0)
-                    return;
-                if (size > BitConverter.ToUInt16(buffer, 0))
-                {
-                    var position = 0;
-                    while (position < size)
+                    try
                     {
-                        var tempLength = BitConverter.ToUInt16(buffer, position);
-                        if (tempLength <= 0)
-                            return;
-                        var packet = GetOriginData(buffer, position, tempLength);
+                        var packet = Serilizer.Deserialize(reader);
                         if (GetData(packet))
                             SendData(packet);
-                        position += tempLength;
+                    }
+                    catch (Exception ex)
+                    {
+                        Logs.Error($"Socket connection abnormally terminated.\r\n{ex}");
+                        break;
                     }
                 }
-                else
-                {
-                    var packet = GetOriginData(buffer, 0, size);
-                    if (GetData(packet))
-                        SendData(packet);
-                }
-            }
-            catch (Exception ex) { Logs.Error($"An error occurred while processing buffer data{Environment.NewLine}{ex}"); }
         }
     }
 }

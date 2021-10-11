@@ -35,7 +35,8 @@ namespace MultiSEngine.Modules
                     client.Server = server;
                     client.State = ClientData.ClientState.Switching;
 
-                    client.RunningAdapter.Add(new ServerAdapter(client, client.GameServerConnection.Client).Start());
+                    client.SAdapter = new ServerAdapter(client, client.GameServerConnection.Client);
+                    client.SAdapter.Start();
 
                     client.SendDataToGameServer(new ClientHello()
                     {
@@ -67,10 +68,10 @@ namespace MultiSEngine.Modules
     public static partial class ClientHelper
     {
         public static void SendDataToClient(this ClientData client, byte[] buffer, int? index = null, int? length = null)
-        {
+        { 
             try
             {
-                client.ClientConnection?.Send(buffer, index ?? 0, length ?? buffer.Length, SocketFlags.None);
+                client.ClientConnection?.Send(buffer ??new byte[3], index ?? 0, length ?? buffer?.Length ?? 3, SocketFlags.None);
             }
             catch(Exception ex)
             {
@@ -85,7 +86,10 @@ namespace MultiSEngine.Modules
         {
             try
             {
-                client.GameServerConnection?.Client?.Send(buffer ?? new byte[3], index ?? 0, length ?? buffer?.Length ?? 3, SocketFlags.None);
+                buffer ??= new byte[3];
+                index ??= 0;
+                length ??= buffer?.Length ?? 3;
+                client.GameServerConnection?.Client?.Send(buffer, (int)index, (int)length, SocketFlags.None);
             }
             catch
             {
@@ -93,8 +97,8 @@ namespace MultiSEngine.Modules
                 client.Back();
             }
         }
-        public static void SendDataToClient(this ClientData client, Packet data) => client.SendDataToClient(data?.Serilize());
-        public static void SendDataToGameServer(this ClientData client, Packet data) => client.SendDataToGameServer(data?.Serilize());
+        public static void SendDataToClient(this ClientData client, Packet data) => client.SendDataToClient(Net.Instance.ServerSerializer?.Serialize(data));
+        public static void SendDataToGameServer(this ClientData client, Packet data) => client.SendDataToGameServer(Net.Instance.ClientSerializer?.Serialize(data));
         public static void Disconnect(this ClientData client, string reason = "unknown")
         {
             client.SendDataToClient(Net.Instance.ServerSerializer.Serialize(new Kick() { Reason = new(reason, NetworkText.Mode.Literal) }));

@@ -14,7 +14,7 @@ namespace MultiSEngine.Modules.DataStruct
             NewConnection,
             ReadyToSwitch,
             Switching,
-            RequestingPassword,
+            RequestPassword,
             FinishSendInventory,
             InGame,
         }
@@ -26,7 +26,8 @@ namespace MultiSEngine.Modules.DataStruct
             IP = (connection.RemoteEndPoint as IPEndPoint)?.Address.ToString();
             Port = (connection.RemoteEndPoint as IPEndPoint)?.Port ?? -1;
         }
-        public List<AdapterBase> RunningAdapter { get; set; } = new();
+        public ServerAdapter SAdapter { get; set; }
+        public ClientAdapter CAdapter { get; set; }
         public ClientState State { get; set; } = ClientState.NewConnection;
         public string IP { get; set; }
         public int Port { get; set; }

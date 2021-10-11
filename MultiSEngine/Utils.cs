@@ -38,7 +38,7 @@ namespace MultiSEngine
             return false;
         }
         public static ShortPosition Point(int x, int y) => new() { X = (short)x, Y = (short)y };
-        public static byte[] Serilize<T>(this T packet) where T: Packet => Core.Net.Instance.ServerSerializer?.Serialize(packet);
+        public static byte[] Serilize<T>(this T packet, bool client = true) where T: Packet => client ? Core.Net.Instance.ClientSerializer?.Serialize(packet) : Core.Net.Instance.ServerSerializer?.Serialize(packet);
         public static List<Modules.DataStruct.ServerInfo> GetServerInfoByName(string name)
         {
             return Config.Instance.Servers.Where(s => s.Name.ToLower().StartsWith(name.ToLower()) || s.Name.ToLower().Contains(name.ToLower())).ToList();
