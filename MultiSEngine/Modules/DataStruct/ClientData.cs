@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using MultiSEngine.Core.Adapter;
 
 namespace MultiSEngine.Modules.DataStruct
 {
@@ -24,6 +26,7 @@ namespace MultiSEngine.Modules.DataStruct
             IP = (connection.RemoteEndPoint as IPEndPoint)?.Address.ToString();
             Port = (connection.RemoteEndPoint as IPEndPoint)?.Port ?? -1;
         }
+        public List<AdapterBase> RunningAdapter { get; set; } = new();
         public ClientState State { get; set; } = ClientState.NewConnection;
         public string IP { get; set; }
         public int Port { get; set; }

@@ -3,6 +3,7 @@ using System.IO;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using MultiSEngine.Core;
+using MultiSEngine.Core.Adapter;
 using MultiSEngine.Modules.DataStruct;
 using TrProtocol;
 using TrProtocol.Models;
@@ -34,7 +35,7 @@ namespace MultiSEngine.Modules
                     client.Server = server;
                     client.State = ClientData.ClientState.Switching;
 
-                    Task.Run(() => RecieveLoop(client));
+                    client.RunningAdapter.Add(new ServerAdapter(client, client.GameServerConnection.Client).Start());
 
                     client.SendDataToGameServer(new ClientHello()
                     {
@@ -62,121 +63,6 @@ namespace MultiSEngine.Modules
         /// </summary>
         /// <param name="client"></param>
         public static void Back(this ClientData client) => client.Join(Config.Instance.MainServer);
-        private static void RecieveLoop(ClientData client)
-        {
-            byte[] buffer = new byte[131070];
-            while (true)
-            {
-                try
-                {
-                    CheckBuffer(client, client.GameServerConnection?.Client?.Receive(buffer) ?? -1, buffer);
-                    Array.Clear(buffer, 0, buffer.Length);
-                }
-                catch (Exception ex)
-                {
-                    client.Dispose();
-                    Logs.Error($"Game server connection abnormally terminated.\r\n{ex}");
-                    break;
-                }
-            }
-        }
-        private static void CheckBuffer(ClientData client, int size, byte[] buffer)
-        {
-            try
-            {
-                if (size <= 0)
-                    return;
-                var length = BitConverter.ToUInt16(buffer, 0);
-                if (size > length)
-                {
-                    var position = 0;
-                    while (position < size)
-                    {
-                        var tempLength = BitConverter.ToUInt16(buffer, position);
-                        if (tempLength <= 0)
-                            break;
-                        if (DeserilizeGameServerPacket(client, buffer, position, tempLength))
-                            client.SendDataToClient(buffer, position, tempLength);
-                        position += tempLength;
-                    }
-                }
-                else if (DeserilizeGameServerPacket(client, buffer, 0, size))
-                    client.SendDataToClient(buffer, 0, size);
-            }
-            catch { }
-        }
-        /// <summary>
-        /// 返回从服务器接收到的数据是否发送给玩家
-        /// </summary>
-        /// <param name="buffer"></param>
-        /// <param name="startIndex"></param>
-        /// <param name="length"></param>
-        private static bool DeserilizeGameServerPacket(ClientData client, byte[] buffer, int startIndex, int length)
-        {
-            try
-            {
-                if (buffer[startIndex + 2] is 2 or 3 or 7 or 37)
-                    using (var reader = new BinaryReader(new MemoryStream(buffer, startIndex, length)))
-                    {
-                        var packet = Net.Instance.Serializer.Deserialize(reader);
-                        switch (packet)
-                        {
-                            case Kick kick:
-                                client.State = ClientData.ClientState.Disconnect;
-                                Logs.Info($"Player {client.Player.Name} is removed from server {client.Server.Name}, for the following reason:{kick.Reason}");
-                                client.SendErrorMessage(string.Format(Localization.Get("Prompt_Disconnect"), client.Server.Name, kick.Reason));
-                                client.Back();
-                                return false;
-                            case LoadPlayer slot:
-                                client.Player.Index = slot.PlayerSlot;
-                                return true;
-                            case WorldData worldData:
-                                client.Player.SpawnX = BitConverter.ToInt16(buffer, startIndex + 13);
-                                client.Player.SpawnY = BitConverter.ToInt16(buffer, startIndex + 15);
-                                if (client.State < ClientData.ClientState.InGame)
-                                {
-                                    client.SendDataToGameServer(new RequestTileData() { Position = new() { X = -1, Y = -1 } });
-                                    client.SendDataToGameServer(new SpawnPlayer()
-                                    {
-                                        PlayerSlot = client.Player.Index,
-                                        Position = Utils.Point(client.Server.SpawnX, client.Server.SpawnY),
-                                        Context = PlayerSpawnContext.SpawningIntoWorld
-                                    });
-                                    if (client.Server.SpawnX == -1 || client.Server.SpawnY == -1)
-                                        client.SendDataToClient(new Teleport()
-                                        {
-                                            PlayerSlot = client.Player.Index,
-                                            Position = new(client.Player.SpawnX, client.Player.SpawnY),
-                                            Style = 1
-                                        });
-                                    else
-                                        client.SendDataToClient(new Teleport()
-                                        {
-                                            PlayerSlot = client.Player.Index,
-                                            Position = new(client.Server.SpawnX, client.Server.SpawnY),
-                                            Style = 1
-                                        });
-                                    client.State = ClientData.ClientState.InGame;
-                                    Logs.Success($"Player {client.Name} successfully joined the server: {client.Server.Name}");
-                                }
-                                return true;
-                            case RequestPassword requestPassword:
-                                client.State = ClientData.ClientState.RequestingPassword;
-                                client.SendErrorMessage(string.Format(Localization.Get("Prompt_NeedPassword"), client.Server.Name, Localization.Get("Help_Password")));
-                                return false;
-                            default:
-                                return true;
-                        }
-                    }
-                else
-                    return true;
-            }
-            catch (Exception ex)
-            {
-                Logs.Error($"Deserilize game server packet error: {ex}");
-                return false;
-            }
-        }
     }
     public static partial class ClientHelper
     {
@@ -199,7 +85,7 @@ namespace MultiSEngine.Modules
         {
             try
             {
-                client.GameServerConnection?.Client?.Send(buffer, index ?? 0, length ?? buffer.Length, SocketFlags.None);
+                client.GameServerConnection?.Client?.Send(buffer ?? new byte[3], index ?? 0, length ?? buffer?.Length ?? 3, SocketFlags.None);
             }
             catch
             {
@@ -207,11 +93,11 @@ namespace MultiSEngine.Modules
                 client.Back();
             }
         }
-        public static void SendDataToClient<T>(this ClientData client, T data) where T : Packet => client.SendDataToClient(data?.Serilize());
-        public static void SendDataToGameServer<T>(this ClientData client, T data) where T : Packet => client.SendDataToGameServer(data?.Serilize());
+        public static void SendDataToClient(this ClientData client, Packet data) => client.SendDataToClient(data?.Serilize());
+        public static void SendDataToGameServer(this ClientData client, Packet data) => client.SendDataToGameServer(data?.Serilize());
         public static void Disconnect(this ClientData client, string reason = "unknown")
         {
-            client.SendDataToClient(Net.Instance.Serializer.Serialize(new Kick() { Reason = new(reason, NetworkText.Mode.Literal) }));
+            client.SendDataToClient(Net.Instance.ServerSerializer.Serialize(new Kick() { Reason = new(reason, NetworkText.Mode.Literal) }));
             client.Dispose();
         }
 
