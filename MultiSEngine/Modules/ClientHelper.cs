@@ -22,7 +22,7 @@ namespace MultiSEngine.Modules
         /// <param name="server"></param>
         public static void Join(this ClientInfo client, ServerInfo server)
         {
-            Logs.Info($"Transferring {client.IP}:{client.Port} to the server: {server.Name}");
+            Logs.Info($"Switching {client.Name} to the server: {server.Name}");
             client.State = ClientInfo.ClientState.ReadyToSwitch;
             if (Utils.TryParseAddress(server.IP, out var ip))
             {
@@ -87,18 +87,15 @@ namespace MultiSEngine.Modules
                     while (position < size)
                     {
                         var tempLength = BitConverter.ToUInt16(buffer, position);
-                        Console.WriteLine($"{tempLength} {buffer[2]}");
                         if (tempLength <= 0)
                             break;
-                        if (!DeserilizeGameServerPacket(client, buffer, position, tempLength))
-                            Array.Clear(buffer, position, tempLength);
+                        if (DeserilizeGameServerPacket(client, buffer, position, tempLength))
+                            client.SendDataToClient(buffer, position, tempLength);
                         position += tempLength;
                     }
                 }
-                else if (!DeserilizeGameServerPacket(client, buffer, 0, size))
-                    return;
-                Console.WriteLine($"{length} {buffer[2]}");
-                client.SendDataToClient(buffer);
+                else if (DeserilizeGameServerPacket(client, buffer, 0, size))
+                    client.SendDataToClient(buffer, 0, size);
             }
             catch { }
         }
@@ -120,8 +117,8 @@ namespace MultiSEngine.Modules
                         {
                             case Kick kick:
                                 client.State = ClientInfo.ClientState.Disconnect;
-                                client.SendErrorMessage(string.Format(Localization.Get("Prompt_Disconnect"), client.Server.Name, kick.Reason));
                                 Logs.Info($"Player {client.Player.Name} is removed from server {client.Server.Name}, for the following reason:{kick.Reason}");
+                                client.SendErrorMessage(string.Format(Localization.Get("Prompt_Disconnect"), client.Server.Name, kick.Reason));
                                 client.Back();
                                 return false;
                             case LoadPlayer slot:
@@ -154,6 +151,7 @@ namespace MultiSEngine.Modules
                                             Style = 1
                                         });
                                     client.State = ClientInfo.ClientState.InGame;
+                                    Logs.Success($"Player {client.Name} successfully joined the server: {client.Server.Name}");
                                 }
                                 return true;
                             case RequestPassword requestPassword:
@@ -176,29 +174,26 @@ namespace MultiSEngine.Modules
     }
     public static partial class ClientHelper
     {
-        public static void SendDataToClient(this ClientInfo client, byte[] buffer)
+        public static void SendDataToClient(this ClientInfo client, byte[] buffer, int? index = null, int? length = null)
         {
             try
             {
-#if DEBUG
-                Console.WriteLine($"send to client {buffer[2]}");
-#endif
-                client.ClientConnection.Send(buffer);
+                client.ClientConnection?.Send(buffer, index ?? 0, length ?? buffer.Length, SocketFlags.None);
             }
-            catch
+            catch(Exception ex)
             {
-                Logs.Info($"Disconnected from {client.IP}:{client.Port}");
-                client.Dispose(); 
+                if(client.State != ClientInfo.ClientState.Disconnect)
+                {
+                    Logs.Info($"Disconnected from {client.Player.Name ?? client.Address}{Environment.NewLine}{ex}");
+                    client.Dispose();
+                }
             }
         }
-        public static void SendDataToGameServer(this ClientInfo client, byte[] buffer)
+        public static void SendDataToGameServer(this ClientInfo client, byte[] buffer, int? index = null, int? length = null)
         {
             try
             {
-#if DEBUG
-                Console.WriteLine($"send to game {buffer[2]}");
-#endif
-                client.GameServerConnection?.Client?.Send(buffer);
+                client.GameServerConnection?.Client?.Send(buffer, index ?? 0, length ?? buffer.Length, SocketFlags.None);
             }
             catch
             {

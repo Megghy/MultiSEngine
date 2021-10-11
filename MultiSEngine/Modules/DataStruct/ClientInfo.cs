@@ -27,6 +27,7 @@ namespace MultiSEngine.Modules.DataStruct
         public ClientState State { get; set; } = ClientState.NewConnection;
         public string IP { get; set; }
         public int Port { get; set; }
+        public string Address => $"{IP}:{Port}";
         /// <summary>
         /// 玩家连接与此服务器之间的连接
         /// </summary>
@@ -36,23 +37,9 @@ namespace MultiSEngine.Modules.DataStruct
         /// </summary>
         public TcpClient GameServerConnection { get; set; }
         public ServerInfo Server { get; set; }
+        public string Name => Player.Name ?? Address;
         public MSEPlayer Player { get; set; } = new();
-        public void RecieveLoop()
-        {
-            byte[] buffer = new byte[1024 * 1024];
-            while (true)
-            {
-                try
-                {
-                    int length = ClientConnection.Receive(buffer);
-                }
-                catch (Exception ex)
-                {
-                    Logs.Error($"连接已断开\r\n{ex}");
-                    break;
-                }
-            }
-        }
+
         public void Dispose()
         {
             Data.Clients.Remove(this);

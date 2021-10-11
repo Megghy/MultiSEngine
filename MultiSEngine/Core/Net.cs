@@ -45,18 +45,20 @@ namespace MultiSEngine.Core
                 try
                 {
                     connection = SocketServer.Accept();
+
+                    var client = new ClientInfo(connection);
+
+                    Data.Clients.Add(client);
+                    Logs.Info($"{connection.RemoteEndPoint} trying to connect...");
+
+                    Task.Run(() => RecieveLoop(client));
+                    Task.Run(() => CheckAlive(client));
                 }
                 catch (Exception ex)
                 {
                     Logs.Error(ex);
-                    break;
+                    continue;
                 }
-                var client = new ClientInfo(connection);
-                Data.Clients.Add(client);
-                //显示与客户端连接情况
-                Logs.Info($"{connection.RemoteEndPoint} trying to connect...");
-                Task.Run(() => RecieveLoop(client));
-                Task.Run(() => CheckAlive(client));
             }
         }
     }
@@ -71,7 +73,7 @@ namespace MultiSEngine.Core
             {
                 try
                 {
-                    client.SendDataToClient(new byte[1]);
+                    client.SendDataToClient(new byte[3]);
                     Task.Delay(1000).Wait();
                 }
                 catch
@@ -88,6 +90,7 @@ namespace MultiSEngine.Core
                 try
                 {
                     CheckBuffer(client, client.ClientConnection.Receive(buffer), buffer);
+                    Array.Clear(buffer, 0, buffer.Length);
                 }
                 catch (Exception ex)
                 {
@@ -96,7 +99,7 @@ namespace MultiSEngine.Core
                     return;
                 }
             }
-            Logs.Text($"{client.Player.Name ?? $"{client.IP}:{client.Port}"} disconnect.");
+            Logs.Text($"{client.Name} disconnect.");
         }
         private void CheckBuffer(ClientInfo client, int size, byte[] buffer)
         {
@@ -105,7 +108,6 @@ namespace MultiSEngine.Core
                 if (size <= 0)
                     return;
                 var length = BitConverter.ToUInt16(buffer, 0);
-                Console.WriteLine($"recieve from client{length} [{buffer[2]}]");
                 if (size > length)
                 {
                     var position = 0;
@@ -114,44 +116,52 @@ namespace MultiSEngine.Core
                         var tempLength = BitConverter.ToUInt16(buffer, position);
                         if (tempLength == 0)
                             break;
-                        if (!ProcessClientPacket(client, buffer, position, tempLength))
-                            Array.Clear(buffer, position, tempLength);
+                        if (ProcessClientPacket(client, buffer, position, tempLength))
+                            client.SendDataToGameServer(buffer, position, tempLength);
                         position += tempLength;
                     }
                 }
-                else if (!ProcessClientPacket(client, buffer, 0, size))
-                    return;
-                client.SendDataToGameServer(buffer);
+                else if (ProcessClientPacket(client, buffer, 0, size))
+                    client.SendDataToGameServer(buffer, 0, size);
             }
             catch { }
         }
         /// <summary>
         /// 返回从玩家接收到的数据是否发送给服务器
         /// </summary>
-        /// <param name="tempBuffer"></param>
+        /// <param name="buffer"></param>
         /// <param name="startIndex"></param>
         /// <param name="length"></param>
-        private bool ProcessClientPacket(ClientInfo client, byte[] tempBuffer, int startIndex, int length)
+        private bool ProcessClientPacket(ClientInfo client, byte[] buffer, int startIndex, int length)
         {
             try
             {
-                if (tempBuffer[startIndex + 2] == 1)
-                    using (var reader = new BinaryReader(new MemoryStream(tempBuffer, startIndex, length)))
+                if (buffer[startIndex + 2] is 1 or 4)
+                    using (var reader = new BinaryReader(new MemoryStream(buffer, startIndex, length)))
                     {
-                        var hello = Serializer.Deserialize(reader) as ClientHello;
-                        if (client.State is ClientInfo.ClientState.NewConnection) //首次连接时默认进入主服务器
+                        switch (Serializer.Deserialize(reader))
                         {
-                            if (Config.Instance.MainServer is { })
-                            {
-                                client.Player.VersionNum = hello.Version.StartsWith("Terraria") && int.TryParse(hello.Version[8..], out var v)
-                                ? v
-                                : Config.Instance.MainServer.VersionNum;
-                                Logs.Info($"Version num of player {client.IP}:{client.Port} is {client.Player.VersionNum}.");
-                            }
-                            else
-                                client.Disconnect("No default server is set for the current server.");
+                            case ClientHello connect:
+                                if (client.State is ClientInfo.ClientState.NewConnection) //首次连接时默认进入主服务器
+                                {
+                                    if (Config.Instance.MainServer is { })
+                                    {
+                                        client.Player.VersionNum = connect.Version.StartsWith("Terraria") && int.TryParse(connect.Version[8..], out var v)
+                                        ? v
+                                        : Config.Instance.MainServer.VersionNum;
+                                        Logs.Info($"Version num of player {client.Name} is {client.Player.VersionNum}.");
+                                        client.Join(Config.Instance.MainServer);
+                                    }
+                                    else
+                                        client.Disconnect("No default server is set for the current server.");
+                                }
+                                return false;
+                            case SyncPlayer playerInfo:
+                                client.Player.Name = playerInfo.Name;
+                                return true;
+                            default:
+                                return true;
                         }
-                        return false;
                     }
                 else
                     return true;
