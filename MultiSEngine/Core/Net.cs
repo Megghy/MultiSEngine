@@ -9,9 +9,9 @@ using TrProtocol;
 
 namespace MultiSEngine.Core
 {
-    public class Net
-    {
-        public static Net Instance { get; internal set; } = new();
+    public class Net 
+    { 
+        public static Net Instance { get; internal set; } = new(); 
         public Socket SocketServer { get; internal set; }
         public readonly PacketSerializer ClientSerializer = new(true);
         public readonly PacketSerializer ServerSerializer = new(false);
@@ -48,7 +48,7 @@ namespace MultiSEngine.Core
                     Data.Clients.Add(client);
                     Logs.Info($"{connection.RemoteEndPoint} trying to connect...");
 
-                    client.CAdapter = new ClientAdapter(client, connection);
+                    client.CAdapter = new FakeWorldAdapter(client, connection);
                     client.CAdapter.Start();
                 }
                 catch (Exception ex)

@@ -37,9 +37,9 @@ namespace MultiSEngine.Core
         public static bool HandleCommand(ClientData client, string text, out bool continueSend)
         {
             continueSend = true;
-            if (text.StartsWith("/"))
+            if (text?.StartsWith("/") ?? false)
             {
-                text = text.Remove(0, 3);
+                text = text.Remove(0, 1);
                 int num = -1;
                 for (int i = 0; i < text.Length; i++)
                 {
@@ -49,43 +49,44 @@ namespace MultiSEngine.Core
                         break;
                     }
                 }
-                if (num == 0)
+                if (num != 0)
                 {
-                    client.SendErrorMessage("无效的命令. 输入 /mse 查看所有已注册命令.");
-                    return true;
-                }
-                var cmdName = string.Empty;
-                if (num < 0)
-                {
-                    cmdName = text.ToLower();
+                    var cmdName = string.Empty;
+                    if (num < 0)
+                    {
+                        cmdName = text.ToLower();
+                    }
+                    else
+                    {
+                        cmdName = text.Substring(0, num).ToLower();
+                    }
+                    List<string> list;
+                    if (num < 0)
+                    {
+                        list = new List<string>();
+                    }
+                    else
+                    {
+                        list = ParseParameters(text.Substring(num));
+                    }
+                    List<CmdBase> aviliableCommands = AllCommands.FindAll(c => c.Name.Contains(cmdName));
+                    if (aviliableCommands.FirstOrDefault() is { } command)
+                    {
+                        try
+                        {
+                            continueSend = command.ContinueSend;
+                            command.Execute(client, cmdName, list);
+                        }
+                        catch (Exception ex)
+                        {
+                            Logs.Info($"An exception occurred while executing the command: {command.Name}{Environment.NewLine}{ex.Message}");
+                            client.SendErrorMessage($"Excute command failed.");
+                        }
+                        return true;
+                    }
                 }
                 else
-                {
-                    cmdName = text.Substring(0, num).ToLower();
-                }
-                List<string> list;
-                if (num < 0)
-                {
-                    list = new List<string>();
-                }
-                else
-                {
-                    list = ParseParameters(text.Substring(num));
-                }
-                List<CmdBase> aviliableCommands = AllCommands.FindAll(c => c.Name.Contains(cmdName));
-                if (aviliableCommands.FirstOrDefault() is { } command)
-                {
-                    try
-                    {
-                        continueSend = command.ContinueSend;
-                        command.Execute(client, cmdName, list);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logs.Info($"An exception occurred while executing the command: {cmdName}{Environment.NewLine}{ex.Message}");
-                        client.SendErrorMessage($"Excute command failed.");
-                    }
-                }
+                    return false;
             }
             return false;
         }

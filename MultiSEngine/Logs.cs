@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace MultiSEngine
@@ -36,7 +33,8 @@ namespace MultiSEngine
         private static readonly Queue LogQueue = new();
         public static void SaveLogTask()
         {
-            Task.Run(() => {
+            Task.Run(() =>
+            {
                 while (true)
                 {
                     if (!Directory.Exists(LogPath))
@@ -50,7 +48,7 @@ namespace MultiSEngine
         public static void LogAndSave(object message, string prefix = "[Log]", ConsoleColor color = DefaultColor)
         {
             Console.ForegroundColor = color;
-            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd-HH:mm:ss} - {prefix} - {message}");
+            Console.WriteLine($"{prefix} - {message}");
             LogQueue.Enqueue($"{DateTime.Now:yyyy-MM-dd-HH:mm:ss} - {prefix} {message}{Environment.NewLine}");
             Console.ForegroundColor = DefaultColor;
         }

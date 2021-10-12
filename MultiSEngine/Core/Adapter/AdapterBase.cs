@@ -4,7 +4,6 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 using MultiSEngine.Modules.DataStruct;
 using TrProtocol;
-using TrProtocol.Models;
 
 namespace MultiSEngine.Core.Adapter
 {
@@ -15,6 +14,7 @@ namespace MultiSEngine.Core.Adapter
             Client = client;
             Connection = connection;
         }
+        public bool ShouldStop { get; set; } = false;
         public virtual PacketSerializer Serializer { get; set; } = new(true);
         public ClientData Client { get; set; }
         public Socket Connection { get; set; }
@@ -33,23 +33,34 @@ namespace MultiSEngine.Core.Adapter
             Task.Run(RecieveLoop);
             return this;
         }
+        public virtual void Stop(bool closeConnection = false)
+        {
+            ShouldStop = true;
+            if (closeConnection)
+            {
+                Connection?.Dispose();
+                Connection = null;
+            }
+        }
         internal void RecieveLoop()
         {
             using (var reader = new BinaryReader(new NetworkStream(Connection)))
-                while (true)
+                try
                 {
-                    try
+                    while (Connection is { Connected: true })
                     {
                         var packet = Serializer.Deserialize(reader);
                         if (GetData(packet))
                             SendData(packet);
                     }
-                    catch (Exception ex)
-                    {
-                        Logs.Error($"Socket connection abnormally terminated.\r\n{ex}");
-                        break;
-                    }
                 }
+                catch (EndOfStreamException) { }
+                catch (IOException) { }
+                catch (Exception ex)
+                {
+                    Logs.Error($"Socket connection abnormally terminated.\r\n{ex}");
+                }
+
         }
     }
 }

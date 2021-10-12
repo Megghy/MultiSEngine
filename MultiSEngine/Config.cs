@@ -30,6 +30,7 @@ namespace MultiSEngine
 
         public string ListenIP { get; set; } = "127.0.0.1";
         public int ListenPort { get; set; } = 7778;
+        public string ServerName { get; set; } = "MultiSEngine";
         public Modules.DataStruct.ServerInfo MainServer { get; set; }
         public List<Modules.DataStruct.ServerInfo> Servers { get; set; }
     }

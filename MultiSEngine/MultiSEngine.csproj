@@ -12,4 +12,8 @@
     </Reference>
   </ItemGroup>
 
+  <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
+    <Exec Command="xcopy C:\Users\Megghy\Source\Repos\TrProtocol\TrProtocol\bin\Debug\net5.0\TrProtocol.dll D:\Code\TrProtocol\Protocal\TrProtocol\bin\Debug\net5.0\*.* /S /D /Y" />
+  </Target>
+
 </Project>

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Net.Sockets;
-using System.Threading.Tasks;
 using MultiSEngine.Core;
 using MultiSEngine.Core.Adapter;
 using MultiSEngine.Modules.DataStruct;
@@ -23,20 +22,25 @@ namespace MultiSEngine.Modules
         /// <param name="server"></param>
         public static void Join(this ClientData client, ServerInfo server)
         {
+            if (client.Server == server)
+                return;
             Logs.Info($"Switching {client.Name} to the server: {server.Name}");
             client.State = ClientData.ClientState.ReadyToSwitch;
             if (Utils.TryParseAddress(server.IP, out var ip))
             {
+                
                 client.GameServerConnection?.Close();
                 try
                 {
-                    client.GameServerConnection = new();
-                    client.GameServerConnection.Connect(server.IP, server.Port);
-                    client.Server = server;
                     client.State = ClientData.ClientState.Switching;
+                    var connection = new TcpClient();
+                    connection.Connect(server.IP, server.Port); //新建与服务器的连接
 
+                    client.SAdapter?.Stop(true);
+                    client.GameServerConnection = connection;  
                     client.SAdapter = new ServerAdapter(client, client.GameServerConnection.Client);
-                    client.SAdapter.Start();
+                    client.SAdapter.Start();        //断开并释放旧连接, 替换为新连接
+                    client.Server = server;
 
                     client.SendDataToGameServer(new ClientHello()
                     {
@@ -67,19 +71,18 @@ namespace MultiSEngine.Modules
     }
     public static partial class ClientHelper
     {
-        public static void SendDataToClient(this ClientData client, byte[] buffer, int? index = null, int? length = null)
-        { 
+        #region 消息函数
+        public static bool SendDataToClient(this ClientData client, byte[] buffer, int? index = null, int? length = null)
+        {
             try
             {
-                client.ClientConnection?.Send(buffer ??new byte[3], index ?? 0, length ?? buffer?.Length ?? 3, SocketFlags.None);
+                client.ClientConnection?.Send(buffer ?? new byte[3], index ?? 0, length ?? buffer?.Length ?? 3, SocketFlags.None);
+                return true;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                if(client.State != ClientData.ClientState.Disconnect)
-                {
-                    Logs.Info($"Disconnected from {client.Player.Name ?? client.Address}{Environment.NewLine}{ex}");
-                    client.Dispose();
-                }
+                return false;
+                //Logs.Warn($"Failed to send data to {client.Player.Name ?? client.Address}{Environment.NewLine}{ex}");
             }
         }
         public static void SendDataToGameServer(this ClientData client, byte[] buffer, int? index = null, int? length = null)
@@ -93,11 +96,11 @@ namespace MultiSEngine.Modules
             }
             catch
             {
-                Logs.Info($"Failed to send data to server: {client.Server?.IP}:{client.Server?.Port}");
+                Logs.Info($"Failed to send data to server: {client.Name}");
                 client.Back();
             }
         }
-        public static void SendDataToClient(this ClientData client, Packet data) => client.SendDataToClient(Net.Instance.ServerSerializer?.Serialize(data));
+        public static bool SendDataToClient(this ClientData client, Packet data) => client.SendDataToClient(Net.Instance.ServerSerializer?.Serialize(data));
         public static void SendDataToGameServer(this ClientData client, Packet data) => client.SendDataToGameServer(Net.Instance.ClientSerializer?.Serialize(data));
         public static void Disconnect(this ClientData client, string reason = "unknown")
         {
@@ -105,25 +108,31 @@ namespace MultiSEngine.Modules
             client.Dispose();
         }
 
-        public static void SendMessage(this ClientData client, string text, Color color)
+        public static void SendMessage(this ClientData client, string text, Color color, bool withPrefix = true)
         {
             using (var writer = new BinaryWriter(new MemoryStream()))
             {
                 client.SendDataToClient(new TrProtocol.Packets.Modules.NetTextModuleS2C()
                 {
-                    Text = new NetworkText(text, NetworkText.Mode.Literal),
-                    Color = color
-                }.Serilize());
+                    Text = new NetworkText($"{(withPrefix ? $"<[c/B1DAE4:{Data.MessagePrefix}]> " : "")}{text}", NetworkText.Mode.Literal),
+                    Color = color,
+                    PlayerSlot = 255
+                });
             }
         }
-        public static void SendInfoMessage(this ClientData client, string text) => SendMessage(client, text, new());
-        public static void SendSuccessMessage(this ClientData client, string text)
+        public static void SendMessage(this ClientData client, string text, bool withPrefix = true) => SendMessage(client, text, new(255, 255, 255), withPrefix);
+        public static void SendInfoMessage(this ClientData client, string text, bool withPrefix = true) => SendMessage(client, text, new(220, 220, 130), withPrefix);
+        public static void SendSuccessMessage(this ClientData client, string text, bool withPrefix = true) => SendMessage(client, text, new(165, 230, 155), withPrefix);
+        public static void SendErrorMessage(this ClientData client, string text, bool withPrefix = true) => SendMessage(client, text, new(220, 135, 135), withPrefix);
+        #endregion
+        #region 一些小工具
+        public static void ReadVersion(this ClientData client, ClientHello hello)
         {
-
+            client.Player.VersionNum = hello.Version.StartsWith("Terraria") && int.TryParse(hello.Version[8..], out var v)
+                            ? v
+                            : Config.Instance.MainServer.VersionNum;
+            Logs.Info($"Version num of player {client.Name} is {client.Player.VersionNum}.");
         }
-        public static void SendErrorMessage(this ClientData client, string text)
-        {
-
-        }
+        #endregion
     }
 }

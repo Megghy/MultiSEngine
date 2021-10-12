@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using MultiSEngine.Core.Adapter;
@@ -46,6 +45,8 @@ namespace MultiSEngine.Modules.DataStruct
 
         public void Dispose()
         {
+            Logs.Text($"{Name} disconnect.");
+            State = ClientState.Disconnect;
             Data.Clients.Remove(this);
             try
             {

@@ -1,15 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using MultiSEngine.Modules.DataStruct;
 
 namespace MultiSEngine.Modules.Cmds
 {
     internal class InternalCommand : Core.Command.CmdBase
     {
-        public override string Name => "mce";
+        public override string Name => "mse";
 
         public override void Execute(ClientData client, string cmdName, List<string> cmd)
         {
@@ -25,13 +23,28 @@ namespace MultiSEngine.Modules.Cmds
                         else
                             SwitchServer(client, cmd[1]);
                         break;
+                    case "back":
+                    case "b":
+                        if (client.Server == Config.Instance.MainServer)
+                            client.SendInfoMessage($"{Localization.Get("Command_NotJoined")}");
+                        else
+                            client.Back();
+                        break;
+                    default:
+                        SendHelpText();
+                        break;
                 }
             }
-            
-        }
+            else
+                SendHelpText();
+            void SendHelpText()
+            {
+                client.SendInfoMessage($"dd");
+            }
+        } 
         private static void SwitchServer(ClientData client, string serverName)
         {
-            if (client.State >= ClientData.ClientState.ReadyToSwitch)
+            if (client.State == ClientData.ClientState.ReadyToSwitch)
             {
                 client.SendErrorMessage(Localization.Get("Command_IsSwitching"));
                 return;
@@ -42,11 +55,11 @@ namespace MultiSEngine.Modules.Cmds
                     client.SendErrorMessage(string.Format(Localization.Get("Command_AlreadyIn"), server.Name));
                 else
                 {
-                    client.SendInfoMessage(string.Format(Localization.Get("Command_Switch"), server.Name));
+                    //client.SendInfoMessage(string.Format(Localization.Get("Command_Switch"), server.Name));
                     client.Join(server);
                 }
             }
-            else 
+            else
                 client.SendErrorMessage(string.Format(Localization.Get("Command_ServerNotFound"), serverName));
         }
     }

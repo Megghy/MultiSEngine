@@ -1,12 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using TrProtocol;
 
 namespace MultiSEngine.Core
 {
     public class FakeWorld
     {
+        public static void GetPacket(Packet packet)
+        {
+
+        }
     }
 }
