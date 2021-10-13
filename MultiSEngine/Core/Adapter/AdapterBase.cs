@@ -2,8 +2,8 @@
 using System.IO;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using Delphinus;
 using MultiSEngine.Modules.DataStruct;
-using TrProtocol;
 
 namespace MultiSEngine.Core.Adapter
 {
@@ -13,11 +13,14 @@ namespace MultiSEngine.Core.Adapter
         {
             Client = client;
             Connection = connection;
+            NetReader = new BinaryReader(new NetworkStream(Connection));
         }
         public bool ShouldStop { get; set; } = false;
         public virtual PacketSerializer Serializer { get; set; } = new(true);
         public ClientData Client { get; set; }
         public Socket Connection { get; set; }
+        public int ErrorCount = 0;
+        public BinaryReader NetReader { get; set; }
         /// <summary>
         /// 返回是否要继续传递给给定的socket
         /// </summary>
@@ -33,33 +36,68 @@ namespace MultiSEngine.Core.Adapter
             Task.Run(RecieveLoop);
             return this;
         }
-        public virtual void Stop(bool closeConnection = false)
+        public virtual void Stop(bool disposeConnection = false)
         {
             ShouldStop = true;
-            if (closeConnection)
+            if (disposeConnection)
             {
+                Connection?.Shutdown(SocketShutdown.Both);
+                NetReader?.Dispose();
+                NetReader = null;
                 Connection?.Dispose();
-                Connection = null;
             }
+        }
+        public virtual void ChangeConnection(Socket connection)
+        {
+            Connection?.Shutdown(SocketShutdown.Both);
+            NetReader?.Dispose();
+            Connection = null;
+            NetReader = null;
+            Connection = connection;
+            NetReader = new(new NetworkStream(Connection));
+        }
+        public virtual void OnRecieveError(Exception ex)
+        {
+            ErrorCount++;
+            switch (ex)
+            {
+                case EndOfStreamException:
+                case IOException:
+                    break;
+                case Exception:
+                    Logs.Error($"Socket connection abnormally terminated.\r\n{ex}");
+                    break;
+                default:
+                    break;
+            }
+        }
+        public virtual void InternalSendPacket(Packet packet)
+        {
+            if (!ShouldStop)
+                Connection?.Send(packet.Serilize());
         }
         internal void RecieveLoop()
         {
-            using (var reader = new BinaryReader(new NetworkStream(Connection)))
+            while (NetReader is { BaseStream: not null } && !ShouldStop)
+            {
                 try
                 {
-                    while (Connection is { Connected: true })
+                    Packet packet;
+                    packet = Serializer.Deserialize(NetReader);
+                    try
                     {
-                        var packet = Serializer.Deserialize(reader);
                         if (GetData(packet))
                             SendData(packet);
                     }
+                    catch (Exception ex)
+                    {
+                        Logs.Error($"An error occurred while processing packet {packet}.{Environment.NewLine}{ex}");
+                    }
                 }
-                catch (EndOfStreamException) { }
-                catch (IOException) { }
-                catch (Exception ex)
-                {
-                    Logs.Error($"Socket connection abnormally terminated.\r\n{ex}");
-                }
+                catch (EndOfStreamException eos) { OnRecieveError(eos); }
+                catch (IOException io) { OnRecieveError(io); }
+                catch (Exception ex) { OnRecieveError(ex); }
+            }
 
         }
     }

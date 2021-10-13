@@ -1,62 +1,70 @@
 ﻿using System;
 using System.IO;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 using MultiSEngine.Modules;
 using MultiSEngine.Modules.DataStruct;
-using TrProtocol;
-using TrProtocol.Models;
-using TrProtocol.Packets;
+using Delphinus;
+using Delphinus.Packets;
 
 namespace MultiSEngine.Core.Adapter
 {
     internal class FakeWorldAdapter : ClientAdapter
     {
+        public FakeWorldAdapter(Socket connection) : base(null, connection)
+        {
+        }
         public FakeWorldAdapter(ClientData client, Socket connection) : base(client, connection)
         {
         }
-
+        public bool RunningAsNormal = false;
         public override bool GetData(Packet packet)
         {
+            if(RunningAsNormal)
+                return base.GetData(packet);
             switch (packet)
             {
-                case ClientHello hello:
+                case ClientHelloPacket hello:
                     Client.ReadVersion(hello);
-                    Client.SendDataToClient(new LoadPlayer() { PlayerSlot = 0 });
+                    InternalSendPacket(new LoadPlayerPacket() { PlayerSlot = 0 });
                     return false;
-                case RequestWorldInfo:
-                    Client.Player.WorldSpawnX = 8400 / 2;
-                    Client.Player.WorldSpawnY = 2400 / 2;
-                    Client.SendDataToClient(new WorldData()
+                case RequestWorldInfoPacket:
+                    var bb = new Terraria.BitsByte();
+                    bb[6] = true;
+                    Client.Player.OriginData.WorldData = new() { EventInfo1 = bb, SpawnX = 4200, SpawnY = 1200 };
+                    Client.SendDataToClient(new WorldDataPacket()
                     {
                         SpawnX = (short)Client.Player.WorldSpawnX,
                         SpawnY = (short)Client.Player.WorldSpawnY,
                         MaxTileX = 8400,
                         MaxTileY = 2400,
                         GameMode = 0,
-                        WorldName = Config.Instance.ServerName
+                        WorldName = Config.Instance.ServerName,
+                        WorldUniqueID = new byte[16]
                     });
                     return false;
-                case RequestTileData:
+                case RequestTileDataPacket:
                     Client.SendDataToClient(Data.StaticSpawnSquareData);
-                    Client.SendDataToClient(new StartPlaying());
+                    Client.SendDataToClient(new StartPlayingPacket());
                     return false;
-                case SpawnPlayer spawn:
-                    if (spawn.Context == PlayerSpawnContext.SpawningIntoWorld)
+                case SpawnPlayerPacket spawn:
+                    if (spawn.Context == Terraria.PlayerSpawnContext.SpawningIntoWorld)
                     {
-                        Client.Player.SpawnX = spawn.Position.X;
-                        Client.Player.SpawnY = spawn.Position.Y;
-                        Client.SendDataToClient(new FinishedConnectingToServer());
-                        Client.SendDataToClient(new SpawnPlayer()
+                        Client.Player.SpawnX = spawn.PosX;
+                        Client.Player.SpawnY = spawn.PosY;
+                        Client.SendDataToClient(new FinishedConnectingToServerPacket());
+                        Client.SendDataToClient(new SpawnPlayerPacket()
                         {
-                            Position = Utils.Point(Client.Player.WorldSpawnX, Client.Player.WorldSpawnY),
-                            Context = PlayerSpawnContext.RecallFromItem,
+                            PosX = (short)Client.SpawnX,
+                            PosY = (short)Client.SpawnY,
+                            Context = Terraria.PlayerSpawnContext.RecallFromItem,
                             PlayerSlot = 0,
                             Timer = 0
                         });
                         Logs.Text($"Player {Client.Name} is temporarily transported in FakeWorld");
                     }
                     return false;
-                case TrProtocol.Packets.Modules.NetTextModuleC2S modules:
+                case Delphinus.NetModules.NetTextModule modules:
                     if (modules.Command == "Say")
                     {
                         if (!Command.HandleCommand(Client, modules.Text, out var c) && modules.Text.StartsWith("/"))
@@ -69,10 +77,14 @@ namespace MultiSEngine.Core.Adapter
                     return base.GetData(packet);
             }
         }
-
         public override void SendData(Packet packet)
         {
-            //压根没连服务器往哪传
+            if (RunningAsNormal)
+                base.SendData(packet);
+        }
+        public void ChangeStatusToNormal()
+        {
+            RunningAsNormal = true;
         }
     }
 }

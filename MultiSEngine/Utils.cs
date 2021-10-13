@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using TrProtocol;
-using TrProtocol.Models;
+using Delphinus;
+using Delphinus.Packets;
+using Terraria;
+using Terraria.Localization;
 
 namespace MultiSEngine
 {
@@ -35,11 +37,9 @@ namespace MultiSEngine
                     }
                 }
             }
-            catch { }
+            catch {  }
             return false;
         }
-        public static ShortPosition Point(int x, int y) => new() { X = (short)x, Y = (short)y };
-        public static Vector2 Vector2(int x, int y) => new() { X = (short)x, Y = (short)y };
         public static byte[] Serilize<T>(this T packet, bool client = true) where T : Packet => client ? Core.Net.Instance.ClientSerializer?.Serialize(packet) : Core.Net.Instance.ServerSerializer?.Serialize(packet);
         public static List<Modules.DataStruct.ServerInfo> GetServerInfoByName(string name)
         {
@@ -111,6 +111,10 @@ namespace MultiSEngine
                 writer.BaseStream.Seek(0, SeekOrigin.Begin);
                 return bytes;
             }
+        }
+        public static string GetText(this NetworkText text)
+        {
+            return text._mode == NetworkText.Mode.LocalizationKey ? Language.GetTextValue(text._text) : text._text;
         }
     }
 }

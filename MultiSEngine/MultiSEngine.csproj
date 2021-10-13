@@ -6,14 +6,17 @@
     <TargetFramework>net5.0</TargetFramework>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Reference Include="TrProtocol">
-      <HintPath>..\..\TrProtocol\Protocal\TrProtocol\bin\Debug\net5.0\TrProtocol.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
     <Exec Command="xcopy C:\Users\Megghy\Source\Repos\TrProtocol\TrProtocol\bin\Debug\net5.0\TrProtocol.dll D:\Code\TrProtocol\Protocal\TrProtocol\bin\Debug\net5.0\*.* /S /D /Y" />
   </Target>
+
+  <ItemGroup>
+    <Reference Include="Delphinus.OTAPI.PC">
+      <HintPath>C:\Users\Megghy\source\repos\TrProtocol\OTAPIServer\bin\Debug\net5.0\Delphinus.OTAPI.PC.dll</HintPath>
+    </Reference>
+    <Reference Include="OTAPI">
+      <HintPath>C:\Users\Megghy\source\repos\TrProtocol\OTAPIServer\bin\Debug\net5.0\OTAPI.dll</HintPath>
+    </Reference>
+  </ItemGroup>
 
 </Project>

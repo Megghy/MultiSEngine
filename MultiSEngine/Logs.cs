@@ -48,7 +48,7 @@ namespace MultiSEngine
         public static void LogAndSave(object message, string prefix = "[Log]", ConsoleColor color = DefaultColor)
         {
             Console.ForegroundColor = color;
-            Console.WriteLine($"{prefix} - {message}");
+            Console.WriteLine($"{prefix} {message}");
             LogQueue.Enqueue($"{DateTime.Now:yyyy-MM-dd-HH:mm:ss} - {prefix} {message}{Environment.NewLine}");
             Console.ForegroundColor = DefaultColor;
         }

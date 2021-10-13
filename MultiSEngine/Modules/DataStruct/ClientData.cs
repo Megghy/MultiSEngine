@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Timers;
 using MultiSEngine.Core.Adapter;
 
 namespace MultiSEngine.Modules.DataStruct
@@ -15,56 +16,64 @@ namespace MultiSEngine.Modules.DataStruct
             Switching,
             RequestPassword,
             FinishSendInventory,
+            SyncData,
             InGame,
         }
-        public ClientData(Socket connection)
+        public ClientData(ClientAdapter ca)
         {
-            if (connection is null)
-                throw new ArgumentNullException(nameof(connection));
-            ClientConnection = connection;
-            IP = (connection.RemoteEndPoint as IPEndPoint)?.Address.ToString();
-            Port = (connection.RemoteEndPoint as IPEndPoint)?.Port ?? -1;
+            if (ca is null)
+                throw new ArgumentNullException(nameof(ca));
+            ca.Client = this;
+            CAdapter = ca;
+            IP = (ca.Connection.RemoteEndPoint as IPEndPoint)?.Address.ToString();
+            Port = (ca.Connection.RemoteEndPoint as IPEndPoint)?.Port ?? -1;
+
+            TimeOutTimer = new()
+            {
+                Interval = Config.Instance.SwitchTimeOut,
+                AutoReset = false
+            };
+            TimeOutTimer.Elapsed += OnTimeOut;
         }
         public ServerAdapter SAdapter { get; set; }
         public ClientAdapter CAdapter { get; set; }
+        public Socket TempConnection { get; set; }
+
         public ClientState State { get; set; } = ClientState.NewConnection;
         public string IP { get; set; }
         public int Port { get; set; }
         public string Address => $"{IP}:{Port}";
-        /// <summary>
-        /// 玩家连接与此服务器之间的连接
-        /// </summary>
-        public Socket ClientConnection { get; set; }
-        /// <summary>
-        /// 服务器与游戏服务器之间的连接
-        /// </summary>
-        public TcpClient GameServerConnection { get; set; }
+        public int SpawnX => Server is { SpawnX: >= 0 } ? Server.SpawnX : Player.WorldSpawnX;
+        public int SpawnY => Server is { SpawnY: >= 0 } ? Server.SpawnY : Player.WorldSpawnY;
         public ServerInfo Server { get; set; }
         public string Name => Player.Name ?? Address;
         public MSEPlayer Player { get; set; } = new();
 
+        public Timer TimeOutTimer { get; set; }
+        public bool Syncing { get; set; } = false;
+
+        protected void OnTimeOut(object sender, ElapsedEventArgs args)
+        {
+            State = ClientState.ReadyToSwitch;
+            if (SAdapter is VisualPlayerAdapter vpa)
+                vpa.Callback = null;
+            this.SendErrorMessage($"Time out");
+            Logs.Warn($"{Name} timeout when request is switch to server: {TempConnection.RemoteEndPoint}");
+            TempConnection?.Shutdown(SocketShutdown.Both);
+            TempConnection?.Dispose();
+        }
         public void Dispose()
         {
-            Logs.Text($"{Name} disconnect.");
+            Logs.Text($"{Name} disconnected.");
             State = ClientState.Disconnect;
             Data.Clients.Remove(this);
-            try
-            {
-                ClientConnection?.Shutdown(SocketShutdown.Both);
-                GameServerConnection?.Close();
-            }
-            catch { }
-            ClientConnection = null;
-            try
-            {
-                if (GameServerConnection is { Connected: true })
-                    GameServerConnection?.Client.Shutdown(SocketShutdown.Both);
-                GameServerConnection?.Client?.Close();
-                GameServerConnection?.Close();
-            }
-            catch { }
-            GameServerConnection = null;
-            State = ClientState.Disconnect;
+            SAdapter?.Stop(true);
+            CAdapter?.Stop(true);
+            SAdapter = null;
+            CAdapter = null;
+            Player = null;
+            TimeOutTimer.Dispose();
+            Server = null;
         }
     }
 }

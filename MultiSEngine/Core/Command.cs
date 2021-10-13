@@ -69,7 +69,7 @@ namespace MultiSEngine.Core
                     {
                         list = ParseParameters(text.Substring(num));
                     }
-                    List<CmdBase> aviliableCommands = AllCommands.FindAll(c => c.Name.Contains(cmdName));
+                    List<CmdBase> aviliableCommands = AllCommands.FindAll(c => c.Name.ToLower() == cmdName.ToLower());
                     if (aviliableCommands.FirstOrDefault() is { } command)
                     {
                         try

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Delphinus.Packets;
 using MultiSEngine.Modules.DataStruct;
 
 namespace MultiSEngine.Modules.Cmds
@@ -30,6 +31,9 @@ namespace MultiSEngine.Modules.Cmds
                         else
                             client.Back();
                         break;
+                    case "s":
+                        client.SendDataToClient(new LoadPlayerPacket() { PlayerSlot = 0 });
+                        break;
                     default:
                         SendHelpText();
                         break;
@@ -44,7 +48,7 @@ namespace MultiSEngine.Modules.Cmds
         } 
         private static void SwitchServer(ClientData client, string serverName)
         {
-            if (client.State == ClientData.ClientState.ReadyToSwitch)
+            if (client.State > ClientData.ClientState.ReadyToSwitch && client.State < ClientData.ClientState.InGame)
             {
                 client.SendErrorMessage(Localization.Get("Command_IsSwitching"));
                 return;
@@ -52,7 +56,8 @@ namespace MultiSEngine.Modules.Cmds
             if (Utils.GetServerInfoByName(serverName).FirstOrDefault() is { } server)
             {
                 if (client.Server == server)
-                    client.SendErrorMessage(string.Format(Localization.Get("Command_AlreadyIn"), server.Name));
+                    //client.SendErrorMessage(string.Format(Localization.Get(""), server.Name));
+                    client.SendErrorMessage("Command_AlreadyIn");
                 else
                 {
                     //client.SendInfoMessage(string.Format(Localization.Get("Command_Switch"), server.Name));

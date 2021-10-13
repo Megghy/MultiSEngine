@@ -31,6 +31,8 @@ namespace MultiSEngine
         public string ListenIP { get; set; } = "127.0.0.1";
         public int ListenPort { get; set; } = 7778;
         public string ServerName { get; set; } = "MultiSEngine";
+        public int SwitchTimeOut { get; set; } = 5000;
+        public bool SwitchToMainServerOnJoin { get; set; } = false;
         public Modules.DataStruct.ServerInfo MainServer { get; set; }
         public List<Modules.DataStruct.ServerInfo> Servers { get; set; }
     }

@@ -1,9 +1,11 @@
-﻿using System.Net.Sockets;
+﻿using System;
+using System.Net.Sockets;
+using Delphinus;
+using Delphinus.Packets;
 using MultiSEngine.Modules;
 using MultiSEngine.Modules.DataStruct;
-using TrProtocol;
-using TrProtocol.Models;
-using TrProtocol.Packets;
+using Terraria;
+using Terraria.Localization;
 
 namespace MultiSEngine.Core.Adapter
 {
@@ -13,63 +15,61 @@ namespace MultiSEngine.Core.Adapter
         public ServerAdapter(ClientData client, Socket connection) : base(client, connection)
         {
         }
-
+        public override void OnRecieveError(Exception ex)
+        {
+            base.OnRecieveError(ex);
+            Stop(true);
+            Client.Back();
+        }
         public override bool GetData(Packet packet)
         {
+            if (Program.DEBUG)
+                Console.WriteLine($"[Recieve from SERVER] {packet}");
             switch (packet)
             {
-                case Kick kick:
+                case KickPacket kick:
                     Client.State = ClientData.ClientState.Disconnect;
-                    Logs.Info($"Player {Client.Player.Name} is removed from server {Client.Server.Name}, for the following reason:{kick.Reason}");
-                    Client.SendErrorMessage(string.Format(Localization.Get("Prompt_Disconnect"), Client.Server.Name, kick.Reason));
+                    Client.TimeOutTimer.Stop();
+                    Stop(true);
+                    var reason = kick.Reason.GetText();
+                    Logs.Info($"Player {Client.Player.Name} is removed from server {Client.Server.Name}, for the following reason:{reason}");
+                    //Client.SendErrorMessage(string.Format(Localization.Get("Prompt_Disconnect"), Client.Server.Name, kick.Reason));
+                    Client.SendErrorMessage($"Kicked from {Client.Server.Name}: {reason}{Environment.NewLine}Returning to the previous level server.");
                     Client.Back();
                     return false;
-                case LoadPlayer slot:
+                case LoadPlayerPacket slot:
                     Client.Player.Index = slot.PlayerSlot;
+                    Client.AddBuff(149, 180);
                     return true;
-                case WorldData worldData:
-                    Client.Player.WorldSpawnX = worldData.SpawnX;
-                    Client.Player.WorldSpawnY = worldData.SpawnY;
+                case WorldDataPacket worldData:
                     worldData.WorldName = string.IsNullOrEmpty(Config.Instance.ServerName) ? worldData.WorldName : Config.Instance.ServerName; //设置了服务器名称的话则替换
-                    if (Client.State < ClientData.ClientState.InGame)
+                    Client.Player.UpdateData(worldData);
+                    if (Client.State == ClientData.ClientState.Switching)
                     {
-                        Client.SendDataToGameServer(new RequestTileData() { Position = new() { X = -1, Y = -1 } });
-                        Client.SendDataToGameServer(new SpawnPlayer()
+                        Client.State = ClientData.ClientState.FinishSendInventory;
+                        Client.SendDataToGameServer(new RequestTileDataPacket() { PosX = Client.SpawnX, PosY = Client.SpawnY });
+                        Client.SendDataToGameServer(new SpawnPlayerPacket()
                         {
                             PlayerSlot = Client.Player.Index,
-                            Position = Utils.Point(Client.Server.SpawnX, Client.Server.SpawnY),
-                            Context = PlayerSpawnContext.SpawningIntoWorld
-                        });
+                            PosX = (short)Client.SpawnX,
+                            PosY = (short)Client.SpawnY,
+                            Context = Terraria.PlayerSpawnContext.SpawningIntoWorld
+                        }); 
+                        Client.TP(Client.SpawnX, Client.SpawnY - 3);
+                        Client.AddBuff(149, 120);
+                        Logs.Text($"Spawn {Client.Name} into world <{Client.SpawnX}, {Client.SpawnY}>.");
+                        ResetAlmostEverything();
                     }
                     return true;
-                case SpawnPlayer spawn:
-                    if (spawn.Context == PlayerSpawnContext.SpawningIntoWorld)
-                    {
-                        Client.Player.SpawnX = spawn.Position.X;
-                        Client.Player.SpawnY = spawn.Position.Y;
-                        if (Client.Server.SpawnX != -1 && Client.Server.SpawnY != -1)
-                            spawn.Position = new() { X = (short)Client.Server.SpawnX, Y = (short)Client.Server.SpawnY }; //如果设置了指定出生位置则修改
-                    }
+                case SpawnPlayerPacket spawn:
+                    Client.Player.SpawnX = spawn.PosX;
+                    Client.Player.SpawnY = spawn.PosY;
                     return true;
-                case RequestPassword requestPassword:
+                case RequestPasswordPacket:
                     Client.State = ClientData.ClientState.RequestPassword;
                     Client.SendErrorMessage(string.Format(Localization.Get("Prompt_NeedPassword"), Client.Server.Name, Localization.Get("Help_Password")));
                     return false;
-                case FinishedConnectingToServer:
-                    if (Client.Server.SpawnX == -1 || Client.Server.SpawnY == -1)
-                        Client.SendDataToClient(new Teleport()
-                        {
-                            PlayerSlot = Client.Player.Index,
-                            Position = new(Client.Player.WorldSpawnX, Client.Player.WorldSpawnY),
-                            Style = 1
-                        });
-                    else
-                        Client.SendDataToClient(new Teleport()
-                        {
-                            PlayerSlot = Client.Player.Index,
-                            Position = new(Client.Server.SpawnX, Client.Server.SpawnY),
-                            Style = 1
-                        });
+                case FinishedConnectingToServerPacket:
                     Client.State = ClientData.ClientState.InGame;
                     Logs.Success($"Player {Client.Name} successfully joined the server: {Client.Server.Name}");
                     return true;
@@ -77,11 +77,62 @@ namespace MultiSEngine.Core.Adapter
                     return true;
             }
         }
-
         public override void SendData(Packet packet)
         {
+            if (Program.DEBUG)
+                Console.WriteLine($"[Send to client] {packet}");
             if (!Client.SendDataToClient(packet))
-                Client.Back();
+                Client.Dispose();
+        }
+        public void ReplaceConnection(Socket connection, bool disposeOld = true)
+        {
+            if (disposeOld)
+            {
+                NetReader?.Dispose();
+                Connection?.Dispose();
+            }
+            Connection = connection;
+            NetReader = new(new NetworkStream(Connection));
+        }
+        public void ResetAlmostEverything()
+        {
+            Logs.Text($"Resetting client data of [{Client.Name}]");
+            var emptyNPC = new SyncNPCPacket()
+            {
+                Life = 0,
+                ReleaseOwner = new byte[16],
+                AIs = new float[2]
+            };
+            for (int i = 0; i < 200; i++)
+            {
+                emptyNPC.NPCSlot = (short)i;
+                Client.SendDataToClient(emptyNPC);
+            }
+            var emptyPlayerActive = new PlayerActivePacket()
+            {
+                Active = false
+            };
+            for (int i = 0; i < 255; i++)
+            {
+                if (i == Client.Player.Index)
+                    continue;
+                emptyPlayerActive.PlayerSlot = (byte)i;
+                Client.SendDataToClient(emptyPlayerActive);
+            }
+            var emptyItem = new SyncItemPacket()
+            {
+                ItemType = 0,
+                Owner = 255,
+                Position = new(),
+                Velocity = new(),
+                Prefix = 0,
+                Stack = 0
+            };
+            for (int i = 0; i < 255; i++)
+            {
+                emptyItem.ItemSlot = (byte)i;
+                Client.SendDataToClient(emptyItem);
+            }
         }
     }
 }

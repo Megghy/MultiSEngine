@@ -2,10 +2,10 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using Delphinus;
 using MultiSEngine.Core.Adapter;
 using MultiSEngine.Modules;
 using MultiSEngine.Modules.DataStruct;
-using TrProtocol;
 
 namespace MultiSEngine.Core
 {
@@ -43,10 +43,10 @@ namespace MultiSEngine.Core
                 {
                     Socket connection = SocketServer.Accept();
 
-                    var client = new ClientData(connection);
+                    var client = new ClientData(new FakeWorldAdapter(connection));
 
                     Data.Clients.Add(client);
-                    Logs.Info($"{connection.RemoteEndPoint} trying to connect...");
+                    Logs.Text($"{connection.RemoteEndPoint} trying to connect...");
 
                     client.CAdapter = new FakeWorldAdapter(client, connection);
                     client.CAdapter.Start();
