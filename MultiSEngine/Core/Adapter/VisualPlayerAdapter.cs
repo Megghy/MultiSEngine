@@ -9,15 +9,19 @@ using MultiSEngine.Modules.DataStruct;
 
 namespace MultiSEngine.Core.Adapter
 {
-    internal class VisualPlayerAdapter : ServerAdapter
+    internal class VisualPlayerAdapter : ServerAdapter, IStatusChangeable
     {
         public VisualPlayerAdapter(ClientData client, Socket connection) : base(client, connection)
         {
         }
         internal MSEPlayer Player => Client.Player;
-        public bool RunningAsNormal = false;
-        internal bool Connecting = false;
+        internal bool TestConnecting = false;
         internal Action<VisualPlayerAdapter, ClientData> Callback;
+        public bool RunningAsNormal { get; set; } = false;
+        public void ChangeProcessState(bool asNormal)
+        {
+            RunningAsNormal = true;
+        }
         /// <summary>
         /// 调用 tryconnect
         /// </summary>
@@ -33,36 +37,47 @@ namespace MultiSEngine.Core.Adapter
         /// <param name="successCallback"></param>
         public void TryConnect(ServerInfo server, Action<VisualPlayerAdapter, ClientData> successCallback)
         {
-            if (Connecting)
+            if (TestConnecting)
                 return;
-            Connecting = true;
+            base.Start();
+            Callback = successCallback;
+            TestConnecting = true;
             InternalSendPacket(new ClientHelloPacket()
             {
-                Version = $"Terraria{(server.VersionNum is { } and > 0 and < 65565 ? server.VersionNum : Client.Player.VersionNum)}"
-            });  //发起连接请求
-            Task.Run(RecieveLoop);
-            Callback = successCallback;
+                Version = $"Terraria{(server.VersionNum is { } and > 0 and < 65535 ? server.VersionNum : Client.Player.VersionNum)}"
+            });  //发起连接请求   
         }
         public void SyncPlayer()
         {
             Logs.Text($"Syncing player: {Client.Name}");
+            Client.Syncing = true;
+            Client.AddBuff(149, 120);
+            ResetAlmostEverything();
+            //Client.SendDataToClient(new SpawnPlayerPacket() { PosX = (short)Client.SpawnX, PosY = (short)Client.SpawnY, Context = Terraria.PlayerSpawnContext.RecallFromItem, PlayerSlot = Player.Index });
+            Client.TP(Client.SpawnX, Client.SpawnY);
+            Client.SendDataToClient(Player.ServerData.WorldData);
             Client.SendDataToClient(new LoadPlayerPacket() { PlayerSlot = Player.Index });
-            (Player.SSC ? Player.ServerData : Player.OriginData).Inventory.Where(i => i != null).ForEach(i => Client.SendDataToClient(i));
-            Client.SendDataToClient(Player.ServerData.WorldData ?? Player.OriginData.WorldData);
-            Client.SendDataToClient(Player.ServerData.Info ?? Player.OriginData.Info);
+            if (!Player.SSC) //非ssc的话还原玩家最开始的背包
+            {
+                Client.SendDataToClient(Player.OriginData.Info); 
+                Player.OriginData.Inventory.Where(i => i != null).ForEach(i => Client.SendDataToClient(i));
+            }
+            Client.Syncing = false;
         }
-
-        public override bool GetData(Packet packet)
+        public override bool GetPacket(Packet packet)
         {
+#if DEBUG
+            Console.WriteLine($"[Recieve from SERVER] {packet}");
+#endif
             if (RunningAsNormal)
-                return base.GetData(packet);
+                return base.GetPacket(packet);
             switch (packet)
             {
                 case KickPacket kick:
                     Client.SendErrorMessage(kick.Reason.GetText());
                     Stop(true);
                     break;
-                case LoadPlayerPacket slot: 
+                case LoadPlayerPacket slot:
                     Player.Index = slot.PlayerSlot;
                     InternalSendPacket(Player.OriginData.Info);
                     InternalSendPacket(new ClientUUIDPacket() { UUID = Player.UUID });
@@ -70,44 +85,36 @@ namespace MultiSEngine.Core.Adapter
                     break;
                 case SyncPlayerPacket playerInfo:
                     Player.UpdateData(playerInfo);
-                    break;
+                    return true;
                 case WorldDataPacket worldData:
                     Player.UpdateData(worldData);
-                    InternalSendPacket(new RequestTileDataPacket() { PosX = Client.SpawnX, PosY = Client.SpawnY });//请求物块数据
-                    break;
-                case TileSectionPacket:
-                    if(Callback != null)
+                    if (Callback != null)
                     {
-                        Client.TP(Client.SpawnX, Client.SpawnY - 3);
-                        Connecting = false;
-                        Callback.Invoke(this, Client); 
+                        TestConnecting = false;
+                        Callback.Invoke(this, Client);
                         Callback = null;
                     }
-                    return true;
+                    InternalSendPacket(new RequestTileDataPacket() { PosX = Client.SpawnX, PosY = Client.SpawnY });//请求物块数据
+                    InternalSendPacket(new SpawnPlayerPacket() { PosX = (short)Client.SpawnX, PosY = (short)Client.SpawnY });//请求物块数据
+                    break;
                 case SyncEquipmentPacket invItem:
-                    Player.UpdateData(invItem);
+                    Player.UpdateData(invItem); //这个可以直接发给玩家
                     break;
                 case RequestPasswordPacket:
                     Console.WriteLine($"need pass");
                     Stop(true);
-                    break;
+                    return false;
                 case StartPlayingPacket:
-                    InternalSendPacket(new SpawnPlayerPacket()
-                    {
-                        PlayerSlot = Client.Player.Index,
-                        PosX = (short)Client.SpawnX,
-                        PosY = (short)Client.SpawnY,
-                        Context = Terraria.PlayerSpawnContext.SpawningIntoWorld
-                    });
-                    RunningAsNormal = true; //转换处理模式为普通
+                    ChangeProcessState(true); //转换处理模式为普通
                     break;
+                default:
+                    return base.GetPacket(packet);
             }
-            return !Connecting;
+            return !TestConnecting;
         }
-        public override void SendData(Packet packet)
+        public override void SendOriginData(byte[] buffer, int start = 0, int? length = null)
         {
-            if (!Connecting)
-                base.SendData(packet);
+            base.SendOriginData(buffer, start, length);
         }
     }
 }

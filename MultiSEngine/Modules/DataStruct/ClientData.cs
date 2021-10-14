@@ -46,11 +46,12 @@ namespace MultiSEngine.Modules.DataStruct
         public int SpawnX => Server is { SpawnX: >= 0 } ? Server.SpawnX : Player.WorldSpawnX;
         public int SpawnY => Server is { SpawnY: >= 0 } ? Server.SpawnY : Player.WorldSpawnY;
         public ServerInfo Server { get; set; }
-        public string Name => Player.Name ?? Address;
+        public string Name => Player?.Name ?? Address;
         public MSEPlayer Player { get; set; } = new();
 
         public Timer TimeOutTimer { get; set; }
-        public bool Syncing { get; set; } = false;
+        public bool Syncing { get; internal set; } = false;
+        public bool Disposed { get; private set; } = false;  
 
         protected void OnTimeOut(object sender, ElapsedEventArgs args)
         {
@@ -64,9 +65,9 @@ namespace MultiSEngine.Modules.DataStruct
         }
         public void Dispose()
         {
-            Logs.Text($"{Name} disconnected.");
-            State = ClientState.Disconnect;
             Data.Clients.Remove(this);
+            Disposed = true;
+            State = ClientState.Disconnect;
             SAdapter?.Stop(true);
             CAdapter?.Stop(true);
             SAdapter = null;

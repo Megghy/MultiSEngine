@@ -9,9 +9,9 @@ using MultiSEngine.Modules.DataStruct;
 
 namespace MultiSEngine.Core
 {
-    public class Net 
-    { 
-        public static Net Instance { get; internal set; } = new(); 
+    public class Net
+    {
+        public static Net Instance { get; internal set; } = new();
         public Socket SocketServer { get; internal set; }
         public readonly PacketSerializer ClientSerializer = new(true);
         public readonly PacketSerializer ServerSerializer = new(false);
@@ -43,13 +43,15 @@ namespace MultiSEngine.Core
                 {
                     Socket connection = SocketServer.Accept();
 
-                    var client = new ClientData(new FakeWorldAdapter(connection));
+                    Logs.Text($"{connection.RemoteEndPoint} trying to connect...");
+                    var ca = new FakeWorldAdapter(connection);
+                    var client = new ClientData(ca)
+                    {
+                        CAdapter = ca
+                    };
+                    client.CAdapter.Start();
 
                     Data.Clients.Add(client);
-                    Logs.Text($"{connection.RemoteEndPoint} trying to connect...");
-
-                    client.CAdapter = new FakeWorldAdapter(client, connection);
-                    client.CAdapter.Start();
                 }
                 catch (Exception ex)
                 {

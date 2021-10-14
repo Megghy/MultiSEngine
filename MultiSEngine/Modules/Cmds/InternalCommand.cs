@@ -45,7 +45,7 @@ namespace MultiSEngine.Modules.Cmds
             {
                 client.SendInfoMessage($"dd");
             }
-        } 
+        }
         private static void SwitchServer(ClientData client, string serverName)
         {
             if (client.State > ClientData.ClientState.ReadyToSwitch && client.State < ClientData.ClientState.InGame)

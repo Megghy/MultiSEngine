@@ -23,7 +23,7 @@ namespace MultiSEngine.Modules
         /// <param name="server"></param>
         public static void Join(this ClientData client, ServerInfo server)
         {
-            if (client.Server == server || (client.State > ClientData.ClientState.ReadyToSwitch && client.State < ClientData.ClientState.InGame))
+            if (client.Server?.Name == server?.Name || (client.State > ClientData.ClientState.ReadyToSwitch && client.State < ClientData.ClientState.InGame))
             {
                 Logs.Warn($"Unallowed transmission requests for {client.Name}");
                 return;
@@ -41,13 +41,13 @@ namespace MultiSEngine.Modules
                     client.TempConnection.Connect(ip, server.Port); //新建与服务器的连接
 
                     if (client.CAdapter is FakeWorldAdapter fwa)
-                        fwa.ChangeStatusToNormal();  //切换至正常的客户端处理
+                        fwa.ChangeProcessState(true);  //切换至正常的客户端处理
 
                     var sa = new VisualPlayerAdapter(client, client.TempConnection);
                     sa.TryConnect(server, (adapter, client) =>
                     {
                         //Logs.Info($"Visual player: {client.Name} connect success.");
-                        client.SendDataToClient(client.Player.OriginData.Info);
+                        
                         client.State = ClientData.ClientState.InGame;
                         client.SAdapter?.Stop(true);
                         client.SAdapter = adapter;
@@ -77,11 +77,18 @@ namespace MultiSEngine.Modules
     public static partial class ClientHelper
     {
         #region 消息函数
-        public static bool SendDataToClient(this ClientData client, byte[] buffer, int? index = null, int? length = null)
+        public static bool SendDataToClient(this ClientData client, byte[] buffer, int start = 0, int? length = null)
         {
             try
             {
-                client.CAdapter?.Connection?.Send(buffer ?? new byte[3], index ?? 0, length ?? buffer?.Length ?? 3, SocketFlags.None);
+#if DEBUG
+                Console.WriteLine($"[Send to CLIENT] <{BitConverter.ToInt16(buffer, start)} byte> {(length is null ? "" : $"<Length: {length}>")} {buffer.GetMessageID()}");
+#endif
+                using (var arg = new SocketAsyncEventArgs())
+                {
+                    arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer.Length);
+                    client.CAdapter?.Connection?.SendAsync(arg);
+                }
                 return true;
             }
             catch (Exception ex)
@@ -90,25 +97,46 @@ namespace MultiSEngine.Modules
                 return false;
             }
         }
-        public static void SendDataToGameServer(this ClientData client, byte[] buffer, int? index = null, int? length = null)
+        public static void SendDataToGameServer(this ClientData client, byte[] buffer, int start = 0, int? length = null)
         {
+            if (client.SAdapter is not { Connection: not null })
+                return;
             try
             {
-                buffer ??= new byte[3];
-                index ??= 0;
-                length ??= buffer?.Length ?? 3;
-                client.SAdapter?.Connection?.Send(buffer, (int)index, (int)length, SocketFlags.None);
+#if DEBUG
+                Console.WriteLine($"[Send to SERVER] <{BitConverter.ToInt16(buffer)} byte> {buffer.GetMessageID()}");
+#endif
+                using (var arg = new SocketAsyncEventArgs())
+                {
+                    arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer.Length);
+                    client.SAdapter?.Connection?.SendAsync(arg);
+                }
             }
             catch
             {
                 Logs.Info($"Failed to send data to server: {client.Name}");
             }
         }
-        public static bool SendDataToClient(this ClientData client, Packet data) => client.SendDataToClient(Net.Instance.ServerSerializer?.Serialize(data ?? new EmojiPacket()));
-        public static void SendDataToGameServer(this ClientData client, Packet data) => client.SendDataToGameServer(Net.Instance.ClientSerializer?.Serialize(data));
-        public static void Disconnect(this ClientData client, string reason = "unknown")
+        public static bool SendDataToClient(this ClientData client, Packet packet, bool serializerAsClient = false)
         {
-            client.SendDataToClient(Net.Instance.ServerSerializer.Serialize(new KickPacket() { Reason = new(reason, NetworkText.Mode.Literal) }));
+            if(packet is null)
+                throw new ArgumentNullException(nameof(packet));
+            if (packet is WorldDataPacket world && (client.Player.TileX > world.MaxTileX || client.Player.TileY > world.MaxTileY))
+                client.TP(client.SpawnY, client.SpawnY); //防止玩家超出地图游戏崩溃
+            return client.SendDataToClient(packet.Serialize(serializerAsClient), 0);
+        }
+        public static void SendDataToGameServer(this ClientData client, Packet packet, bool serializerAsClient = false)
+        {
+            if (packet is null)
+                throw new ArgumentNullException(nameof(packet));
+            client.SendDataToClient(packet.Serialize(serializerAsClient), 0);
+        }
+        public static void Disconnect(this ClientData client, string reason = null)
+        {
+
+            Logs.Text($"{client.Name} disconnected. {reason}");
+            if (client.CAdapter?.Connection is { Connected: true } && !client.Disposed)
+                client.SendDataToClient(Net.Instance.ServerSerializer.Serialize(new KickPacket() { Reason = new(reason ?? "Unknown", NetworkText.Mode.Literal) }), 0);
             client.Dispose();
         }
 
@@ -146,7 +174,7 @@ namespace MultiSEngine.Modules
         }
         public static void AddBuff(this ClientData client, int buffID, int time = 60)
         {
-            client.SendDataToClient(new AddPlayerBuffPacket() { BuffTime = time, BuffType = (ushort)buffID, OtherPlayerSlot = client.Player.Index });
+            client?.SendDataToClient(new AddPlayerBuffPacket() { BuffTime = time, BuffType = (ushort)buffID, OtherPlayerSlot = client.Player.Index });
         }
         #endregion
         #region 其他

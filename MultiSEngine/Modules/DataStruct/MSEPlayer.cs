@@ -17,15 +17,17 @@ namespace MultiSEngine.Modules.DataStruct
         }
         public bool SSC { get; set; } = false;
         public int VersionNum { get; set; }
-        public byte Index { get; set; }
+        public byte Index { get; set; } = 0;
         public string Name => (ServerData.Info ?? OriginData.Info)?.Name;
         public string UUID { get; set; } = "";
         public int SpawnX { get; set; }
         public int SpawnY { get; set; }
         public int WorldSpawnX => (ServerData.WorldData ?? OriginData.WorldData).SpawnX;
         public int WorldSpawnY => (ServerData.WorldData ?? OriginData.WorldData).SpawnY;
-        public int X { get; set; }
-        public int Y { get; set; }
+        public float X { get; set; }
+        public float Y { get; set; }
+        public int TileX => (int)(X / 16);
+        public int TileY => (int)(Y / 16);
 
         public void UpdateData(Packet packet)
         {
@@ -48,6 +50,10 @@ namespace MultiSEngine.Modules.DataStruct
                 case WorldDataPacket world:
                     ServerData.WorldData = world;
                     SSC = world.EventInfo1[6];
+                    break;
+                case PlayerControlsPacket control:
+                    X = control.Position.X;
+                    Y = control.Position.Y;
                     break;
             }
         }

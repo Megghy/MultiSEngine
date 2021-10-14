@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -20,14 +21,13 @@ namespace MultiSEngine.Core.Adapter
         public override PacketSerializer Serializer { get; set; } = new(false);
         public override AdapterBase Start()
         {
-            Task.Run(RecieveLoop);
             Task.Run(CheckAlive);
-            return this;
+            return base.Start();
         }
-        public override void OnRecieveError(Exception ex)
+        public override void OnRecieveLoopError(Exception ex)
         {
-            base.OnRecieveError(ex);
-            Client.Dispose();
+            base.OnRecieveLoopError(ex);
+            Client.Disconnect();
         }
         public void CheckAlive()
         {
@@ -40,17 +40,15 @@ namespace MultiSEngine.Core.Adapter
                 }
                 catch
                 {
-                    Client.Dispose();
+                    Client.Disconnect();
                     return;
                 }
             }
             if (!ShouldStop)
                 Client.Dispose();
         }
-        public override bool GetData(Packet packet)
+        public override bool GetPacket(Packet packet)
         {
-            if (Program.DEBUG)
-                Console.WriteLine($"[Recieve from CLIENT] {packet}");
             switch (packet)
             {
                 case ClientHelloPacket hello:
@@ -72,29 +70,29 @@ namespace MultiSEngine.Core.Adapter
                 case PlayerHealthPacket:
                 case PlayerManaPacket:
                 case PlayerBuffsPacket:
+                case PlayerControlsPacket:
                     Client.Player.UpdateData(packet);
                     return !Client.Syncing;
                 case ClientUUIDPacket uuid:
                     Client.Player.UUID = uuid.UUID;
                     return true;
                 case Delphinus.NetModules.NetTextModule modules:
-                    if (modules.Command == "Say")
+                    if (modules.Command == "Say" && (Command.HandleCommand(Client, modules.Text, out var c) && !c))
+                        return false;
+                    else
                     {
                         modules.fromClient = true;
-                        Command.HandleCommand(Client, modules.Text, out var c);
-                        return c;
+                        SendOriginData(modules.Serialize());
                     }
-                    return true;
+                    return false;
                 default:
                     return true;
             }
         }
-        public override void SendData(Packet packet)
+        public override void SendOriginData(byte[] buffer, int start = 0, int? length = null)
         {
-            if (Program.DEBUG)
-                Console.WriteLine($"[Sent to SERVER] {packet}");
-            if (!Client.SAdapter?.ShouldStop ?? false)
-                Client.SendDataToGameServer(packet);
+            if (!ShouldStop)
+                Client.SendDataToGameServer(buffer, start, length);
         }
     }
 }

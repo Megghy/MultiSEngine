@@ -1,27 +1,54 @@
 ﻿using System;
-using System.IO;
 using System.Net.Sockets;
-using System.Threading.Tasks;
-using MultiSEngine.Modules;
-using MultiSEngine.Modules.DataStruct;
+using System.Timers;
 using Delphinus;
 using Delphinus.Packets;
+using MultiSEngine.Modules;
+using MultiSEngine.Modules.DataStruct;
 
 namespace MultiSEngine.Core.Adapter
 {
-    internal class FakeWorldAdapter : ClientAdapter
+    internal class FakeWorldAdapter : ClientAdapter, IStatusChangeable
     {
-        public FakeWorldAdapter(Socket connection) : base(null, connection)
+        public FakeWorldAdapter(Socket connection) : this(null, connection)
         {
         }
         public FakeWorldAdapter(ClientData client, Socket connection) : base(client, connection)
         {
+            FreezeTimer = new()
+            {
+                Interval = 1000,
+                AutoReset = true
+            };
+            FreezeTimer.Elapsed += (_, _) => Client.AddBuff(149, 100);
         }
-        public bool RunningAsNormal = false;
-        public override bool GetData(Packet packet)
+        private Timer FreezeTimer;
+        public const int Width = 8400;
+        public const int Height = 2400;
+        public bool RunningAsNormal { get; set; } = false;
+        public void ChangeProcessState(bool asNormal)
         {
-            if(RunningAsNormal)
-                return base.GetData(packet);
+            RunningAsNormal = true;
+            FreezeTimer.Stop();
+        }
+        public override AdapterBase Start()
+        {
+            FreezeTimer.Start();
+            Client.AddBuff(149, 100);
+            return base.Start();
+        }
+        public override void Stop(bool disposeConnection = false)
+        {
+            FreezeTimer.Stop();
+            base.Stop(disposeConnection);
+        }
+        public override bool GetPacket(Packet packet)
+        {
+#if DEBUG
+            Console.WriteLine($"[Recieve from CLIENT] {packet}");
+#endif
+            if (RunningAsNormal)
+                return base.GetPacket(packet);
             switch (packet)
             {
                 case ClientHelloPacket hello:
@@ -31,13 +58,14 @@ namespace MultiSEngine.Core.Adapter
                 case RequestWorldInfoPacket:
                     var bb = new Terraria.BitsByte();
                     bb[6] = true;
-                    Client.Player.OriginData.WorldData = new() { EventInfo1 = bb, SpawnX = 4200, SpawnY = 1200 };
+                    //Client.Player.OriginData.WorldData = new() { EventInfo1 = bb, SpawnX = 4200, SpawnY = 1200 };
+                    Client.Player.OriginData.WorldData = new() { EventInfo1 = bb, SpawnX = Width / 2, SpawnY = Height / 2 };
                     Client.SendDataToClient(new WorldDataPacket()
                     {
                         SpawnX = (short)Client.Player.WorldSpawnX,
                         SpawnY = (short)Client.Player.WorldSpawnY,
-                        MaxTileX = 8400,
-                        MaxTileY = 2400,
+                        MaxTileX = Width,
+                        MaxTileY = Height,
                         GameMode = 0,
                         WorldName = Config.Instance.ServerName,
                         WorldUniqueID = new byte[16]
@@ -64,27 +92,13 @@ namespace MultiSEngine.Core.Adapter
                         Logs.Text($"Player {Client.Name} is temporarily transported in FakeWorld");
                     }
                     return false;
-                case Delphinus.NetModules.NetTextModule modules:
-                    if (modules.Command == "Say")
-                    {
-                        if (!Command.HandleCommand(Client, modules.Text, out var c) && modules.Text.StartsWith("/"))
-                        {
-                            Client.SendInfoMessage($"unkonwn command");
-                        }
-                    }
-                    return false;
                 default:
-                    return base.GetData(packet);
+                    return base.GetPacket(packet);
             }
         }
-        public override void SendData(Packet packet)
+        public override void SendOriginData(byte[] buffer, int start = 0, int? length = null)
         {
-            if (RunningAsNormal)
-                base.SendData(packet);
-        }
-        public void ChangeStatusToNormal()
-        {
-            RunningAsNormal = true;
+            base.SendOriginData(buffer, start, length);
         }
     }
 }

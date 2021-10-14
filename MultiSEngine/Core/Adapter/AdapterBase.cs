@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using Delphinus;
@@ -7,6 +9,11 @@ using MultiSEngine.Modules.DataStruct;
 
 namespace MultiSEngine.Core.Adapter
 {
+    public interface IStatusChangeable
+    {
+        public bool RunningAsNormal { get; set; }
+        public void ChangeProcessState(bool asNormal);
+    }
     public abstract class AdapterBase
     {
         public AdapterBase(ClientData client, Socket connection)
@@ -29,19 +36,24 @@ namespace MultiSEngine.Core.Adapter
         /// <param name="start"></param>
         /// <param name="length"></param>
         /// <returns></returns>
-        public abstract bool GetData(Packet packet);
-        public abstract void SendData(Packet packet);
+        public abstract bool GetPacket(Packet packet);
+        public abstract void SendOriginData(byte[] buffer, int start = 0, int? length = null);
+        public virtual void SendPacket(Packet packet) => SendOriginData(Serializer.Serialize(packet));
         public virtual AdapterBase Start()
         {
+            //Connection.BeginReceive(Buffer, 0, Buffer.Length, SocketFlags.None, new AsyncCallback(ReceiveMessage), null);
             Task.Run(RecieveLoop);
             return this;
         }
         public virtual void Stop(bool disposeConnection = false)
         {
+#if DEBUG
+            Logs.Warn($"[{GetType()}] <{Connection.RemoteEndPoint}> Stopped");
+#endif
             ShouldStop = true;
             if (disposeConnection)
             {
-                Connection?.Shutdown(SocketShutdown.Both);
+                try { Connection?.Shutdown(SocketShutdown.Both); } catch { }
                 NetReader?.Dispose();
                 NetReader = null;
                 Connection?.Dispose();
@@ -56,8 +68,11 @@ namespace MultiSEngine.Core.Adapter
             Connection = connection;
             NetReader = new(new NetworkStream(Connection));
         }
-        public virtual void OnRecieveError(Exception ex)
+        public virtual void OnRecieveLoopError(Exception ex)
         {
+#if DEBUG
+            Console.WriteLine($"[Recieve Error] {ex}");
+#endif
             ErrorCount++;
             switch (ex)
             {
@@ -65,40 +80,44 @@ namespace MultiSEngine.Core.Adapter
                 case IOException:
                     break;
                 case Exception:
-                    Logs.Error($"Socket connection abnormally terminated.\r\n{ex}");
+                    Logs.Warn($"Socket connection abnormally terminated.\r\n{ex}");
                     break;
                 default:
                     break;
             }
         }
-        public virtual void InternalSendPacket(Packet packet)
-        {
-            if (!ShouldStop)
-                Connection?.Send(packet.Serilize());
-        }
         internal void RecieveLoop()
         {
-            while (NetReader is { BaseStream: not null } && !ShouldStop)
+            try
             {
-                try
+                while (NetReader is { BaseStream: not null } && !ShouldStop)
                 {
-                    Packet packet;
-                    packet = Serializer.Deserialize(NetReader);
+                    var packet = Serializer.Deserialize(NetReader);
                     try
                     {
-                        if (GetData(packet))
-                            SendData(packet);
+                        if (GetPacket(packet))
+                            SendPacket(packet);
                     }
                     catch (Exception ex)
                     {
                         Logs.Error($"An error occurred while processing packet {packet}.{Environment.NewLine}{ex}");
                     }
                 }
-                catch (EndOfStreamException eos) { OnRecieveError(eos); }
-                catch (IOException io) { OnRecieveError(io); }
-                catch (Exception ex) { OnRecieveError(ex); }
             }
-
+            catch (Exception ex)
+            {
+                OnRecieveLoopError(ex);
+            }
+            if (!ShouldStop)
+                Stop(true);
+        }
+        public virtual void InternalSendPacket(Packet packet)
+        {
+#if DEBUG
+            Console.WriteLine($"[Internal Send] {packet}");
+#endif
+            if (!ShouldStop)
+                Connection?.Send(packet.Serialize());
         }
     }
 }

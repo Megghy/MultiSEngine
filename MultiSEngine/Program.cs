@@ -5,7 +5,7 @@ namespace MultiSEngine
 {
     internal class Program
     {
-        public const bool DEBUG = false;
+        public const bool DEBUG = true;
         static void Main(string[] args)
         {
             Init();
