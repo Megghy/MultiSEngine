@@ -44,14 +44,10 @@ namespace MultiSEngine.Core
                     Socket connection = SocketServer.Accept();
 
                     Logs.Text($"{connection.RemoteEndPoint} trying to connect...");
-                    var ca = new FakeWorldAdapter(connection);
-                    var client = new ClientData(ca)
-                    {
-                        CAdapter = ca
-                    };
-                    client.CAdapter.Start();
+                    var ca = new FakeWorldAdapter(new(), connection);
+                    ca.Start();
 
-                    Data.Clients.Add(client);
+                    Data.Clients.Add(ca.Client);
                 }
                 catch (Exception ex)
                 {

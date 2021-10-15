@@ -8,7 +8,6 @@
         public int Port { get; set; }
         public int SpawnX { get; set; } = -1;
         public int SpawnY { get; set; } = -1;
-        public bool RememberHostInventory { get; set; } = true;
         public int VersionNum { get; set; } = 238;
     }
 }

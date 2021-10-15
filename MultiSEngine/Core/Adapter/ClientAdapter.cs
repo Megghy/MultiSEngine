@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -12,11 +11,9 @@ namespace MultiSEngine.Core.Adapter
 {
     public class ClientAdapter : AdapterBase
     {
-        public ClientAdapter() : this(null, null)
-        {
-        }
         public ClientAdapter(ClientData client, Socket connection) : base(client, connection)
         {
+            client.CAdapter = this;
         }
         public override PacketSerializer Serializer { get; set; } = new(false);
         public override AdapterBase Start()
@@ -79,6 +76,15 @@ namespace MultiSEngine.Core.Adapter
                 case Delphinus.NetModules.NetTextModule modules:
                     if (modules.Command == "Say" && (Command.HandleCommand(Client, modules.Text, out var c) && !c))
                         return false;
+                    else if (Client.State == ClientData.ClientState.NewConnection)
+                    {
+                        Client.SendInfoMessage($"{Localization.Get("Command_NotEntered")}\r\n" +
+                            $"{Localization.Get("Help_Tp")}\r\n" +
+                            $"{Localization.Get("Help_Back")}\r\n" +
+                            $"{Localization.Get("Help_List")}\r\n" +
+                            $"{Localization.Get("Help_Command")}"
+                );
+                    }
                     else
                     {
                         modules.fromClient = true;

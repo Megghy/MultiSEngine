@@ -26,13 +26,16 @@ namespace MultiSEngine.Modules.Cmds
                         break;
                     case "back":
                     case "b":
-                        if (client.Server == Config.Instance.MainServer)
+                        if (client.State == ClientData.ClientState.NewConnection)
                             client.SendInfoMessage($"{Localization.Get("Command_NotJoined")}");
+                        else if (client.Server == Config.Instance.MainServer)
+                            client.SendErrorMessage(string.Format(Localization.Get("Command_AlreadyIn"), client.Server.Name));
                         else
                             client.Back();
                         break;
-                    case "s":
-                        client.SendDataToClient(new LoadPlayerPacket() { PlayerSlot = 0 });
+                    case "list":
+                    case "l":
+                        client.SendMessage($"{Localization.Get("Command_AviliableServer")}{string.Join(", ", Config.Instance.Servers.Where(s => s.Visible).Select(s => s.Name))}");
                         break;
                     default:
                         SendHelpText();
@@ -43,7 +46,12 @@ namespace MultiSEngine.Modules.Cmds
                 SendHelpText();
             void SendHelpText()
             {
-                client.SendInfoMessage($"dd");
+                client.SendInfoMessage($"{Localization.Get("Prompt_InvalidFormat")}\r\n" +
+                    $"{Localization.Get("Help_Tp")}\r\n" +
+                    $"{Localization.Get("Help_Back")}\r\n" +
+                    $"{Localization.Get("Help_List")}\r\n" +
+                    $"{Localization.Get("Help_Command")}"
+                    );
             }
         }
         private static void SwitchServer(ClientData client, string serverName)
@@ -56,11 +64,10 @@ namespace MultiSEngine.Modules.Cmds
             if (Utils.GetServerInfoByName(serverName).FirstOrDefault() is { } server)
             {
                 if (client.Server == server)
-                    //client.SendErrorMessage(string.Format(Localization.Get(""), server.Name));
-                    client.SendErrorMessage("Command_AlreadyIn");
+                    client.SendErrorMessage(string.Format(Localization.Get("Command_AlreadyIn"), server.Name));
                 else
                 {
-                    //client.SendInfoMessage(string.Format(Localization.Get("Command_Switch"), server.Name));
+                    client.SendInfoMessage(string.Format(Localization.Get("Command_Switch"), server.Name));
                     client.Join(server);
                 }
             }

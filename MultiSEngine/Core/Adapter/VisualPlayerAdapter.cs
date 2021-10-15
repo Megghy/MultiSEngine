@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Linq;
 using System.Net.Sockets;
-using System.Threading.Tasks;
 using Delphinus;
 using Delphinus.Packets;
 using MultiSEngine.Modules;
+using MultiSEngine.Modules.CustomDataPacket;
 using MultiSEngine.Modules.DataStruct;
 
 namespace MultiSEngine.Core.Adapter
@@ -46,20 +46,23 @@ namespace MultiSEngine.Core.Adapter
             {
                 Version = $"Terraria{(server.VersionNum is { } and > 0 and < 65535 ? server.VersionNum : Client.Player.VersionNum)}"
             });  //发起连接请求   
+            InternalSendPacket(new SyncIPPacket()
+            {
+                IP = Client.IP
+            });  //尝试同步玩家IP
         }
         public void SyncPlayer()
         {
-            Logs.Text($"Syncing player: {Client.Name}");
+            Logs.Text($"Syncing player: [{Client.Name}]");
             Client.Syncing = true;
             Client.AddBuff(149, 120);
             ResetAlmostEverything();
             //Client.SendDataToClient(new SpawnPlayerPacket() { PosX = (short)Client.SpawnX, PosY = (short)Client.SpawnY, Context = Terraria.PlayerSpawnContext.RecallFromItem, PlayerSlot = Player.Index });
-            Client.TP(Client.SpawnX, Client.SpawnY);
             Client.SendDataToClient(Player.ServerData.WorldData);
             Client.SendDataToClient(new LoadPlayerPacket() { PlayerSlot = Player.Index });
             if (!Player.SSC) //非ssc的话还原玩家最开始的背包
             {
-                Client.SendDataToClient(Player.OriginData.Info); 
+                Client.SendDataToClient(Player.OriginData.Info);
                 Player.OriginData.Inventory.Where(i => i != null).ForEach(i => Client.SendDataToClient(i));
             }
             Client.Syncing = false;
@@ -79,7 +82,7 @@ namespace MultiSEngine.Core.Adapter
                     break;
                 case LoadPlayerPacket slot:
                     Player.Index = slot.PlayerSlot;
-                    InternalSendPacket(Player.OriginData.Info);
+                    InternalSendPacket(Player.OriginData.Info); 
                     InternalSendPacket(new ClientUUIDPacket() { UUID = Player.UUID });
                     InternalSendPacket(new RequestWorldInfoPacket() { });//请求世界信息
                     break;
@@ -90,6 +93,7 @@ namespace MultiSEngine.Core.Adapter
                     Player.UpdateData(worldData);
                     if (Callback != null)
                     {
+                        Client.TP(Client.SpawnX, Client.SpawnY);
                         TestConnecting = false;
                         Callback.Invoke(this, Client);
                         Callback = null;
@@ -98,7 +102,7 @@ namespace MultiSEngine.Core.Adapter
                     InternalSendPacket(new SpawnPlayerPacket() { PosX = (short)Client.SpawnX, PosY = (short)Client.SpawnY });//请求物块数据
                     break;
                 case SyncEquipmentPacket invItem:
-                    Player.UpdateData(invItem); //这个可以直接发给玩家
+                    Player.UpdateData(invItem);
                     break;
                 case RequestPasswordPacket:
                     Console.WriteLine($"need pass");

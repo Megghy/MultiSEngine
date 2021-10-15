@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Delphinus;
 using MultiSEngine.Modules;
 using MultiSEngine.Modules.DataStruct;
 
@@ -16,23 +17,20 @@ namespace MultiSEngine.Core
             public virtual bool ContinueSend { get; set; } = false;
             public abstract void Execute(ClientData client, string cmdName, List<string> cmd);
         }
-        public readonly static List<CmdBase> AllCommands = new();
+        public readonly static List<CmdBase> Commands = new();
         public static void InitAllCommands()
         {
-            try
+            AppDomain.CurrentDomain.GetAssemblies().ForEach(assembly =>
             {
-                AppDomain
-                    .CurrentDomain
-                    .GetAssemblies()
-                    .ForEach(assembly =>
-                    {
-                        assembly
-                            .GetTypes()
-                            .Where(t => t.BaseType == typeof(CmdBase))
-                            .ForEach(t => AllCommands.Add((CmdBase)Activator.CreateInstance(t)));
-                    });
-            }
-            catch { }
+                try
+                {
+                    assembly
+                           .GetTypes()
+                           .Where(t => t.BaseType == typeof(CmdBase))
+                           .ForEach(t => Commands.Add((CmdBase)Activator.CreateInstance(t)));
+                }
+                catch { }
+            });
         }
         public static bool HandleCommand(ClientData client, string text, out bool continueSend)
         {
@@ -69,7 +67,7 @@ namespace MultiSEngine.Core
                     {
                         list = ParseParameters(text.Substring(num));
                     }
-                    List<CmdBase> aviliableCommands = AllCommands.FindAll(c => c.Name.ToLower() == cmdName.ToLower());
+                    List<CmdBase> aviliableCommands = Commands.FindAll(c => c.Name.ToLower() == cmdName.ToLower());
                     if (aviliableCommands.FirstOrDefault() is { } command)
                     {
                         try

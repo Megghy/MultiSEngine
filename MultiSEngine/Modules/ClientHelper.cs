@@ -25,10 +25,10 @@ namespace MultiSEngine.Modules
         {
             if (client.Server?.Name == server?.Name || (client.State > ClientData.ClientState.ReadyToSwitch && client.State < ClientData.ClientState.InGame))
             {
-                Logs.Warn($"Unallowed transmission requests for {client.Name}");
+                Logs.Warn($"Unallowed transmission requests for [{client.Name}]");
                 return;
             }
-            Logs.Info($"Switching {client.Name} to the server: {server.Name}");
+            Logs.Info($"Switching [{client.Name}] to the server: [{server.Name}]");
             client.State = ClientData.ClientState.ReadyToSwitch;
             if (Utils.TryParseAddress(server.IP, out var ip))
             {
@@ -43,14 +43,13 @@ namespace MultiSEngine.Modules
                     if (client.CAdapter is FakeWorldAdapter fwa)
                         fwa.ChangeProcessState(true);  //切换至正常的客户端处理
 
-                    var sa = new VisualPlayerAdapter(client, client.TempConnection);
-                    sa.TryConnect(server, (adapter, client) =>
+                    var tempAdapter = new VisualPlayerAdapter(client, client.TempConnection);
+                    tempAdapter.TryConnect(server, (tempAdapter, client) =>
                     {
                         //Logs.Info($"Visual player: {client.Name} connect success.");
-                        
                         client.State = ClientData.ClientState.InGame;
                         client.SAdapter?.Stop(true);
-                        client.SAdapter = adapter;
+                        client.SAdapter = tempAdapter;
                         client.Server = server;
                         client.TempConnection = null;
                         client.TimeOutTimer.Stop();
@@ -62,7 +61,7 @@ namespace MultiSEngine.Modules
                     client.State = ClientData.ClientState.ReadyToSwitch;
                     Logs.Error($"Unable to connect to server {server.IP}:{server.Port}{Environment.NewLine}{ex}");
                     //client.SendErrorMessage(string.Format(Localization.Get("Prompt_CannotConnect"), server.Name));
-                    client.SendErrorMessage("Prompt_CannotConnect");
+                    client.SendErrorMessage(string.Format(Localization.Get("Prompt_CannotConnect"), server.Name));
                 }
             }
             else
@@ -136,7 +135,7 @@ namespace MultiSEngine.Modules
 
             Logs.Text($"{client.Name} disconnected. {reason}");
             if (client.CAdapter?.Connection is { Connected: true } && !client.Disposed)
-                client.SendDataToClient(Net.Instance.ServerSerializer.Serialize(new KickPacket() { Reason = new(reason ?? "Unknown", NetworkText.Mode.Literal) }), 0);
+                client.SendDataToClient(new KickPacket() { Reason = new(reason ?? "Unknown", NetworkText.Mode.Literal) });
             client.Dispose();
         }
 

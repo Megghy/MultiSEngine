@@ -1,13 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using Delphinus;
 using MultiSEngine.Modules.DataStruct;
 
-namespace MultiSEngine.Core.Adapter
+namespace MultiSEngine.Modules.DataStruct
 {
     public interface IStatusChangeable
     {
@@ -22,12 +20,12 @@ namespace MultiSEngine.Core.Adapter
             Connection = connection;
             NetReader = new BinaryReader(new NetworkStream(Connection));
         }
-        public bool ShouldStop { get; set; } = false;
-        public virtual PacketSerializer Serializer { get; set; } = new(true);
-        public ClientData Client { get; set; }
-        public Socket Connection { get; set; }
         public int ErrorCount = 0;
-        public BinaryReader NetReader { get; set; }
+        protected bool ShouldStop { get; set; } = false;
+        public virtual PacketSerializer Serializer { get; set; } = new(true);
+        public ClientData Client { get; protected set; }
+        public Socket Connection { get; set; }
+        protected BinaryReader NetReader { get; set; }
         /// <summary>
         /// 返回是否要继续传递给给定的socket
         /// </summary>
@@ -47,6 +45,8 @@ namespace MultiSEngine.Core.Adapter
         }
         public virtual void Stop(bool disposeConnection = false)
         {
+            if (ShouldStop)
+                return;
 #if DEBUG
             Logs.Warn($"[{GetType()}] <{Connection.RemoteEndPoint}> Stopped");
 #endif
@@ -95,8 +95,7 @@ namespace MultiSEngine.Core.Adapter
                     var packet = Serializer.Deserialize(NetReader);
                     try
                     {
-                        if (GetPacket(packet))
-                            SendPacket(packet);
+                        Task.Run(() => { if (GetPacket(packet)) SendPacket(packet); });
                     }
                     catch (Exception ex)
                     {

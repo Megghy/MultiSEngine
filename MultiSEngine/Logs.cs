@@ -30,9 +30,10 @@ namespace MultiSEngine
         {
             LogAndSave(text, "[Success]", ConsoleColor.Green);
         }
-        private static readonly Queue LogQueue = new();
-        public static void SaveLogTask()
+        private static Queue LogQueue;
+        internal static void SaveLogTask()
         {
+            LogQueue = new();
             Task.Run(() =>
             {
                 while (true)
@@ -41,12 +42,13 @@ namespace MultiSEngine
                         Directory.CreateDirectory(LogPath);
                     while (LogQueue.Count < 1)
                         Task.Delay(1).Wait();
-                    File.AppendAllText(LogName, LogQueue.Dequeue().ToString());
+                    File.AppendAllText(LogName, LogQueue.Dequeue()?.ToString());
                 }
             });
         }
         public static void LogAndSave(object message, string prefix = "[Log]", ConsoleColor color = DefaultColor)
         {
+            if (LogQueue is null) SaveLogTask();
             Console.ForegroundColor = color;
             Console.WriteLine($"{prefix} {message}");
             LogQueue.Enqueue($"{DateTime.Now:yyyy-MM-dd-HH:mm:ss} - {prefix} {message}{Environment.NewLine}");

@@ -18,12 +18,15 @@ namespace MultiSEngine
         public static void Init()
         {
             Logs.Info("Initializing the program...");
-            Modules.Data.Init();
+            Modules.Data.Init(); 
+            Modules.ConsoleManager.Init();
+            Core.DataBridge.Init();
             Logs.Success($"Loaded all data.");
             Core.Command.InitAllCommands();
             Logs.Success($"Registered all commands.");
             Core.Net.Instance.Init(Config.Instance.ListenIP, Config.Instance.ListenPort);
             Logs.Success($"Opened socket server successfully, listening to port {Config.Instance.ListenPort}");
+            Console.WriteLine("-----------------------------------------------------------------------------");
         }
         public static void Close()
         {

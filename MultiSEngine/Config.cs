@@ -33,6 +33,7 @@ namespace MultiSEngine
         public string ServerName { get; set; } = "MultiSEngine";
         public int SwitchTimeOut { get; set; } = 5000;
         public bool SwitchToMainServerOnJoin { get; set; } = false;
+        public bool RestoreDataWhenJoinNonSSC { get; set; } = true;
         public Modules.DataStruct.ServerInfo MainServer { get; set; }
         public List<Modules.DataStruct.ServerInfo> Servers { get; set; }
     }

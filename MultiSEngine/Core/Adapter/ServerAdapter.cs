@@ -1,11 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Net.Sockets;
 using Delphinus;
 using Delphinus.Packets;
 using MultiSEngine.Modules;
 using MultiSEngine.Modules.DataStruct;
-using Terraria.Localization;
 
 namespace MultiSEngine.Core.Adapter
 {
@@ -17,9 +15,9 @@ namespace MultiSEngine.Core.Adapter
         }
         public override void OnRecieveLoopError(Exception ex)
         {
-            Stop(true);
-            if (!Client.Disposed)
+            if (!ShouldStop)
             {
+                Stop(true);
                 Logs.Warn($"Cannot continue to maintain connection between {Client.Name} and server {Client.Server.Name}{Environment.NewLine}{ex}");
                 Client.Back();
             }
@@ -39,6 +37,8 @@ namespace MultiSEngine.Core.Adapter
                     Client.Back();
                     return false;
                 case LoadPlayerPacket slot:
+                    if (Client.Player.Index != slot.PlayerSlot)
+                        Logs.Text($"Update the index of player [{Client.Name}]: {Client.Player.Index} => {slot.PlayerSlot}.");
                     Client.Player.Index = slot.PlayerSlot;
                     Client.AddBuff(149, 180);
                     return true;
@@ -56,7 +56,7 @@ namespace MultiSEngine.Core.Adapter
                     return false;
                 case FinishedConnectingToServerPacket:
                     Client.State = ClientData.ClientState.InGame;
-                    Logs.Success($"Player {Client.Name} successfully joined the server: {Client.Server.Name}");
+                    Logs.Success($"[{Client.Name}] successfully joined the server: {Client.Server.Name}");
                     return true;
                 case Delphinus.NetModules.NetTextModule modules:
                     modules.fromClient = true;
@@ -95,7 +95,7 @@ namespace MultiSEngine.Core.Adapter
                 emptyPlayerActive.PlayerSlot = (byte)i;
                 //Client.SendDataToClient(emptyPlayerActive);
             }
-            
+
             var emptyNPC = new SyncNPCPacket()
             {
                 Life = 0,

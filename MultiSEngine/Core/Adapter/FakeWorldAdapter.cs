@@ -34,7 +34,7 @@ namespace MultiSEngine.Core.Adapter
         public override AdapterBase Start()
         {
             FreezeTimer.Start();
-            Client.AddBuff(149, 100);
+            Client.AddBuff(149, 120);
             return base.Start();
         }
         public override void Stop(bool disposeConnection = false)
@@ -89,7 +89,8 @@ namespace MultiSEngine.Core.Adapter
                             PlayerSlot = 0,
                             Timer = 0
                         });
-                        Logs.Text($"Player {Client.Name} is temporarily transported in FakeWorld");
+                        Client.SendMessage(Data.Motd, false);
+                        Logs.Text($"Player [{Client.Name}] is temporarily transported in FakeWorld");
                     }
                     return false;
                 default:
