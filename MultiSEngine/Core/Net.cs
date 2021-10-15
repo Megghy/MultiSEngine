@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Delphinus;
 using MultiSEngine.Core.Adapter;
 using MultiSEngine.Modules;
-using MultiSEngine.Modules.DataStruct;
 
 namespace MultiSEngine.Core
 {

@@ -71,16 +71,6 @@ namespace MultiSEngine.Core.Adapter
             if (!ShouldStop)
                 Client.SendDataToClient(buffer, start, length);
         }
-        public void ReplaceConnection(Socket connection, bool disposeOld = true)
-        {
-            if (disposeOld)
-            {
-                NetReader?.Dispose();
-                Connection?.Dispose();
-            }
-            Connection = connection;
-            NetReader = new(new NetworkStream(Connection));
-        }
         public void ResetAlmostEverything()
         {
             Logs.Text($"Resetting client data of [{Client.Name}]");
@@ -93,9 +83,8 @@ namespace MultiSEngine.Core.Adapter
                 if (i == Client.Player.Index)
                     continue;
                 emptyPlayerActive.PlayerSlot = (byte)i;
-                //Client.SendDataToClient(emptyPlayerActive);
+                Client.SendDataToClient(emptyPlayerActive);
             }
-
             var emptyNPC = new SyncNPCPacket()
             {
                 Life = 0,

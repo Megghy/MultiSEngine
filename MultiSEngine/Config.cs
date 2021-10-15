@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace MultiSEngine
 {
@@ -15,26 +17,36 @@ namespace MultiSEngine
             if (File.Exists(ConfigPath))
                 return JsonSerializer.Deserialize<Config>(File.ReadAllText(ConfigPath));
             else
-                File.WriteAllText(ConfigPath, JsonSerializer.Serialize(new Config()
+            {
+                var confg = new Config()
                 {
-                    MainServer = new()
-                    {
-                        IP = "127.0.0.1",
-                        Port = 7777,
-                        Name = "main",
-                    },
+                    SwitchToDefaultServerOnJoin = true,
+                    DefaultServer = "yfeil",
                     Servers = new()
-                }, new JsonSerializerOptions() { WriteIndented = true }));
-            return new();
+                    {
+                        new()
+                        {
+                            Visible = true,
+                            IP = "127.0.0.1",
+                            Port = 7777,
+                            Name = "yfeil",
+                        }
+                    }
+                };
+                File.WriteAllText(ConfigPath, JsonSerializer.Serialize(confg, new JsonSerializerOptions() { WriteIndented = true }));
+                return confg;
+            }
         }
 
         public string ListenIP { get; set; } = "127.0.0.1";
         public int ListenPort { get; set; } = 7778;
         public string ServerName { get; set; } = "MultiSEngine";
         public int SwitchTimeOut { get; set; } = 5000;
-        public bool SwitchToMainServerOnJoin { get; set; } = false;
+        public bool SwitchToDefaultServerOnJoin { get; set; } = false;
         public bool RestoreDataWhenJoinNonSSC { get; set; } = true;
-        public Modules.DataStruct.ServerInfo MainServer { get; set; }
-        public List<Modules.DataStruct.ServerInfo> Servers { get; set; }
+        [JsonIgnore]
+        public Modules.DataStruct.ServerInfo DefaultServerInternal => Servers.FirstOrDefault(s => s.Name == DefaultServer);
+        public string DefaultServer { get; set; } = string.Empty;
+        public List<Modules.DataStruct.ServerInfo> Servers { get; set; } = new();
     }
 }

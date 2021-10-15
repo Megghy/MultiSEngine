@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Delphinus.Packets;
 using MultiSEngine.Modules.DataStruct;
 
 namespace MultiSEngine.Modules.Cmds
@@ -28,7 +27,7 @@ namespace MultiSEngine.Modules.Cmds
                     case "b":
                         if (client.State == ClientData.ClientState.NewConnection)
                             client.SendInfoMessage($"{Localization.Get("Command_NotJoined")}");
-                        else if (client.Server == Config.Instance.MainServer)
+                        else if (client.Server == Config.Instance.DefaultServerInternal)
                             client.SendErrorMessage(string.Format(Localization.Get("Command_AlreadyIn"), client.Server.Name));
                         else
                             client.Back();

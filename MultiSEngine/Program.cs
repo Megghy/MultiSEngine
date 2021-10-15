@@ -18,7 +18,7 @@ namespace MultiSEngine
         public static void Init()
         {
             Logs.Info("Initializing the program...");
-            Modules.Data.Init(); 
+            Modules.Data.Init();
             Modules.ConsoleManager.Init();
             Core.DataBridge.Init();
             Logs.Success($"Loaded all data.");

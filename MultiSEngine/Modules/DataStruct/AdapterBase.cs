@@ -3,7 +3,6 @@ using System.IO;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using Delphinus;
-using MultiSEngine.Modules.DataStruct;
 
 namespace MultiSEngine.Modules.DataStruct
 {
@@ -71,7 +70,7 @@ namespace MultiSEngine.Modules.DataStruct
         public virtual void OnRecieveLoopError(Exception ex)
         {
 #if DEBUG
-            Console.WriteLine($"[Recieve Error] {ex}");
+            Console.WriteLine($"[Recieve Loop Error] {ex}");
 #endif
             ErrorCount++;
             switch (ex)

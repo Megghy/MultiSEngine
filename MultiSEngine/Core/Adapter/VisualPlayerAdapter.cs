@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using System.Net.Sockets;
 using Delphinus;
 using Delphinus.Packets;
@@ -51,22 +50,6 @@ namespace MultiSEngine.Core.Adapter
                 IP = Client.IP
             });  //尝试同步玩家IP
         }
-        public void SyncPlayer()
-        {
-            Logs.Text($"Syncing player: [{Client.Name}]");
-            Client.Syncing = true;
-            Client.AddBuff(149, 120);
-            ResetAlmostEverything();
-            //Client.SendDataToClient(new SpawnPlayerPacket() { PosX = (short)Client.SpawnX, PosY = (short)Client.SpawnY, Context = Terraria.PlayerSpawnContext.RecallFromItem, PlayerSlot = Player.Index });
-            Client.SendDataToClient(Player.ServerData.WorldData);
-            Client.SendDataToClient(new LoadPlayerPacket() { PlayerSlot = Player.Index });
-            if (!Player.SSC) //非ssc的话还原玩家最开始的背包
-            {
-                Client.SendDataToClient(Player.OriginData.Info);
-                Player.OriginData.Inventory.Where(i => i != null).ForEach(i => Client.SendDataToClient(i));
-            }
-            Client.Syncing = false;
-        }
         public override bool GetPacket(Packet packet)
         {
 #if DEBUG
@@ -82,7 +65,7 @@ namespace MultiSEngine.Core.Adapter
                     break;
                 case LoadPlayerPacket slot:
                     Player.Index = slot.PlayerSlot;
-                    InternalSendPacket(Player.OriginData.Info); 
+                    InternalSendPacket(Player.OriginData.Info);
                     InternalSendPacket(new ClientUUIDPacket() { UUID = Player.UUID });
                     InternalSendPacket(new RequestWorldInfoPacket() { });//请求世界信息
                     break;
@@ -93,7 +76,7 @@ namespace MultiSEngine.Core.Adapter
                     Player.UpdateData(worldData);
                     if (Callback != null)
                     {
-                        Client.TP(Client.SpawnX, Client.SpawnY);
+                        Client.TP(Client.SpawnX, Client.SpawnY - 3);
                         TestConnecting = false;
                         Callback.Invoke(this, Client);
                         Callback = null;

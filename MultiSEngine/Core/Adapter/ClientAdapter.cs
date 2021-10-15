@@ -48,13 +48,13 @@ namespace MultiSEngine.Core.Adapter
         {
             switch (packet)
             {
-                case ClientHelloPacket hello:
+                case ClientHelloPacket hello: //使用fakeworld时不会使用这个
                     if (Client.State is ClientData.ClientState.NewConnection) //首次连接时默认进入主服务器
                     {
-                        if (Config.Instance.MainServer is { })
+                        if (Config.Instance.DefaultServerInternal is { })
                         {
                             Client.ReadVersion(hello);
-                            Client.Join(Config.Instance.MainServer);
+                            Client.Join(Config.Instance.DefaultServerInternal);
                         }
                         else
                             Client.Disconnect("No default server is set for the current server.");

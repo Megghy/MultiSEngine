@@ -90,7 +90,18 @@ namespace MultiSEngine.Core.Adapter
                             Timer = 0
                         });
                         Client.SendMessage(Data.Motd, false);
-                        Logs.Text($"Player [{Client.Name}] is temporarily transported in FakeWorld");
+                        if (Config.Instance.SwitchToDefaultServerOnJoin)
+                        {
+                            if (Config.Instance.DefaultServerInternal is { })
+                            {
+                                Client.SendInfoMessage(string.Format(Localization.Get("Command_Switch"), Config.Instance.DefaultServerInternal));
+                                Client.Join(Config.Instance.DefaultServerInternal);
+                            }
+                            else
+                                Client.SendInfoMessage("No default server is set for the current server.");
+                        }
+                        else
+                            Logs.Text($"[{Client.Name}] is temporarily transported in FakeWorld");
                     }
                     return false;
                 default:

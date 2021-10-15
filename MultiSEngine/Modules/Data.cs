@@ -22,7 +22,7 @@ namespace MultiSEngine.Modules
             StaticSpawnSquareData = Utils.GetTileSquare(4150, 1150, 100, 100);
             if (!File.Exists(MotdPath))
                 File.WriteAllText(MotdPath, Properties.Resources.DefaultMotd);
-            _motd = File.ReadAllText(MotdPath); 
+            _motd = File.ReadAllText(MotdPath);
         }
     }
 }

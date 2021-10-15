@@ -1,13 +1,12 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Net.Sockets;
 using Delphinus;
 using Delphinus.Packets;
 using Microsoft.Xna.Framework;
-using MultiSEngine.Core;
 using MultiSEngine.Core.Adapter;
 using MultiSEngine.Modules.DataStruct;
-using Terraria.Localization;
 
 namespace MultiSEngine.Modules
 {
@@ -53,7 +52,7 @@ namespace MultiSEngine.Modules
                         client.Server = server;
                         client.TempConnection = null;
                         client.TimeOutTimer.Stop();
-                        (client.SAdapter as VisualPlayerAdapter)?.SyncPlayer();
+                        client.Sync();
                     });
                 }
                 catch (Exception ex)
@@ -71,7 +70,22 @@ namespace MultiSEngine.Modules
         /// 返回到默认的初始服务器
         /// </summary>
         /// <param name="client"></param>
-        public static void Back(this ClientData client) => client.Join(Config.Instance.MainServer);
+        public static void Back(this ClientData client) => client.Join(Config.Instance.DefaultServerInternal);
+        public static void Sync(this ClientData client)
+        {
+            Logs.Text($"Syncing player: [{client.Name}]");
+            client.Syncing = true;
+            client.AddBuff(149, 120);
+            client.SAdapter?.ResetAlmostEverything();
+            client.SendDataToClient(client.Player.ServerData.WorldData);
+            client.SendDataToClient(new LoadPlayerPacket() { PlayerSlot = client.Player.Index });
+            if (!client.Player.SSC && Config.Instance.RestoreDataWhenJoinNonSSC) //非ssc的话还原玩家最开始的背包
+            {
+                client.SendDataToClient(client.Player.OriginData.Info);
+                client.Player.OriginData.Inventory.Where(i => i != null).ForEach(i => client.SendDataToClient(i));
+            }
+            client.Syncing = false;
+        }
     }
     public static partial class ClientHelper
     {
@@ -118,7 +132,7 @@ namespace MultiSEngine.Modules
         }
         public static bool SendDataToClient(this ClientData client, Packet packet, bool serializerAsClient = false)
         {
-            if(packet is null)
+            if (packet is null)
                 throw new ArgumentNullException(nameof(packet));
             if (packet is WorldDataPacket world && (client.Player.TileX > world.MaxTileX || client.Player.TileY > world.MaxTileY))
                 client.TP(client.SpawnY, client.SpawnY); //防止玩家超出地图游戏崩溃
@@ -133,9 +147,9 @@ namespace MultiSEngine.Modules
         public static void Disconnect(this ClientData client, string reason = null)
         {
 
-            Logs.Text($"{client.Name} disconnected. {reason}");
+            Logs.Text($"[{client.Name}] disconnected. {reason}");
             if (client.CAdapter?.Connection is { Connected: true } && !client.Disposed)
-                client.SendDataToClient(new KickPacket() { Reason = new(reason ?? "Unknown", NetworkText.Mode.Literal) });
+                client.SendDataToClient(new KickPacket() { Reason = new(reason ?? "Unknown", Terraria.Localization.NetworkText.Mode.Literal) });
             client.Dispose();
         }
 
@@ -147,7 +161,7 @@ namespace MultiSEngine.Modules
                 {
                     fromClient = false,
                     Command = "Say",
-                    NetworkText = new($"{(withPrefix ? $"<[c/B1DAE4:{Data.MessagePrefix}]> " : "")}{text}", NetworkText.Mode.Literal),
+                    NetworkText = new($"{(withPrefix ? $"<[c/B1DAE4:{Data.MessagePrefix}]> " : "")}{text}", Terraria.Localization.NetworkText.Mode.Literal),
                     Text = $"{(withPrefix ? $"<[c/B1DAE4:{Data.MessagePrefix}]> " : "")}{text}",
                     Color = color,
                     PlayerSlot = 255
@@ -164,7 +178,7 @@ namespace MultiSEngine.Modules
         {
             client.Player.VersionNum = hello.Version.StartsWith("Terraria") && int.TryParse(hello.Version[8..], out var v)
                             ? v
-                            : Config.Instance.MainServer.VersionNum;
+                            : Config.Instance.DefaultServerInternal.VersionNum;
             Logs.Info($"Version num of player {client.Name} is {client.Player.VersionNum}.");
         }
         public static void TP(this ClientData client, int tileX, int tileY)
