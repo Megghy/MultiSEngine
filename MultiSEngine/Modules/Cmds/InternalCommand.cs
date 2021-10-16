@@ -9,19 +9,19 @@ namespace MultiSEngine.Modules.Cmds
     {
         public override string Name => "mse";
 
-        public override void Execute(ClientData client, string cmdName, List<string> cmd)
+        public override void Execute(ClientData client, List<string> parma)
         {
-            if (cmd.Any())
+            if (parma.Any())
             {
-                switch (cmd.First().ToLower())
+                switch (parma.First().ToLower())
                 {
                     case "tp":
                     case "to":
                     case "t":
-                        if (cmd.Count < 2)
+                        if (parma.Count < 2)
                             client.SendInfoMessage($"{Localization.Get("Prompt_InvalidFormat")}{Environment.NewLine}{Localization.Get("Help_Tp")}");
                         else
-                            SwitchServer(client, cmd[1]);
+                            SwitchServer(client, parma[1]);
                         break;
                     case "back":
                     case "b":
@@ -36,6 +36,14 @@ namespace MultiSEngine.Modules.Cmds
                     case "l":
                         client.SendMessage($"{Localization.Get("Command_AviliableServer")}{string.Join(", ", Config.Instance.Servers.Where(s => s.Visible).Select(s => s.Name))}");
                         break;
+#if DEBUG
+                    case "let":
+                        if (parma.Count < 3)
+                            Console.Write("error /mse let name server");
+                        else
+                            Data.Clients.FirstOrDefault(c => c.Name.ToLower().StartsWith(parma[1].ToLower()))?.Join(Utils.GetServerInfoByName(parma[2]).FirstOrDefault());
+                        break;
+#endif
                     default:
                         SendHelpText();
                         break;

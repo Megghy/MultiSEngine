@@ -49,10 +49,10 @@ namespace MultiSEngine.Modules
                         client.State = ClientData.ClientState.InGame;
                         client.SAdapter?.Stop(true);
                         client.SAdapter = tempAdapter;
-                        client.Server = server;
                         client.TempConnection = null;
                         client.TimeOutTimer.Stop();
                         client.Sync();
+                        client.Server = server;
                     });
                 }
                 catch (Exception ex)
@@ -75,15 +75,17 @@ namespace MultiSEngine.Modules
         {
             Logs.Text($"Syncing player: [{client.Name}]");
             client.Syncing = true;
+
             client.AddBuff(149, 120);
             client.SAdapter?.ResetAlmostEverything();
+            client.SendDataToClient(new LoadPlayerPacket() { PlayerSlot = client.Player.Index, ServerWantsToRunCheckBytesInClientLoopThread = true });
             client.SendDataToClient(client.Player.ServerData.WorldData);
-            client.SendDataToClient(new LoadPlayerPacket() { PlayerSlot = client.Player.Index });
             if (!client.Player.SSC && Config.Instance.RestoreDataWhenJoinNonSSC) //非ssc的话还原玩家最开始的背包
             {
                 client.SendDataToClient(client.Player.OriginData.Info);
                 client.Player.OriginData.Inventory.Where(i => i != null).ForEach(i => client.SendDataToClient(i));
             }
+
             client.Syncing = false;
         }
     }
@@ -97,10 +99,18 @@ namespace MultiSEngine.Modules
 #if DEBUG
                 Console.WriteLine($"[Send to CLIENT] <{BitConverter.ToInt16(buffer, start)} byte> {(length is null ? "" : $"<Length: {length}>")} {buffer.GetMessageID()}");
 #endif
+                if (buffer is { Length: < 3 } && buffer[start + 2] is < 1 or > 140)
+                {
+#if DEBUG
+                    Console.WriteLine($"[Send to CLIENT] <Invaild data> <{BitConverter.ToInt16(buffer, start)} byte> {(length is null ? "" : $"<Length: {length}>")} {buffer.GetMessageID()}");
+#endif
+                    return true;
+                }
                 using (var arg = new SocketAsyncEventArgs())
                 {
                     arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer.Length);
                     client.CAdapter?.Connection?.SendAsync(arg);
+                    //client.CAdapter?.Connection?.Send(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer.Length, SocketFlags.None);
                 }
                 return true;
             }
@@ -142,7 +152,7 @@ namespace MultiSEngine.Modules
         {
             if (packet is null)
                 throw new ArgumentNullException(nameof(packet));
-            client.SendDataToClient(packet.Serialize(serializerAsClient), 0);
+            client.SendDataToGameServer(packet.Serialize(serializerAsClient), 0);
         }
         public static void Disconnect(this ClientData client, string reason = null)
         {
@@ -179,7 +189,7 @@ namespace MultiSEngine.Modules
             client.Player.VersionNum = hello.Version.StartsWith("Terraria") && int.TryParse(hello.Version[8..], out var v)
                             ? v
                             : Config.Instance.DefaultServerInternal.VersionNum;
-            Logs.Info($"Version num of player {client.Name} is {client.Player.VersionNum}.");
+            Logs.Info($"Version num of {client.Name} is {client.Player.VersionNum}.");
         }
         public static void TP(this ClientData client, int tileX, int tileY)
         {

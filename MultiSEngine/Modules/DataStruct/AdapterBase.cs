@@ -34,8 +34,7 @@ namespace MultiSEngine.Modules.DataStruct
         /// <param name="length"></param>
         /// <returns></returns>
         public abstract bool GetPacket(Packet packet);
-        public abstract void SendOriginData(byte[] buffer, int start = 0, int? length = null);
-        public virtual void SendPacket(Packet packet) => SendOriginData(Serializer.Serialize(packet));
+        public abstract void SendPacket(Packet packet);
         public virtual AdapterBase Start()
         {
             //Connection.BeginReceive(Buffer, 0, Buffer.Length, SocketFlags.None, new AsyncCallback(ReceiveMessage), null);
@@ -94,7 +93,8 @@ namespace MultiSEngine.Modules.DataStruct
                     var packet = Serializer.Deserialize(NetReader);
                     try
                     {
-                        Task.Run(() => { if (GetPacket(packet)) SendPacket(packet); });
+                        //Task.Run(() => { if (GetPacket(packet)) SendPacket(packet); });
+                        if (GetPacket(packet)) SendPacket(packet);
                     }
                     catch (Exception ex)
                     {

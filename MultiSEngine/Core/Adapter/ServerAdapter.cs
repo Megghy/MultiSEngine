@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Net.Sockets;
 using Delphinus;
 using Delphinus.Packets;
@@ -38,9 +39,8 @@ namespace MultiSEngine.Core.Adapter
                     return false;
                 case LoadPlayerPacket slot:
                     if (Client.Player.Index != slot.PlayerSlot)
-                        Logs.Text($"Update the index of player [{Client.Name}]: {Client.Player.Index} => {slot.PlayerSlot}.");
+                        Logs.Text($"Update the index of [{Client.Name}]: {Client.Player.Index} => {slot.PlayerSlot}.");
                     Client.Player.Index = slot.PlayerSlot;
-                    Client.AddBuff(149, 180);
                     return true;
                 case WorldDataPacket worldData:
                     worldData.WorldName = string.IsNullOrEmpty(Config.Instance.ServerName) ? worldData.WorldName : Config.Instance.ServerName; //设置了服务器名称的话则替换
@@ -66,50 +66,24 @@ namespace MultiSEngine.Core.Adapter
                     return true;
             }
         }
-        public override void SendOriginData(byte[] buffer, int start = 0, int? length = null)
+        public override void SendPacket(Packet packet)
         {
             if (!ShouldStop)
-                Client.SendDataToClient(buffer, start, length);
+                Client.SendDataToClient(Serializer.Serialize(packet));
         }
         public void ResetAlmostEverything()
         {
             Logs.Text($"Resetting client data of [{Client.Name}]");
-            var emptyPlayerActive = new PlayerActivePacket()
+            var playerActive = new PlayerActivePacket()
             {
                 Active = false
             };
-            for (int i = 0; i < 255; i++)
-            {
-                if (i == Client.Player.Index)
-                    continue;
-                emptyPlayerActive.PlayerSlot = (byte)i;
-                Client.SendDataToClient(emptyPlayerActive);
-            }
-            var emptyNPC = new SyncNPCPacket()
-            {
-                Life = 0,
-                ReleaseOwner = new byte[16],
-                AIs = new float[2]
-            };
-            for (int i = 0; i < 200; i++)
-            {
-                emptyNPC.NPCSlot = (short)i;
-                Client.SendDataToClient(emptyNPC);
-            }
-            var emptyItem = new SyncItemPacket()
-            {
-                ItemType = 0,
-                Owner = 255,
-                Position = new(),
-                Velocity = new(),
-                Prefix = 0,
-                Stack = 0
-            };
-            for (int i = 0; i < 255; i++)
-            {
-                emptyItem.ItemSlot = (byte)i;
-                Client.SendDataToClient(emptyItem);
-            }
+            Data.Clients.Where(c => c.Server == Client.Server && c != Client)
+                .ForEach(c => c.SendDataToClient(new PlayerActivePacket()
+                {
+                    Active = false,
+                    PlayerSlot = c.Player.Index
+                }));
         }
     }
 }

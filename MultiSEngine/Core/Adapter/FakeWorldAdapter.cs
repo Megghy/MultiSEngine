@@ -15,19 +15,21 @@ namespace MultiSEngine.Core.Adapter
         }
         public FakeWorldAdapter(ClientData client, Socket connection) : base(client, connection)
         {
-            FreezeTimer = new()
-            {
-                Interval = 1000,
-                AutoReset = true
-            };
-            FreezeTimer.Elapsed += (_, _) => Client.AddBuff(149, 100);
+            FreezeTimer.Elapsed += (_, _) => { if (IsEnterWorld) Client.AddBuff(149, 100); };
         }
-        private Timer FreezeTimer;
+        private readonly Timer FreezeTimer = new()
+        {
+            Interval = 1000,
+            AutoReset = true
+        };
         public const int Width = 8400;
         public const int Height = 2400;
         public bool RunningAsNormal { get; set; } = false;
+        public bool IsEnterWorld = false;
         public void ChangeProcessState(bool asNormal)
         {
+            if (asNormal)
+                IsEnterWorld = false;
             RunningAsNormal = true;
             FreezeTimer.Stop();
         }
@@ -45,7 +47,7 @@ namespace MultiSEngine.Core.Adapter
         public override bool GetPacket(Packet packet)
         {
 #if DEBUG
-            Console.WriteLine($"[Recieve from CLIENT] {packet}");
+            Console.WriteLine($"[Recieve CLIENT] {packet}");
 #endif
             if (RunningAsNormal)
                 return base.GetPacket(packet);
@@ -53,7 +55,7 @@ namespace MultiSEngine.Core.Adapter
             {
                 case ClientHelloPacket hello:
                     Client.ReadVersion(hello);
-                    InternalSendPacket(new LoadPlayerPacket() { PlayerSlot = 0 });
+                    InternalSendPacket(new LoadPlayerPacket() { PlayerSlot = 0, ServerWantsToRunCheckBytesInClientLoopThread = true });
                     return false;
                 case RequestWorldInfoPacket:
                     var bb = new Terraria.BitsByte();
@@ -78,17 +80,10 @@ namespace MultiSEngine.Core.Adapter
                 case SpawnPlayerPacket spawn:
                     if (spawn.Context == Terraria.PlayerSpawnContext.SpawningIntoWorld)
                     {
+                        IsEnterWorld = true;
                         Client.Player.SpawnX = spawn.PosX;
                         Client.Player.SpawnY = spawn.PosY;
                         Client.SendDataToClient(new FinishedConnectingToServerPacket());
-                        Client.SendDataToClient(new SpawnPlayerPacket()
-                        {
-                            PosX = (short)Client.SpawnX,
-                            PosY = (short)Client.SpawnY,
-                            Context = Terraria.PlayerSpawnContext.RecallFromItem,
-                            PlayerSlot = 0,
-                            Timer = 0
-                        });
                         Client.SendMessage(Data.Motd, false);
                         if (Config.Instance.SwitchToDefaultServerOnJoin)
                         {
@@ -107,10 +102,6 @@ namespace MultiSEngine.Core.Adapter
                 default:
                     return base.GetPacket(packet);
             }
-        }
-        public override void SendOriginData(byte[] buffer, int start = 0, int? length = null)
-        {
-            base.SendOriginData(buffer, start, length);
         }
     }
 }

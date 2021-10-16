@@ -16,33 +16,10 @@ namespace MultiSEngine.Core.Adapter
             client.CAdapter = this;
         }
         public override PacketSerializer Serializer { get; set; } = new(false);
-        public override AdapterBase Start()
-        {
-            Task.Run(CheckAlive);
-            return base.Start();
-        }
         public override void OnRecieveLoopError(Exception ex)
         {
             base.OnRecieveLoopError(ex);
             Client.Disconnect();
-        }
-        public void CheckAlive()
-        {
-            while (Connection is { Connected: true } && !ShouldStop)
-            {
-                try
-                {
-                    Connection.Send(new byte[3]);
-                    Task.Delay(500).Wait();
-                }
-                catch
-                {
-                    Client.Disconnect();
-                    return;
-                }
-            }
-            if (!ShouldStop)
-                Client.Dispose();
         }
         public override bool GetPacket(Packet packet)
         {
@@ -83,22 +60,22 @@ namespace MultiSEngine.Core.Adapter
                             $"{Localization.Get("Help_Back")}\r\n" +
                             $"{Localization.Get("Help_List")}\r\n" +
                             $"{Localization.Get("Help_Command")}"
-                );
+                        );
                     }
                     else
                     {
-                        modules.fromClient = true;
-                        SendOriginData(modules.Serialize());
+                        Client.SendDataToGameServer(modules, true);
                     }
                     return false;
                 default:
                     return true;
             }
         }
-        public override void SendOriginData(byte[] buffer, int start = 0, int? length = null)
+        public override void SendPacket(Packet packet)
         {
             if (!ShouldStop)
-                Client.SendDataToGameServer(buffer, start, length);
+                Client.SendDataToGameServer(Serializer.Serialize(packet));
         }
     }
 }
+

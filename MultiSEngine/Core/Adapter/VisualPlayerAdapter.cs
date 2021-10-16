@@ -64,7 +64,8 @@ namespace MultiSEngine.Core.Adapter
                     Stop(true);
                     break;
                 case LoadPlayerPacket slot:
-                    Player.Index = slot.PlayerSlot;
+                    base.GetPacket(slot);
+                    Client.AddBuff(149, 120);
                     InternalSendPacket(Player.OriginData.Info);
                     InternalSendPacket(new ClientUUIDPacket() { UUID = Player.UUID });
                     InternalSendPacket(new RequestWorldInfoPacket() { });//请求世界信息
@@ -91,6 +92,8 @@ namespace MultiSEngine.Core.Adapter
                     Console.WriteLine($"need pass");
                     Stop(true);
                     return false;
+                case StatusTextPacket:
+                    return RunningAsNormal;
                 case StartPlayingPacket:
                     ChangeProcessState(true); //转换处理模式为普通
                     break;
@@ -98,10 +101,6 @@ namespace MultiSEngine.Core.Adapter
                     return base.GetPacket(packet);
             }
             return !TestConnecting;
-        }
-        public override void SendOriginData(byte[] buffer, int start = 0, int? length = null)
-        {
-            base.SendOriginData(buffer, start, length);
         }
     }
 }
