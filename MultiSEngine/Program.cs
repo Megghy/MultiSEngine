@@ -9,7 +9,7 @@ namespace MultiSEngine
         static void Main(string[] args)
         {
             Init();
-            while (Console.ReadLine() is not "exit" or "stop")
+            while (!(Core.Command.HandleCommand(null, Console.ReadLine(), out var c, true) && !c))
                 Task.Delay(1).Wait();
             Console.WriteLine("Bye!");
             Task.Delay(1000).Wait();

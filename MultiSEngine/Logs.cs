@@ -10,25 +10,25 @@ namespace MultiSEngine
         public static string LogPath => Path.Combine(Environment.CurrentDirectory, "Logs");
         public static string LogName => Path.Combine(LogPath, DateTime.Now.ToString("yyyy-MM-dd") + ".log");
         public const ConsoleColor DefaultColor = ConsoleColor.Gray;
-        public static void Text(object text)
+        public static void Text(object text, bool save = true)
         {
-            LogAndSave(text);
+            LogAndSave(text, "[Log]", DefaultColor, save);
         }
-        public static void Info(object text)
+        public static void Info(object text, bool save = true)
         {
-            LogAndSave(text, "[Info]", ConsoleColor.Yellow);
+            LogAndSave(text, "[Info]", ConsoleColor.Yellow, save);
         }
-        public static void Error(object text)
+        public static void Error(object text, bool save = true)
         {
-            LogAndSave(text, "[Error]", ConsoleColor.Red);
+            LogAndSave(text, "[Error]", ConsoleColor.Red, save);
         }
-        public static void Warn(object text)
+        public static void Warn(object text, bool save = true)
         {
-            LogAndSave(text, "[Warn]", ConsoleColor.DarkYellow);
+            LogAndSave(text, "[Warn]", ConsoleColor.DarkYellow, save);
         }
-        public static void Success(object text)
+        public static void Success(object text, bool save = true)
         {
-            LogAndSave(text, "[Success]", ConsoleColor.Green);
+            LogAndSave(text, "[Success]", ConsoleColor.Green, save);
         }
         private static Queue LogQueue;
         internal static void SaveLogTask()
@@ -46,12 +46,12 @@ namespace MultiSEngine
                 }
             });
         }
-        public static void LogAndSave(object message, string prefix = "[Log]", ConsoleColor color = DefaultColor)
+        public static void LogAndSave(object message, string prefix = "[Log]", ConsoleColor color = DefaultColor, bool save = true)
         {
             if (LogQueue is null) SaveLogTask();
             Console.ForegroundColor = color;
             Console.WriteLine($"{prefix} {message}");
-            LogQueue.Enqueue($"{DateTime.Now:yyyy-MM-dd-HH:mm:ss} - {prefix} {message}{Environment.NewLine}");
+            if (save) LogQueue.Enqueue($"{DateTime.Now:yyyy-MM-dd-HH:mm:ss} - {prefix} {message}{Environment.NewLine}");
             Console.ForegroundColor = DefaultColor;
         }
     }

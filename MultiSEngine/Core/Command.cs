@@ -13,9 +13,14 @@ namespace MultiSEngine.Core
         {
             public abstract string Name { get; }
             public virtual bool ServerCommand { get; } = false;
-            public abstract void Execute(ClientData client, List<string> parma);
+            /// <summary>
+            /// 返回是否继续将执行这条命令的消息发送到服务器
+            /// </summary>
+            /// <param name="client"></param>
+            /// <param name="parma"></param>
+            /// <returns></returns>
+            public abstract bool Execute(ClientData client, string cmdName, List<string> parma);
         }
-        public readonly static List<CmdBase> Commands = new();
         public static void InitAllCommands()
         {
             AppDomain.CurrentDomain.GetAssemblies().ForEach(assembly =>
@@ -25,14 +30,16 @@ namespace MultiSEngine.Core
                     assembly
                            .GetTypes()
                            .Where(t => t.BaseType == typeof(CmdBase))
-                           .ForEach(t => Commands.Add((CmdBase)Activator.CreateInstance(t)));
+                           .ForEach(t => Data.Commands.Add((CmdBase)Activator.CreateInstance(t)));
                 }
                 catch { }
             });
         }
-        public static bool HandleCommand(ClientData client, string text, out bool continueSend)
+        public static bool HandleCommand(ClientData client, string text, out bool continueSend, bool fromConsole = false)
         {
             continueSend = true;
+            if (fromConsole && (!text?.StartsWith("/") ?? false))
+                text = "/" + text;
             if (text?.StartsWith("/") ?? false)
             {
                 text = text.Remove(0, 1);
@@ -65,12 +72,16 @@ namespace MultiSEngine.Core
                     {
                         list = ParseParameters(text.Substring(num));
                     }
-                    List<CmdBase> aviliableCommands = Commands.FindAll(c => c.Name.ToLower() == cmdName.ToLower());
+                    List<CmdBase> aviliableCommands;
+                    if (fromConsole)
+                        aviliableCommands = Data.Commands.FindAll(c => c.ServerCommand && (c.Name.ToLower() == cmdName.ToLower() || cmdName.Contains(c.Name)));
+                    else
+                        aviliableCommands = Data.Commands.FindAll(c => c.Name.ToLower() == cmdName.ToLower() && !c.ServerCommand);
                     if (aviliableCommands.FirstOrDefault() is { } command)
                     {
                         try
                         {
-                            command.Execute(client, list);
+                            continueSend = command.Execute(client, cmdName, list);
                         }
                         catch (Exception ex)
                         {

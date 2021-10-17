@@ -2,13 +2,15 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using static MultiSEngine.Core.Command;
 
 namespace MultiSEngine.Modules
 {
     internal class Data
     {
         public static readonly string MessagePrefix = "MultiSEngine";
-        public static List<DataStruct.ClientData> Clients { get; set; } = new();
+        public static readonly List<DataStruct.ClientData> Clients = new();
+        public static readonly List<CmdBase> Commands = new();
         public static byte[] StaticSpawnSquareData { get; set; }
         private static string _motd = string.Empty;
         public static string Motd => _motd

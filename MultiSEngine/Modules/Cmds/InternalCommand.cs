@@ -9,9 +9,11 @@ namespace MultiSEngine.Modules.Cmds
     {
         public override string Name => "mse";
 
-        public override void Execute(ClientData client, List<string> parma)
+        public override bool Execute(ClientData client, string cmdName, List<string> parma)
         {
-            if (parma.Any())
+            if (client is null)
+                client.SendErrorMessage("Unable to execute this command.");
+            else if (parma.Any())
             {
                 switch (parma.First().ToLower())
                 {
@@ -34,7 +36,7 @@ namespace MultiSEngine.Modules.Cmds
                         break;
                     case "list":
                     case "l":
-                        client.SendSuccessMessage($"{Localization.Get("Command_AviliableServer")}{Environment.NewLine + "-"}{string.Join(Environment.NewLine + "- ", (from server in Config.Instance.Servers let text = $"{server.Name} <{server.Online()}>" select text))}");
+                        client.SendSuccessMessage($"{Localization.Get("Command_AviliableServer")}{Environment.NewLine + "- "}{string.Join(Environment.NewLine + "- ", (from server in Config.Instance.Servers let text = $"{server.Name} <{server.Online()}>" select text))}");
                         break;
 #if DEBUG
                     case "let":
@@ -51,6 +53,7 @@ namespace MultiSEngine.Modules.Cmds
             }
             else
                 SendHelpText();
+            return false;
             void SendHelpText()
             {
                 client.SendInfoMessage($"{Localization.Get("Prompt_InvalidFormat")}\r\n" +
