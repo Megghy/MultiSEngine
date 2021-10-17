@@ -8,6 +8,6 @@
         public int Port { get; set; }
         public int SpawnX { get; set; } = -1;
         public int SpawnY { get; set; } = -1;
-        public int VersionNum { get; set; } = 238;
+        public int VersionNum { get; set; } = -1;
     }
 }

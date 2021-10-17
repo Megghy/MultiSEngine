@@ -14,13 +14,13 @@ namespace MultiSEngine.Core
         public Socket SocketServer { get; internal set; }
         public readonly PacketSerializer ClientSerializer = new(true);
         public readonly PacketSerializer ServerSerializer = new(false);
-        public Net Init(string ip = "127.0.0.1", int port = 7778)
+        public Net Init(string ip = null, int port = 7778)
         {
             try
             {
                 SocketServer?.Dispose();
                 SocketServer = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                IPAddress address = IPAddress.Parse(ip);
+                IPAddress address = ip is null or "127.0.0.1" or "0.0.0.0" ? IPAddress.Any : IPAddress.Parse(ip);
                 IPEndPoint point = new(address, port);
                 SocketServer.Bind(point);
                 SocketServer.Listen(50);

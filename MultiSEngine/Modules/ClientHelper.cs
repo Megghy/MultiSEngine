@@ -158,6 +158,8 @@ namespace MultiSEngine.Modules
         {
 
             Logs.Text($"[{client.Name}] disconnected. {reason}");
+            if(client.State == ClientData.ClientState.NewConnection)
+                Data.Clients.Where(c => c.Server is null && c != client).ForEach(c => c.SendMessage($"{client.Name} has leave."));
             if (client.CAdapter?.Connection is { Connected: true } && !client.Disposed)
                 client.SendDataToClient(new KickPacket() { Reason = new(reason ?? "Unknown", Terraria.Localization.NetworkText.Mode.Literal) });
             client.Dispose();

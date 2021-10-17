@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Net.Sockets;
 using System.Timers;
 using Delphinus;
@@ -67,6 +68,7 @@ namespace MultiSEngine.Core.Adapter
                         Client.Player.SpawnY = spawn.PosY;
                         Client.SendDataToClient(new FinishedConnectingToServerPacket());
                         Client.SendMessage(Data.Motd, false);
+                        Data.Clients.Where(c => c.Server is null && c != Client).ForEach(c => c.SendMessage($"{Client.Name} has join."));
                         if (Config.Instance.SwitchToDefaultServerOnJoin)
                         {
                             if (Config.Instance.DefaultServerInternal is { })
