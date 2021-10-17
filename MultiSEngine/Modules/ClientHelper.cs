@@ -1,12 +1,12 @@
-﻿using System;
-using System.IO;
-using System.Linq;
-using System.Net.Sockets;
-using Delphinus;
+﻿using Delphinus;
 using Delphinus.Packets;
 using Microsoft.Xna.Framework;
 using MultiSEngine.Core.Adapter;
 using MultiSEngine.Modules.DataStruct;
+using System;
+using System.IO;
+using System.Linq;
+using System.Net.Sockets;
 
 namespace MultiSEngine.Modules
 {
@@ -165,18 +165,21 @@ namespace MultiSEngine.Modules
 
         public static void SendMessage(this ClientData client, string text, Color color, bool withPrefix = true)
         {
-            using (var writer = new BinaryWriter(new MemoryStream()))
-            {
-                client.SendDataToClient(new Delphinus.NetModules.NetTextModule()
+            if (client is null)
+                Console.WriteLine(text);
+            else
+                using (var writer = new BinaryWriter(new MemoryStream()))
                 {
-                    fromClient = false,
-                    Command = "Say",
-                    NetworkText = new($"{(withPrefix ? $"<[c/B1DAE4:{Data.MessagePrefix}]> " : "")}{text}", Terraria.Localization.NetworkText.Mode.Literal),
-                    Text = $"{(withPrefix ? $"<[c/B1DAE4:{Data.MessagePrefix}]> " : "")}{text}",
-                    Color = color,
-                    PlayerSlot = 255
-                });
-            }
+                    client.SendDataToClient(new Delphinus.NetModules.NetTextModule()
+                    {
+                        fromClient = false,
+                        Command = "Say",
+                        NetworkText = new($"{(withPrefix ? $"<[c/B1DAE4:{Data.MessagePrefix}]> " : "")}{text}", Terraria.Localization.NetworkText.Mode.Literal),
+                        Text = $"{(withPrefix ? $"<[c/B1DAE4:{Data.MessagePrefix}]> " : "")}{text}",
+                        Color = color,
+                        PlayerSlot = 255
+                    });
+                }
         }
         public static void SendMessage(this ClientData client, string text, bool withPrefix = true) => SendMessage(client, text, new(255, 255, 255), withPrefix);
         public static void SendInfoMessage(this ClientData client, string text, bool withPrefix = true) => SendMessage(client, text, new(220, 220, 130), withPrefix);
@@ -184,6 +187,7 @@ namespace MultiSEngine.Modules
         public static void SendErrorMessage(this ClientData client, string text, bool withPrefix = true) => SendMessage(client, text, new(220, 135, 135), withPrefix);
         #endregion
         #region 一些小工具
+        public static void Broadcast(this ClientData client, string message, bool ruleOutSelf = true) => Data.Clients.Where(c => !ruleOutSelf || (c != client && c.Server != client?.Server)).ForEach(c => c.SendMessage(message));
         public static void ReadVersion(this ClientData client, ClientHelloPacket hello)
         {
             client.Player.VersionNum = hello.Version.StartsWith("Terraria") && int.TryParse(hello.Version[8..], out var v)

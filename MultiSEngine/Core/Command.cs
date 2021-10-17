@@ -12,8 +12,7 @@ namespace MultiSEngine.Core
         public abstract class CmdBase
         {
             public abstract string Name { get; }
-            public virtual bool ServerCommand { get; set; } = false;
-            public virtual bool ContinueSend { get; set; } = false;
+            public virtual bool ServerCommand { get; } = false;
             public abstract void Execute(ClientData client, List<string> parma);
         }
         public readonly static List<CmdBase> Commands = new();
@@ -71,7 +70,6 @@ namespace MultiSEngine.Core
                     {
                         try
                         {
-                            continueSend = command.ContinueSend;
                             command.Execute(client, list);
                         }
                         catch (Exception ex)

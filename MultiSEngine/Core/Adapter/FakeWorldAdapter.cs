@@ -15,13 +15,7 @@ namespace MultiSEngine.Core.Adapter
         }
         public FakeWorldAdapter(ClientData client, Socket connection) : base(client, connection)
         {
-            FreezeTimer.Elapsed += (_, _) => { if (IsEnterWorld) Client.AddBuff(149, 100); };
         }
-        private readonly Timer FreezeTimer = new()
-        {
-            Interval = 1000,
-            AutoReset = true
-        };
         public const int Width = 8400;
         public const int Height = 2400;
         public bool RunningAsNormal { get; set; } = false;
@@ -31,18 +25,6 @@ namespace MultiSEngine.Core.Adapter
             if (asNormal)
                 IsEnterWorld = false;
             RunningAsNormal = true;
-            FreezeTimer.Stop();
-        }
-        public override AdapterBase Start()
-        {
-            FreezeTimer.Start();
-            Client.AddBuff(149, 120);
-            return base.Start();
-        }
-        public override void Stop(bool disposeConnection = false)
-        {
-            FreezeTimer.Stop();
-            base.Stop(disposeConnection);
         }
         public override bool GetPacket(Packet packet)
         {

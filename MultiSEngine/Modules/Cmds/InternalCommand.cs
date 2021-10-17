@@ -34,7 +34,7 @@ namespace MultiSEngine.Modules.Cmds
                         break;
                     case "list":
                     case "l":
-                        client.SendMessage($"{Localization.Get("Command_AviliableServer")}{string.Join(", ", Config.Instance.Servers.Where(s => s.Visible).Select(s => s.Name))}");
+                        client.SendSuccessMessage($"{Localization.Get("Command_AviliableServer")}{Environment.NewLine + "-"}{string.Join(Environment.NewLine + "- ", (from server in Config.Instance.Servers let text = $"{server.Name} <{server.Online()}>" select text))}");
                         break;
 #if DEBUG
                     case "let":

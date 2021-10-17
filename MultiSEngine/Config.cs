@@ -42,6 +42,7 @@ namespace MultiSEngine
         public int ListenPort { get; set; } = 7778;
         public string ServerName { get; set; } = "MultiSEngine";
         public int SwitchTimeOut { get; set; } = 5000;
+        public bool EnableChatForward { get; set; } = true;
         public bool SwitchToDefaultServerOnJoin { get; set; } = false;
         public bool RestoreDataWhenJoinNonSSC { get; set; } = true;
         [JsonIgnore]

@@ -1,11 +1,10 @@
-﻿using System;
-using System.Linq;
-using System.Net.Sockets;
-using System.Threading.Tasks;
-using Delphinus;
+﻿using Delphinus;
 using Delphinus.Packets;
 using MultiSEngine.Modules;
 using MultiSEngine.Modules.DataStruct;
+using System;
+using System.Linq;
+using System.Net.Sockets;
 
 namespace MultiSEngine.Core.Adapter
 {
@@ -51,6 +50,9 @@ namespace MultiSEngine.Core.Adapter
                     Client.Player.UUID = uuid.UUID;
                     return true;
                 case Delphinus.NetModules.NetTextModule modules:
+                    Logs.LogAndSave($"{Client.Name} <{Client.Server?.Name}>: {modules.Text}", "[Chat]");
+                    if (Config.Instance.EnableChatForward)
+                        Client.Broadcast(modules.Text);
                     if (modules.Command == "Say" && (Command.HandleCommand(Client, modules.Text, out var c) && !c))
                         return false;
                     else if (Client.State == ClientData.ClientState.NewConnection)

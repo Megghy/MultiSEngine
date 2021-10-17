@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using Delphinus;
+using MultiSEngine.Modules.DataStruct;
 using Terraria;
 using Terraria.DataStructures;
 using Terraria.Localization;
@@ -16,6 +17,7 @@ namespace MultiSEngine
             using (var reader = new BinaryReader(new MemoryStream(buffer)))
                 return reader.Deserialize<T>();
         }*/
+        public static int Online(this ServerInfo server) => Modules.Data.Clients.Where(c => c.Server == server).Count();
         public static bool TryParseAddress(string address, out string ip)
         {
             ip = "";
@@ -65,7 +67,7 @@ namespace MultiSEngine
             bb[1] = true;
             bb[5] = true;
             var list = new ComplexTileData[width * heigh];
-            for (int i = 0; i < width; i++)
+            for (int i = 0; i < width * heigh; i++)
             {
                 list[i] = new()
                 {
@@ -77,7 +79,6 @@ namespace MultiSEngine
                     Flags1 = bb,
                     Flags2 = 0,
                     Flags3 = 0,
-
                 };
             }
             return Core.Net.Instance.ServerSerializer.Serialize(new Delphinus.Packets.TileSectionPacket()
