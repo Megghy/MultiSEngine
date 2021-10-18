@@ -22,6 +22,8 @@ namespace MultiSEngine.Modules
         /// <param name="server"></param>
         public static void Join(this ClientData client, ServerInfo server)
         {
+            if (Core.Hooks.OnPreSwitch(client, server, out _))
+                return;
             if (client.Server?.Name == server?.Name || (client.State > ClientData.ClientState.ReadyToSwitch && client.State < ClientData.ClientState.InGame))
             {
                 Logs.Warn($"Unallowed transmission requests for [{client.Name}]");
@@ -156,9 +158,8 @@ namespace MultiSEngine.Modules
         }
         public static void Disconnect(this ClientData client, string reason = null)
         {
-
             Logs.Text($"[{client.Name}] disconnected. {reason}");
-            if(client.State == ClientData.ClientState.NewConnection)
+            if (client.State == ClientData.ClientState.NewConnection)
                 Data.Clients.Where(c => c.Server is null && c != client).ForEach(c => c.SendMessage($"{client.Name} has leave."));
             if (client.CAdapter?.Connection is { Connected: true } && !client.Disposed)
                 client.SendDataToClient(new KickPacket() { Reason = new(reason ?? "Unknown", Terraria.Localization.NetworkText.Mode.Literal) });
@@ -176,8 +177,8 @@ namespace MultiSEngine.Modules
                     {
                         fromClient = false,
                         Command = "Say",
-                        NetworkText = new($"{(withPrefix ? $"<[c/B1DAE4:{Data.MessagePrefix}]> " : "")}{text}", Terraria.Localization.NetworkText.Mode.Literal),
-                        Text = $"{(withPrefix ? $"<[c/B1DAE4:{Data.MessagePrefix}]> " : "")}{text}",
+                        NetworkText = new($"{(withPrefix ? $"{Localization.Get("Prefix")}" : "")}{text}", Terraria.Localization.NetworkText.Mode.Literal),
+                        Text = $"{(withPrefix ? $"{Localization.Get("Prefix")}" : "")}{text}",
                         Color = color,
                         PlayerSlot = 255
                     });
@@ -190,9 +191,10 @@ namespace MultiSEngine.Modules
         #endregion
         #region 一些小工具
         public static void Broadcast(this ClientData client, string message, bool ruleOutSelf = true) => Data.Clients.Where(c => !ruleOutSelf || (c != client && c.Server != client?.Server)).ForEach(c => c.SendMessage(message));
-        public static void ReadVersion(this ClientData client, ClientHelloPacket hello)
+        public static void ReadVersion(this ClientData client, ClientHelloPacket hello) => client.ReadVersion(hello.Version);
+        public static void ReadVersion(this ClientData client, string version)
         {
-            client.Player.VersionNum = hello.Version.StartsWith("Terraria") && int.TryParse(hello.Version[8..], out var v)
+            client.Player.VersionNum = version.StartsWith("Terraria") && int.TryParse(version[8..], out var v)
                             ? v
                             : Config.Instance.DefaultServerInternal.VersionNum;
             Logs.Info($"Version num of {client.Name} is {client.Player.VersionNum}.");

@@ -27,18 +27,21 @@ namespace MultiSEngine.Core.Adapter
                 IsEnterWorld = false;
             RunningAsNormal = true;
         }
-        public override bool GetPacket(Packet packet)
+        public override bool GetPacket(ref Packet packet)
         {
 #if DEBUG
             Console.WriteLine($"[Recieve CLIENT] {packet}");
 #endif
             if (RunningAsNormal)
-                return base.GetPacket(packet);
+                return base.GetPacket(ref packet);
             switch (packet)
             {
                 case ClientHelloPacket hello:
-                    Client.ReadVersion(hello);
-                    InternalSendPacket(new LoadPlayerPacket() { PlayerSlot = 0, ServerWantsToRunCheckBytesInClientLoopThread = true });
+                    if(!Hooks.OnPlayerJoin(Client, Client.IP, Client.Port, hello.Version, out var joinEvent))
+                    {
+                        Client.ReadVersion(joinEvent.Version);
+                        InternalSendPacket(new LoadPlayerPacket() { PlayerSlot = 0, ServerWantsToRunCheckBytesInClientLoopThread = true });
+                    }
                     return false;
                 case RequestWorldInfoPacket:
                     var bb = new Terraria.BitsByte();
@@ -73,18 +76,18 @@ namespace MultiSEngine.Core.Adapter
                         {
                             if (Config.Instance.DefaultServerInternal is { })
                             {
-                                Client.SendInfoMessage(string.Format(Localization.Get("Command_Switch"), Config.Instance.DefaultServerInternal));
+                                Client.SendInfoMessage(string.Format(Localization.Get("Command_Switch"), Config.Instance.DefaultServerInternal.Name));
                                 Client.Join(Config.Instance.DefaultServerInternal);
                             }
                             else
-                                Client.SendInfoMessage("No default server is set for the current server.");
+                                Client.SendInfoMessage(Localization.Get("Prompt_DefaultServerNotFound", new[]{ Config.Instance.DefaultServer }));
                         }
                         else
                             Logs.Text($"[{Client.Name}] is temporarily transported in FakeWorld");
                     }
                     return false;
                 default:
-                    return base.GetPacket(packet);
+                    return base.GetPacket(ref packet);
             }
         }
     }

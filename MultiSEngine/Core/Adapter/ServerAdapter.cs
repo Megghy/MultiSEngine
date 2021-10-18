@@ -23,7 +23,7 @@ namespace MultiSEngine.Core.Adapter
                 Client.Back();
             }
         }
-        public override bool GetPacket(Packet packet)
+        public override bool GetPacket(ref Packet packet)
         {
             switch (packet)
             {
@@ -33,8 +33,7 @@ namespace MultiSEngine.Core.Adapter
                     Stop(true);
                     var reason = kick.Reason.GetText();
                     Logs.Info($"Player {Client.Player.Name} is removed from server {Client.Server.Name}, for the following reason:{reason}");
-                    //Client.SendErrorMessage(string.Format(Localization.Get("Prompt_Disconnect"), Client.Server.Name, kick.Reason));
-                    Client.SendErrorMessage($"Kicked from {Client.Server.Name}: {reason}{Environment.NewLine}Returning to the previous level server.");
+                    Client.SendErrorMessage(string.Format(Localization.Get("Prompt_Disconnect"), Client.Server.Name, kick.Reason));
                     Client.Back();
                     return false;
                 case LoadPlayerPacket slot:
@@ -55,6 +54,8 @@ namespace MultiSEngine.Core.Adapter
                     Client.SendErrorMessage(string.Format(Localization.Get("Prompt_NeedPassword"), Client.Server.Name, Localization.Get("Help_Password")));
                     return false;
                 case FinishedConnectingToServerPacket:
+                    if (Hooks.OnPostSwitch(Client, Client.Server, out _))
+                        return true;
                     Client.State = ClientData.ClientState.InGame;
                     Logs.Success($"[{Client.Name}] successfully joined the server: {Client.Server.Name}");
                     return true;

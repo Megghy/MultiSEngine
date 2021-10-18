@@ -18,14 +18,16 @@ namespace MultiSEngine
                 return _jsonData;
             }
         }
-        public static string Get(string key)
+        public static string Get(string key, object[] obj = null)
         {
             try
             {
-                return JsonData?.RootElement.GetProperty(key).GetString();
+                return string.Format(JsonData?.RootElement.GetProperty(key).GetString(), obj);
             }
-            catch
+            catch (JsonException) { return key; }
+            catch (Exception ex)
             {
+                Logs.Error(ex);
                 return key;
             }
         }

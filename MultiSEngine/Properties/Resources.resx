@@ -119,13 +119,13 @@
   </resheader>
   <data name="DefaultLocallization" xml:space="preserve">
     <value>{
+  "Prefix": "&lt;[C/B1DAE4:MultiSEngine]&gt; ",
   "Command_IsSwitching": "正在跳转中, 请勿使用此命令",
   "Command_AlreadyIn": "你已处于服务器 {0} 中",
   "Command_Switch": "正在传送至服务器 {0}",
   "Command_Back": "已返回主服务器",
   "Command_AviliableServer": "可用的服务器: ",
   "Command_ServerNotFound": "未找到含有关键词 {0} 的服务器",
-  "Command_NotEntered": "你目前尚未进入任何服务器, 以下为可用指令:",
 
   "Help_Tp": "/mse tp([c/B3CE95:t]) &lt;[c/B3CE95:服务器名]&gt; -- 传送到指定服务器",
   "Help_Back": "/mse back([c/B3CE95:b]) -- 传送回主服务器",
@@ -137,6 +137,8 @@
   "Prompt_UnknownError": "由于不可预料的错误, 你已被传送回主服务器",
   "Prompt_CannotConnect": "无法连接至服务器 {0}",
   "Prompt_UnknownAddress": "无效的服务器地址",
+  "Prompt_DefaultServerNotFound": "未找到指定的默认服务器: {0}",
+  "Prompt_CommandFailed": "执行指令失败",
   "Prompt_Disconnect": "你已被移出服务器 {0}: {1}",
   "Prompt_NeedPassword": "服务器 {0} 需要密码, 请输入 {1}",
   "Prompt_ConnectSuccess": "成功传送至服务器 {0}"

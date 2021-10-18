@@ -86,7 +86,7 @@ namespace MultiSEngine.Core
                         catch (Exception ex)
                         {
                             Logs.Info($"An exception occurred while executing the command: {command.Name}{Environment.NewLine}{ex.Message}");
-                            client.SendErrorMessage($"Excute command failed.");
+                            client.SendErrorMessage(Localization.Get("Prompt_CommandFailed"));
                         }
                         return true;
                     }

@@ -18,9 +18,10 @@ namespace MultiSEngine.Core.Adapter
         public override void OnRecieveLoopError(Exception ex)
         {
             base.OnRecieveLoopError(ex);
-            Client.Disconnect();
+            if (Client.State != ClientData.ClientState.Disconnect)
+                Client.Disconnect();
         }
-        public override bool GetPacket(Packet packet)
+        public override bool GetPacket(ref Packet packet)
         {
             switch (packet)
             {
@@ -50,6 +51,8 @@ namespace MultiSEngine.Core.Adapter
                     Client.Player.UUID = uuid.UUID;
                     return true;
                 case Delphinus.NetModules.NetTextModule modules:
+                    if (Hooks.OnChat(Client, modules.Text, out _))
+                        return false;
                     Logs.LogAndSave($"{Client.Name} <{Client.Server?.Name}>: {modules.Text}", "[Chat]");
                     if (Config.Instance.EnableChatForward)
                         Client.Broadcast(modules.Text);

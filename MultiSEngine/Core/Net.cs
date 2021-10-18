@@ -31,6 +31,7 @@ namespace MultiSEngine.Core
             {
                 Logs.Error(ex);
                 Console.ReadLine();
+                Environment.Exit(0);
             }
             return this;
         }

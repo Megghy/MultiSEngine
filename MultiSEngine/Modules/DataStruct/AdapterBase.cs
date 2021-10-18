@@ -33,7 +33,7 @@ namespace MultiSEngine.Modules.DataStruct
         /// <param name="start"></param>
         /// <param name="length"></param>
         /// <returns></returns>
-        public abstract bool GetPacket(Packet packet);
+        public abstract bool GetPacket(ref Packet packet);
         public abstract void SendPacket(Packet packet);
         public virtual AdapterBase Start()
         {
@@ -94,7 +94,10 @@ namespace MultiSEngine.Modules.DataStruct
                     try
                     {
                         //Task.Run(() => { if (GetPacket(packet)) SendPacket(packet); });
-                        if (GetPacket(packet)) SendPacket(packet);
+                        if (!Core.Hooks.OnRecievePacket(Client, packet, out _) 
+                            && GetPacket(ref packet) 
+                            && !Core.Hooks.OnSendPacket(Client, packet, out _))
+                            SendPacket(packet);
                     }
                     catch (Exception ex)
                     {

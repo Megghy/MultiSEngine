@@ -50,21 +50,21 @@ namespace MultiSEngine.Core.Adapter
                 IP = Client.IP
             });  //尝试同步玩家IP
         }
-        public override bool GetPacket(Packet packet)
+        public override bool GetPacket(ref Packet packet)
         {
 #if DEBUG
             Console.WriteLine($"[Recieve from SERVER] {packet}");
 #endif
             if (RunningAsNormal)
-                return base.GetPacket(packet);
+                return base.GetPacket(ref packet);
             switch (packet)
             {
                 case KickPacket kick:
-                    Client.SendErrorMessage(kick.Reason.GetText());
+                    Client.SendErrorMessage(Localization.Get("Prompt_Disconnect", new[] { Client.Server.Name, kick.Reason.GetText() }));
                     Stop(true);
                     break;
                 case LoadPlayerPacket slot:
-                    base.GetPacket(slot);
+                    base.GetPacket(ref packet);
                     Client.AddBuff(149, 120);
                     InternalSendPacket(Player.OriginData.Info);
                     InternalSendPacket(new ClientUUIDPacket() { UUID = Player.UUID });
@@ -98,7 +98,7 @@ namespace MultiSEngine.Core.Adapter
                     ChangeProcessState(true); //转换处理模式为普通
                     break;
                 default:
-                    return base.GetPacket(packet);
+                    return base.GetPacket(ref packet);
             }
             return !TestConnecting;
         }
