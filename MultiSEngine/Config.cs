@@ -27,7 +27,7 @@ namespace MultiSEngine
                         new()
                         {
                             Visible = true,
-                            IP = "127.0.0.1",
+                            IP = "yfeil.top",
                             Port = 7777,
                             Name = "yfeil",
                         }

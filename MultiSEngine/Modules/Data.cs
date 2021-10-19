@@ -8,7 +8,6 @@ namespace MultiSEngine.Modules
 {
     internal class Data
     {
-        public static readonly string MessagePrefix = "MultiSEngine";
         public static readonly List<DataStruct.ClientData> Clients = new();
         public static readonly List<CmdBase> Commands = new();
         public static byte[] StaticSpawnSquareData { get; set; }

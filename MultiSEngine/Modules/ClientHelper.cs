@@ -1,12 +1,12 @@
-﻿using Delphinus;
-using Delphinus.Packets;
-using Microsoft.Xna.Framework;
+﻿using TrProtocol;
+using TrProtocol.Packets;
 using MultiSEngine.Core.Adapter;
 using MultiSEngine.Modules.DataStruct;
 using System;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
+using TrProtocol.Models;
 
 namespace MultiSEngine.Modules
 {
@@ -62,11 +62,11 @@ namespace MultiSEngine.Modules
                     client.State = ClientData.ClientState.ReadyToSwitch;
                     Logs.Error($"Unable to connect to server {server.IP}:{server.Port}{Environment.NewLine}{ex}");
                     //client.SendErrorMessage(string.Format(Localization.Get("Prompt_CannotConnect"), server.Name));
-                    client.SendErrorMessage(string.Format(Localization.Get("Prompt_CannotConnect"), server.Name));
+                    client.SendErrorMessage(Localization.Instance["Prompt_CannotConnect", server.Name]);
                 }
             }
             else
-                client.SendErrorMessage(Localization.Get("Prompt_UnknownAddress"));
+                client.SendErrorMessage(Localization.Instance["Prompt_UnknownAddress"]);
         }
         /// <summary>
         /// 返回到默认的初始服务器
@@ -80,7 +80,7 @@ namespace MultiSEngine.Modules
 
             client.AddBuff(149, 120);
             client.SAdapter?.ResetAlmostEverything();
-            client.SendDataToClient(new LoadPlayerPacket() { PlayerSlot = client.Player.Index, ServerWantsToRunCheckBytesInClientLoopThread = true });
+            client.SendDataToClient(new LoadPlayer() { PlayerSlot = client.Player.Index, ServerWantsToRunCheckBytesInClientLoopThread = true });
             client.SendDataToClient(client.Player.ServerData.WorldData);
             if (!client.Player.SSC && Config.Instance.RestoreDataWhenJoinNonSSC) //非ssc的话还原玩家最开始的背包
             {
@@ -144,9 +144,9 @@ namespace MultiSEngine.Modules
         }
         public static bool SendDataToClient(this ClientData client, Packet packet, bool serializerAsClient = false)
         {
-            if (packet is null)
+            if (packet is null) 
                 throw new ArgumentNullException(nameof(packet));
-            if (packet is WorldDataPacket world && (client.Player.TileX > world.MaxTileX || client.Player.TileY > world.MaxTileY))
+            if (packet is WorldData world && (client.Player.TileX > world.MaxTileX || client.Player.TileY > world.MaxTileY))
                 client.TP(client.SpawnY, client.SpawnY); //防止玩家超出地图游戏崩溃
             return client.SendDataToClient(packet.Serialize(serializerAsClient), 0);
         }
@@ -162,7 +162,7 @@ namespace MultiSEngine.Modules
             if (client.State == ClientData.ClientState.NewConnection)
                 Data.Clients.Where(c => c.Server is null && c != client).ForEach(c => c.SendMessage($"{client.Name} has leave."));
             if (client.CAdapter?.Connection is { Connected: true } && !client.Disposed)
-                client.SendDataToClient(new KickPacket() { Reason = new(reason ?? "Unknown", Terraria.Localization.NetworkText.Mode.Literal) });
+                client.SendDataToClient(new Kick() { Reason = new(reason ?? "Unknown", NetworkText.Mode.Literal) });
             client.Dispose();
         }
 
@@ -173,12 +173,9 @@ namespace MultiSEngine.Modules
             else
                 using (var writer = new BinaryWriter(new MemoryStream()))
                 {
-                    client.SendDataToClient(new Delphinus.NetModules.NetTextModule()
+                    client.SendDataToClient(new TrProtocol.Packets.Modules.NetTextModuleS2C()
                     {
-                        fromClient = false,
-                        Command = "Say",
-                        NetworkText = new($"{(withPrefix ? $"{Localization.Get("Prefix")}" : "")}{text}", Terraria.Localization.NetworkText.Mode.Literal),
-                        Text = $"{(withPrefix ? $"{Localization.Get("Prefix")}" : "")}{text}",
+                        Text = new($"{(withPrefix ? $"{Localization.Instance["Prefix"]}" : "")}{text}", NetworkText.Mode.Literal),
                         Color = color,
                         PlayerSlot = 255
                     });
@@ -190,8 +187,8 @@ namespace MultiSEngine.Modules
         public static void SendErrorMessage(this ClientData client, string text, bool withPrefix = true) => SendMessage(client, text, new(220, 135, 135), withPrefix);
         #endregion
         #region 一些小工具
-        public static void Broadcast(this ClientData client, string message, bool ruleOutSelf = true) => Data.Clients.Where(c => !ruleOutSelf || (c != client && c.Server != client?.Server)).ForEach(c => c.SendMessage(message));
-        public static void ReadVersion(this ClientData client, ClientHelloPacket hello) => client.ReadVersion(hello.Version);
+        public static void Broadcast(this ClientData client, string message, bool ignoreSelf = true) => Data.Clients.Where(c => !ignoreSelf || (c != client && c.Server != client?.Server)).ForEach(c => c.SendMessage(message));
+        public static void ReadVersion(this ClientData client, ClientHello hello) => client.ReadVersion(hello.Version);
         public static void ReadVersion(this ClientData client, string version)
         {
             client.Player.VersionNum = version.StartsWith("Terraria") && int.TryParse(version[8..], out var v)
@@ -201,11 +198,11 @@ namespace MultiSEngine.Modules
         }
         public static void TP(this ClientData client, int tileX, int tileY)
         {
-            client.SendDataToClient(new TeleportPacket() { PlayerSlot = client.Player.Index, Position = new(tileX * 16, tileY * 16) });
+            client.SendDataToClient(new Teleport() { PlayerSlot = client.Player.Index, Position = new(tileX * 16, tileY * 16) });
         }
         public static void AddBuff(this ClientData client, int buffID, int time = 60)
         {
-            client?.SendDataToClient(new AddPlayerBuffPacket() { BuffTime = time, BuffType = (ushort)buffID, OtherPlayerSlot = client.Player.Index });
+            client?.SendDataToClient(new AddPlayerBuff() { BuffTime = time, BuffType = (ushort)buffID, OtherPlayerSlot = client.Player.Index });
         }
         #endregion
         #region 其他

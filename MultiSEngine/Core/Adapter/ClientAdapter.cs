@@ -1,5 +1,5 @@
-﻿using Delphinus;
-using Delphinus.Packets;
+﻿using TrProtocol;
+using TrProtocol.Packets;
 using MultiSEngine.Modules;
 using MultiSEngine.Modules.DataStruct;
 using System;
@@ -25,7 +25,7 @@ namespace MultiSEngine.Core.Adapter
         {
             switch (packet)
             {
-                case ClientHelloPacket hello: //使用fakeworld时不会使用这个
+                case ClientHello hello: //使用fakeworld时不会使用这个
                     if (Client.State is ClientData.ClientState.NewConnection) //首次连接时默认进入主服务器
                     {
                         if (Config.Instance.DefaultServerInternal is { })
@@ -37,40 +37,25 @@ namespace MultiSEngine.Core.Adapter
                             Client.Disconnect("No default server is set for the current server.");
                     }
                     return false;
-                case SyncPlayerPacket playerInfo:
+                case SyncPlayer playerInfo:
                     Client.Player.UpdateData(playerInfo);
                     return true;
-                case SyncEquipmentPacket:
-                case PlayerHealthPacket:
-                case PlayerManaPacket:
-                case PlayerBuffsPacket:
-                case PlayerControlsPacket:
+                case SyncEquipment:
+                case PlayerHealth:
+                case PlayerMana:
+                case PlayerBuffs:
+                case PlayerControls:
                     Client.Player.UpdateData(packet);
                     return !Client.Syncing;
-                case ClientUUIDPacket uuid:
+                case ClientUUID uuid:
                     Client.Player.UUID = uuid.UUID;
                     return true;
-                case Delphinus.NetModules.NetTextModule modules:
-                    if (Hooks.OnChat(Client, modules.Text, out _))
+                case SyncNPCName npcName:
+                    Client.SendDataToGameServer(npcName, true);
+                    return false; //特殊包
+                case TrProtocol.Packets.Modules.NetTextModuleC2S modules:
+                    if (Hooks.OnChat(Client, modules, out _))
                         return false;
-                    Logs.LogAndSave($"{Client.Name} <{Client.Server?.Name}>: {modules.Text}", "[Chat]");
-                    if (Config.Instance.EnableChatForward)
-                        Client.Broadcast(modules.Text);
-                    if (modules.Command == "Say" && (Command.HandleCommand(Client, modules.Text, out var c) && !c))
-                        return false;
-                    else if (Client.State == ClientData.ClientState.NewConnection)
-                    {
-                        Client.SendInfoMessage($"{Localization.Get("Command_NotEntered")}\r\n" +
-                            $"{Localization.Get("Help_Tp")}\r\n" +
-                            $"{Localization.Get("Help_Back")}\r\n" +
-                            $"{Localization.Get("Help_List")}\r\n" +
-                            $"{Localization.Get("Help_Command")}"
-                        );
-                    }
-                    else
-                    {
-                        Client.SendDataToGameServer(modules, true);
-                    }
                     return false;
                 default:
                     return true;
@@ -78,8 +63,9 @@ namespace MultiSEngine.Core.Adapter
         }
         public override void SendPacket(Packet packet)
         {
+            //bool shouldSerializeLikeClient = packet.GetType().GetProperties().Any(p => p.GetCustomAttributes(true)?.Any(a => a.GetType() == typeof(S2COnlyAttribute)) ?? false);
             if (!ShouldStop)
-                Client.SendDataToGameServer(Serializer.Serialize(packet));
+                Client.SendDataToGameServer(packet);
         }
     }
 }

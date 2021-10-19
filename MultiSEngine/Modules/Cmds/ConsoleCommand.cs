@@ -16,7 +16,7 @@ namespace MultiSEngine.Modules.Cmds
             switch (cmdName)
             {
                 case "list":
-                    Logs.Info($"{Localization.Get("Command_AviliableServer")}{Environment.NewLine + "- "}{string.Join(Environment.NewLine + "- ", from server in Config.Instance.Servers let text = $"{server.Name} <{server.Online()}>" select text)}", false);
+                    Logs.Info($"{Localization.Instance["Command_AviliableServer"]}{Environment.NewLine + "- "}{string.Join(Environment.NewLine + "- ", from server in Config.Instance.Servers let text = $"{server.Name} <{server.Online()}>" select text)}", false);
                     break;
                 case "online":
                     Logs.Info($"{Data.Clients.Count} Player(s) Online:{Environment.NewLine}{string.Join(", ", from c in Data.Clients let text = $"{c.Name} <{c.Server?.Name ?? "FakeWorld"}>" select text)}", false);
@@ -33,7 +33,7 @@ namespace MultiSEngine.Modules.Cmds
                             Logs.Error($"Specified player: [{parma[0]}] not found.");
                     }
                     else
-                        Logs.Error(Localization.Get("Prompt_InvalidFormat"));
+                        Logs.Error(Localization.Instance["Prompt_InvalidFormat"]);
                     break;
                 case "reload":
                     Reload();
@@ -54,6 +54,7 @@ namespace MultiSEngine.Modules.Cmds
         public static void Reload()
         {
             Config._instance = null;
+            Localization._instance = null;
             Logs.Success("Successfully reloaded.");
         }
     }

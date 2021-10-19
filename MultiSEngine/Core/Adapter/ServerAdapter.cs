@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Linq;
 using System.Net.Sockets;
-using Delphinus;
-using Delphinus.Packets;
+using TrProtocol;
+using TrProtocol.Packets;
 using MultiSEngine.Modules;
 using MultiSEngine.Modules.DataStruct;
 
@@ -17,7 +17,7 @@ namespace MultiSEngine.Core.Adapter
         public override void OnRecieveLoopError(Exception ex)
         {
             if (!ShouldStop)
-            {
+            { 
                 Stop(true);
                 Logs.Warn($"Cannot continue to maintain connection between {Client.Name} and server {Client.Server.Name}{Environment.NewLine}{ex}");
                 Client.Back();
@@ -27,40 +27,40 @@ namespace MultiSEngine.Core.Adapter
         {
             switch (packet)
             {
-                case KickPacket kick:
+                case Kick kick:
                     Client.State = ClientData.ClientState.Disconnect;
                     Client.TimeOutTimer.Stop();
                     Stop(true);
                     var reason = kick.Reason.GetText();
                     Logs.Info($"Player {Client.Player.Name} is removed from server {Client.Server.Name}, for the following reason:{reason}");
-                    Client.SendErrorMessage(string.Format(Localization.Get("Prompt_Disconnect"), Client.Server.Name, kick.Reason));
+                    Client.SendErrorMessage(string.Format(Localization.Instance["Prompt_Disconnect", Client.Server.Name, kick.Reason.GetText()]));
                     Client.Back();
                     return false;
-                case LoadPlayerPacket slot:
+                case LoadPlayer slot:
                     if (Client.Player.Index != slot.PlayerSlot)
                         Logs.Text($"Update the index of [{Client.Name}]: {Client.Player.Index} => {slot.PlayerSlot}.");
                     Client.Player.Index = slot.PlayerSlot;
                     return true;
-                case WorldDataPacket worldData:
+                case WorldData worldData:
                     worldData.WorldName = string.IsNullOrEmpty(Config.Instance.ServerName) ? worldData.WorldName : Config.Instance.ServerName; //设置了服务器名称的话则替换
                     Client.Player.UpdateData(worldData);
                     return true;
-                case SpawnPlayerPacket spawn:
-                    Client.Player.SpawnX = spawn.PosX;
-                    Client.Player.SpawnY = spawn.PosY;
+                case SpawnPlayer spawn:
+                    Client.Player.SpawnX = spawn.Position.X;
+                    Client.Player.SpawnY = spawn.Position.Y;
                     return true;
-                case RequestPasswordPacket:
+                case RequestPassword:
                     Client.State = ClientData.ClientState.RequestPassword;
-                    Client.SendErrorMessage(string.Format(Localization.Get("Prompt_NeedPassword"), Client.Server.Name, Localization.Get("Help_Password")));
+                    Client.SendErrorMessage(string.Format(Localization.Instance["Prompt_NeedPassword", Client.Server.Name, Localization.Instance["Help_Password"]]));
                     return false;
-                case FinishedConnectingToServerPacket:
+                case FinishedConnectingToServer:
                     if (Hooks.OnPostSwitch(Client, Client.Server, out _))
                         return true;
                     Client.State = ClientData.ClientState.InGame;
+                    Client.SendSuccessMessage(Localization.Instance["Prompt_ConnectSuccess", Client.Server.Name]);
                     Logs.Success($"[{Client.Name}] successfully joined the server: {Client.Server.Name}");
                     return true;
-                case Delphinus.NetModules.NetTextModule modules:
-                    modules.fromClient = true;
+                case TrProtocol.Packets.Modules.NetTextModuleS2C modules:
                     Client.SendDataToClient(modules, false);
                     return false;
                 default:
@@ -75,12 +75,12 @@ namespace MultiSEngine.Core.Adapter
         public void ResetAlmostEverything()
         {
             Logs.Text($"Resetting client data of [{Client.Name}]");
-            var playerActive = new PlayerActivePacket()
+            var playerActive = new PlayerActive()
             {
                 Active = false
             };
             Data.Clients.Where(c => c.Server == Client.Server && c != Client)
-                .ForEach(c => c.SendDataToClient(new PlayerActivePacket()
+                .ForEach(c => c.SendDataToClient(new PlayerActive()
                 {
                     Active = false,
                     PlayerSlot = c.Player.Index

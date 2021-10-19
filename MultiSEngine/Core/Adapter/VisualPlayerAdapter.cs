@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Net.Sockets;
-using Delphinus;
-using Delphinus.Packets;
+using TrProtocol;
+using TrProtocol.Packets;
 using MultiSEngine.Modules;
 using MultiSEngine.Modules.CustomDataPacket;
 using MultiSEngine.Modules.DataStruct;
@@ -41,7 +41,7 @@ namespace MultiSEngine.Core.Adapter
             base.Start();
             Callback = successCallback;
             TestConnecting = true;
-            InternalSendPacket(new ClientHelloPacket()
+            InternalSendPacket(new ClientHello()
             {
                 Version = $"Terraria{(server.VersionNum is { } and > 0 and < 65535 ? server.VersionNum : Client.Player.VersionNum)}"
             });  //发起连接请求   
@@ -53,27 +53,27 @@ namespace MultiSEngine.Core.Adapter
         public override bool GetPacket(ref Packet packet)
         {
 #if DEBUG
-            Console.WriteLine($"[Recieve from SERVER] {packet}");
+            Console.WriteLine($"[Recieve SERVER] {packet}");
 #endif
             if (RunningAsNormal)
                 return base.GetPacket(ref packet);
             switch (packet)
             {
-                case KickPacket kick:
-                    Client.SendErrorMessage(Localization.Get("Prompt_Disconnect", new[] { Client.Server.Name, kick.Reason.GetText() }));
+                case Kick kick:
+                    Client.SendErrorMessage(Localization.Instance["Prompt_Disconnect", Client.Server.Name, kick.Reason.GetText()]);
                     Stop(true);
                     break;
-                case LoadPlayerPacket slot:
+                case LoadPlayer slot:
                     base.GetPacket(ref packet);
                     Client.AddBuff(149, 120);
                     InternalSendPacket(Player.OriginData.Info);
-                    InternalSendPacket(new ClientUUIDPacket() { UUID = Player.UUID });
-                    InternalSendPacket(new RequestWorldInfoPacket() { });//请求世界信息
+                    InternalSendPacket(new ClientUUID() { UUID = Player.UUID });
+                    InternalSendPacket(new RequestWorldInfo() { });//请求世界信息
                     break;
-                case SyncPlayerPacket playerInfo:
+                case SyncPlayer playerInfo:
                     Player.UpdateData(playerInfo);
                     return true;
-                case WorldDataPacket worldData:
+                case WorldData worldData:
                     Player.UpdateData(worldData);
                     if (Callback != null)
                     {
@@ -82,19 +82,19 @@ namespace MultiSEngine.Core.Adapter
                         Callback.Invoke(this, Client);
                         Callback = null;
                     }
-                    InternalSendPacket(new RequestTileDataPacket() { PosX = Client.SpawnX, PosY = Client.SpawnY });//请求物块数据
-                    InternalSendPacket(new SpawnPlayerPacket() { PosX = (short)Client.SpawnX, PosY = (short)Client.SpawnY });//请求物块数据
+                    InternalSendPacket(new RequestTileData() { Position = Utils.Point(Client.SpawnX, Client.SpawnY) });//请求物块数据
+                    InternalSendPacket(new SpawnPlayer() { Position = Utils.ShortPoint(Client.SpawnX, Client.SpawnY) });//请求物块数据
                     break;
-                case SyncEquipmentPacket invItem:
+                case SyncEquipment invItem:
                     Player.UpdateData(invItem);
                     break;
-                case RequestPasswordPacket:
+                case RequestPassword:
                     Console.WriteLine($"need pass");
                     Stop(true);
                     return false;
-                case StatusTextPacket:
+                case StatusText:
                     return RunningAsNormal;
-                case StartPlayingPacket:
+                case StartPlaying:
                     ChangeProcessState(true); //转换处理模式为普通
                     break;
                 default:

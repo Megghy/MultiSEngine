@@ -7,15 +7,12 @@
   </PropertyGroup>
 
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-    <Exec Command="xcopy C:\Users\Megghy\Source\Repos\TrProtocol\TrProtocol\bin\Debug\net5.0\TrProtocol.dll D:\Code\TrProtocol\Protocal\TrProtocol\bin\Debug\net5.0\*.* /S /D /Y" />
+    <Exec Command="xcopy C:\Users\Megghy\Source\Repos\TrProtocol\TrProtocol\bin\Debug\net5.0\TrProtocol.dll D:\Code\TrProtocol\Protocal\TrProtocol\bin\Debug\net5.0\*.* /S /D /Y&#xD;&#xA;" />
   </Target>
 
   <ItemGroup>
-    <Reference Include="Delphinus.OTAPI.PC">
-      <HintPath>C:\Users\Megghy\source\repos\TrProtocol\OTAPIServer\bin\Debug\net5.0\Delphinus.OTAPI.PC.dll</HintPath>
-    </Reference>
-    <Reference Include="OTAPI">
-      <HintPath>C:\Users\Megghy\source\repos\TrProtocol\OTAPIServer\bin\Debug\net5.0\OTAPI.dll</HintPath>
+    <Reference Include="TrProtocol">
+      <HintPath>..\..\TrProtocol\TrProtocol\obj\Debug\net5.0\TrProtocol.dll</HintPath>
     </Reference>
   </ItemGroup>
 
@@ -33,5 +30,9 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
   </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="xcopy C:\Users\Megghy\Source\Repos\TrProtocol\TrProtocol\bin\Debug\net5.0\TrProtocol.dll D:\Code\TrProtocol\Protocal\TrProtocol\bin\Debug\net5.0\*.* /S /D /Y" />
+  </Target>
 
 </Project>

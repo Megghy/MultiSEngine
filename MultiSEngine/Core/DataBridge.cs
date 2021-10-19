@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Linq;
-using Delphinus;
+using TrProtocol;
 using MultiSEngine.Modules.DataStruct;
 
 namespace MultiSEngine.Core
@@ -15,8 +15,8 @@ namespace MultiSEngine.Core
                 {
                     assembly
                         .GetTypes()
-                        .Where(t => t.BaseType == typeof(CustomPacketBase))
-                        .ForEach(t => PacketSerializer.RegistePacket((Packet)Activator.CreateInstance(t)));
+                        .Where(t => t.BaseType == typeof(CustomPacketBase));
+                        //.ForEach(t => PacketSerializer.re((Packet)Activator.CreateInstance(t)));
                 }
                 catch { }
             });

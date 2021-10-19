@@ -2,11 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using Delphinus;
+using TrProtocol;
 using MultiSEngine.Modules.DataStruct;
-using Terraria;
-using Terraria.DataStructures;
-using Terraria.Localization;
+using TrProtocol.Models;
 
 namespace MultiSEngine
 {
@@ -42,7 +40,7 @@ namespace MultiSEngine
             return false;
         }
         public static byte[] Serialize<T>(this T packet, bool client = true) where T : Packet => client ? Core.Net.Instance.ClientSerializer?.Serialize(packet) : Core.Net.Instance.ServerSerializer?.Serialize(packet);
-        public static List<Modules.DataStruct.ServerInfo> GetServerInfoByName(string name)
+        public static List<ServerInfo> GetServerInfoByName(string name)
         {
             return Config.Instance.Servers.Where(s => s.Name.ToLower().StartsWith(name.ToLower()) || s.Name.ToLower().Contains(name.ToLower())).ToList();
         }
@@ -61,6 +59,9 @@ namespace MultiSEngine
                 action(obj);
             }
         }
+        public static Position Point(int x, int y) => new() { X = (short)x, Y = (short)y };
+        public static ShortPosition ShortPoint(int x, int y) => new() { X = (short)x, Y = (short)y };
+        public static Vector2 Vector2(int x, int y) => new() { X = (short)x, Y = (short)y };
         public static byte[] GetTileSquare(int x, int y, int width, int heigh, int type = 541)
         {
             var bb = new BitsByte();
@@ -81,7 +82,7 @@ namespace MultiSEngine
                     Flags3 = 0,
                 };
             }
-            return Core.Net.Instance.ServerSerializer.Serialize(new Delphinus.Packets.TileSectionPacket()
+            return Core.Net.Instance.ServerSerializer.Serialize(new TrProtocol.Packets.TileSection()
             {
                 Data = new()
                 {
@@ -101,7 +102,8 @@ namespace MultiSEngine
         }
         public static string GetText(this NetworkText text)
         {
-            return text._mode == NetworkText.Mode.LocalizationKey ? Language.GetTextValue(text._text) : text._text;
+            //return text._mode == NetworkText.Mode.LocalizationKey ? Language.GetTextValue(text._text) : text._text;
+            return text.GetText();
         }
         public static MessageID GetMessageID(this byte[] buffer, int start = 0) => buffer.Length >= 3 ? (MessageID)buffer[start + 2] : MessageID.NeverCalled;
     }

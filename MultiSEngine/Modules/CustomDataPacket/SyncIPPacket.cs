@@ -1,14 +1,16 @@
 ﻿using System.IO;
+using TrProtocol;
 
 namespace MultiSEngine.Modules.CustomDataPacket
 {
     public class SyncIPPacket : DataStruct.CustomPacketBase
     {
-        public override byte PacketID { get; } = 0;
+        public override byte PacketID => 0;
         public byte PlayerIndex { get; set; }
         public string IP { get; set; }
+        public override MessageID Type { get; }
 
-        public override void Deserialize(BinaryReader reader, bool fromClient)
+        /*public override void Deserialize(BinaryReader reader, bool fromClient)
         {
             PlayerIndex = reader.ReadByte();
             IP = reader.ReadString();
@@ -18,6 +20,6 @@ namespace MultiSEngine.Modules.CustomDataPacket
         {
             reader.Write(PlayerIndex);
             reader.Write(IP);
-        }
+        }*/
     }
 }

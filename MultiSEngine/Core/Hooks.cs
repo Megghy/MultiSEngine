@@ -1,12 +1,8 @@
-﻿using Delphinus;
+﻿using MultiSEngine.Modules;
 using MultiSEngine.Modules.DataStruct;
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Terraria;
+using TrProtocol;
+using TrProtocol.Models;
 
 namespace MultiSEngine.Core
 {
@@ -23,7 +19,7 @@ namespace MultiSEngine.Core
             }
             public ClientData Client { get; private set; }
             public string IP { get; private set; }
-            public int Port {  get; private set; }
+            public int Port { get; private set; }
             public string Version { get; set; }
             public bool Handled { get; set; } = false;
         }
@@ -41,7 +37,7 @@ namespace MultiSEngine.Core
             public bool Handled { get; set; } = false;
         }
         public class SwitchEventArgs
-{
+        {
             public SwitchEventArgs(ClientData client, ServerInfo targetServer)
             {
                 Client = client;
@@ -115,10 +111,31 @@ namespace MultiSEngine.Core
             PostSwitch?.Invoke(args);
             return args.Handled;
         }
-        internal static bool OnChat(ClientData client, string message, out ChatEventArgs args)
+        internal static bool OnChat(ClientData client, TrProtocol.Packets.Modules.NetTextModuleC2S module, out ChatEventArgs args)
         {
-            args = new(client, message);
+            args = new(client, module.Text); 
             Chat?.Invoke(args);
+            if (!args.Handled)
+            {
+                Logs.LogAndSave($"{client.Name} <{client.Server?.Name}>: {module.Text}", "[Chat]");
+                if (module.Command == "Say" && (Command.HandleCommand(client, module.Text, out var c) && !c))
+                    return false;
+                else if (client.State == ClientData.ClientState.NewConnection)
+                {
+                    client.SendInfoMessage($"{Localization.Instance["Command_NotEntered"]}\r\n" +
+                        $"{Localization.Instance["Help_Tp"]}\r\n" +
+                        $"{Localization.Instance["Help_Back"]}\r\n" +
+                        $"{Localization.Instance["Help_List"]}\r\n" +
+                        $"{Localization.Instance["Help_Command"]}"
+                    );
+                }
+                else
+                {
+                    if (Config.Instance.EnableChatForward)
+                        client.Broadcast($"[{client.Server?.Name ?? "Not Join"}] {client.Name}: {module.Text}");
+                    client.SendDataToGameServer(module, true);
+                }
+            }
             return args.Handled;
         }
         internal static bool OnSendPacket(ClientData client, Packet packet, out PacketEventArgs args)
@@ -127,7 +144,7 @@ namespace MultiSEngine.Core
             SendPacket?.Invoke(args);
             return args.Handled;
         }
-        internal static bool OnRecievePacket(ClientData client, Packet packet, out PacketEventArgs args)
+        internal static bool OnGetPacket(ClientData client, Packet packet, out PacketEventArgs args)
         {
             args = new(client, packet);
             RecievePacket?.Invoke(args);

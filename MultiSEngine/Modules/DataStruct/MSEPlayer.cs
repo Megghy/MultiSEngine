@@ -1,5 +1,5 @@
-﻿using Delphinus;
-using Delphinus.Packets;
+﻿using TrProtocol;
+using TrProtocol.Packets;
 
 namespace MultiSEngine.Modules.DataStruct
 {
@@ -11,9 +11,9 @@ namespace MultiSEngine.Modules.DataStruct
             public int Mana;
             public int HealthMax;
             public int ManaMax;
-            public SyncPlayerPacket Info { get; set; }
-            public WorldDataPacket WorldData { get; set; }
-            public SyncEquipmentPacket[] Inventory { get; set; } = new SyncEquipmentPacket[260];
+            public SyncPlayer Info { get; set; }
+            public WorldData WorldData { get; set; }
+            public SyncEquipment[] Inventory { get; set; } = new SyncEquipment[260];
         }
         public bool SSC { get; set; } = false;
         public int VersionNum { get; set; }
@@ -33,25 +33,25 @@ namespace MultiSEngine.Modules.DataStruct
         {
             switch (packet)
             {
-                case SyncEquipmentPacket item:
+                case SyncEquipment item:
                     (SSC ? ServerData : OriginData).Inventory[item.ItemSlot] = item;
                     break;
-                case PlayerHealthPacket health:
+                case PlayerHealth health:
                     (SSC ? ServerData : OriginData).Health = health.StatLife;
                     (SSC ? ServerData : OriginData).HealthMax = health.StatLifeMax;
                     break;
-                case PlayerManaPacket mana:
+                case PlayerMana mana:
                     (SSC ? ServerData : OriginData).Mana = mana.StatMana;
                     (SSC ? ServerData : OriginData).ManaMax = mana.StatManaMax;
                     break;
-                case SyncPlayerPacket playerInfo:
+                case SyncPlayer playerInfo:
                     (SSC ? ServerData : OriginData).Info = playerInfo;
                     break;
-                case WorldDataPacket world:
+                case WorldData world:
                     ServerData.WorldData = world;
                     SSC = world.EventInfo1[6];
                     break;
-                case PlayerControlsPacket control:
+                case PlayerControls control:
                     X = control.Position.X;
                     Y = control.Position.Y;
                     break;
