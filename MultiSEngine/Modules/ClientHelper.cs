@@ -159,6 +159,7 @@ namespace MultiSEngine.Modules
         public static void Disconnect(this ClientData client, string reason = null)
         {
             Logs.Text($"[{client.Name}] disconnected. {reason}");
+            Core.Hooks.OnPlayerLeave(client, out _);
             if (client.State == ClientData.ClientState.NewConnection)
                 Data.Clients.Where(c => c.Server is null && c != client).ForEach(c => c.SendMessage($"{client.Name} has leave."));
             if (client.CAdapter?.Connection is { Connected: true } && !client.Disposed)

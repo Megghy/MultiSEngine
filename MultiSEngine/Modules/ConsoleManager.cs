@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace MultiSEngine.Modules
@@ -14,7 +15,7 @@ namespace MultiSEngine.Modules
         {
             while (true)
             {
-                Console.Title = $"{Title} {Data.Clients.Count} Online";
+                Console.Title = $"{Title} V{Assembly.GetExecutingAssembly().GetName().Version} {Data.Clients.Count} Online               ";
                 Task.Delay(1000).Wait();
             }
         }

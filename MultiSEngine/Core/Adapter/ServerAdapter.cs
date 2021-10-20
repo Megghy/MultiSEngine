@@ -14,6 +14,7 @@ namespace MultiSEngine.Core.Adapter
         public ServerAdapter(ClientData client, Socket connection) : base(client, connection)
         {
         }
+        public override bool ListenningClient => false;
         public override void OnRecieveLoopError(Exception ex)
         {
             if (!ShouldStop)

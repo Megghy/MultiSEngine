@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace MultiSEngine
@@ -18,14 +19,18 @@ namespace MultiSEngine
         public static void Init()
         {
             Logs.Info("Initializing the program...");
+            Logs.Info("Loading all plugins");
+            Core.PluginSystem.Load();
+            Logs.Info($"{Core.PluginSystem.PluginList.Count} Plugin(s) loaded.");
             Modules.Data.Init();
             Modules.ConsoleManager.Init();
             Core.DataBridge.Init();
-            Logs.Success($"Loaded all data.");
+            Logs.Info($"Loaded all data.");
             Core.Command.InitAllCommands();
-            Logs.Success($"Registered all commands.");
+            Logs.Info($"Registered all commands.");
             Core.Net.Instance.Init(Config.Instance.ListenIP, Config.Instance.ListenPort);
-            Logs.Success($"Opened socket server successfully, listening to port {Config.Instance.ListenPort}");
+            Logs.Info($"Opened socket server successfully, listening to port {Config.Instance.ListenPort}");
+            Logs.Success($"MultiSEngine startted.");
             Console.WriteLine("-----------------------------------------------------------------------------");
         }
         public static void Close()

@@ -8,7 +8,12 @@ namespace MultiSEngine.Core
 {
     public class Hooks
     {
-        public class PlayerJoinEventArgs
+        public interface IEventArgs
+        {
+            public ClientData Client { get; }
+            public bool Handled { get; set; }
+        }
+        public class PlayerJoinEventArgs : IEventArgs
         {
             public PlayerJoinEventArgs(ClientData client, string ip, int port, string version)
             {
@@ -23,7 +28,16 @@ namespace MultiSEngine.Core
             public string Version { get; set; }
             public bool Handled { get; set; } = false;
         }
-        public class RecieveCustomPacketEventArgs
+        public class PlayerLeaveEventArgs : IEventArgs
+        {
+            public PlayerLeaveEventArgs(ClientData client)
+            {
+                Client = client;
+            }
+            public ClientData Client { get; private set; }
+            public bool Handled { get; set; } = false;
+        }
+        public class RecieveCustomPacketEventArgs : IEventArgs
         {
             public RecieveCustomPacketEventArgs(ClientData client, Packet p, BinaryReader reader)
             {
@@ -36,18 +50,20 @@ namespace MultiSEngine.Core
             public BinaryReader Reader { get; private set; }
             public bool Handled { get; set; } = false;
         }
-        public class SwitchEventArgs
+        public class SwitchEventArgs : IEventArgs
         {
-            public SwitchEventArgs(ClientData client, ServerInfo targetServer)
+            public SwitchEventArgs(ClientData client, ServerInfo targetServer, bool isPreSwitch)
             {
                 Client = client;
                 TargetServer = targetServer;
+                PreSwitch = isPreSwitch;
             }
             public ClientData Client { get; private set; }
             public ServerInfo TargetServer { get; private set; }
+            public bool PreSwitch { get; }
             public bool Handled { get; set; } = false;
         }
-        public class ChatEventArgs
+        public class ChatEventArgs : IEventArgs
         {
             public ChatEventArgs(ClientData client, string message)
             {
@@ -58,20 +74,26 @@ namespace MultiSEngine.Core
             public string Message { get; set; }
             public bool Handled { get; set; } = false;
         }
-        public class PacketEventArgs
+        public class PacketEventArgs : IEventArgs
         {
-            public PacketEventArgs(ClientData client, Packet packet)
+            public PacketEventArgs(ClientData client, Packet packet, bool fromClient, bool isSend)
             {
                 Client = client;
                 Packet = packet;
+                FromClient = fromClient;
+                IsSend = isSend;
             }
             public ClientData Client { get; private set; }
             public Packet Packet { get; set; }
+            public bool FromClient { get; }
+            public bool IsSend { get; }
             public bool Handled { get; set; } = false;
         }
 
         public delegate void PlayerJoinEvent(PlayerJoinEventArgs args);
         public static event PlayerJoinEvent PlayerJoin;
+        public delegate void PlayerLeaveEvent(PlayerLeaveEventArgs args);
+        public static event PlayerLeaveEvent PlayerLeave;
         public delegate void RecieveCustomPacketEvent(RecieveCustomPacketEventArgs args);
         public static event RecieveCustomPacketEvent RecieveCustomData;
         public delegate void PreSwitchEvent(SwitchEventArgs args);
@@ -88,6 +110,16 @@ namespace MultiSEngine.Core
         {
             args = new(client, ip, port, version);
             PlayerJoin?.Invoke(args);
+            if (!args.Handled)
+                PluginSystem.OnEvent(args);
+            return args.Handled;
+        }
+        internal static bool OnPlayerLeave(ClientData client, out PlayerLeaveEventArgs args)
+        {
+            args = new(client);
+            PlayerLeave?.Invoke(args);
+            if (!args.Handled)
+                PluginSystem.OnEvent(args);
             return args.Handled;
         }
         internal static bool OnRecieveCustomData(ClientData client, Packet packet, BinaryReader reader, out RecieveCustomPacketEventArgs args)
@@ -97,24 +129,32 @@ namespace MultiSEngine.Core
             args.Reader.BaseStream.Position = 3L;
             RecieveCustomData?.Invoke(args);
             args.Reader.BaseStream.Position = position;
+            if (!args.Handled)
+                PluginSystem.OnEvent(args);
             return args.Handled;
         }
         internal static bool OnPreSwitch(ClientData client, ServerInfo targetServer, out SwitchEventArgs args)
         {
-            args = new(client, targetServer);
+            args = new(client, targetServer, true);
             PreSwitch?.Invoke(args);
+            if (!args.Handled)
+                PluginSystem.OnEvent(args);
             return args.Handled;
         }
         internal static bool OnPostSwitch(ClientData client, ServerInfo targetServer, out SwitchEventArgs args)
         {
-            args = new(client, targetServer);
+            args = new(client, targetServer, false);
             PostSwitch?.Invoke(args);
+            if (!args.Handled)
+                PluginSystem.OnEvent(args);
             return args.Handled;
         }
         internal static bool OnChat(ClientData client, TrProtocol.Packets.Modules.NetTextModuleC2S module, out ChatEventArgs args)
         {
             args = new(client, module.Text); 
-            Chat?.Invoke(args);
+            Chat?.Invoke(args); 
+            if (!args.Handled)
+                PluginSystem.OnEvent(args);
             if (!args.Handled)
             {
                 Logs.LogAndSave($"{client.Name} <{client.Server?.Name}>: {module.Text}", "[Chat]");
@@ -138,16 +178,20 @@ namespace MultiSEngine.Core
             }
             return args.Handled;
         }
-        internal static bool OnSendPacket(ClientData client, Packet packet, out PacketEventArgs args)
+        internal static bool OnSendPacket(ClientData client, Packet packet, bool fromClient, out PacketEventArgs args)
         {
-            args = new(client, packet);
+            args = new(client, packet, fromClient, true);
             SendPacket?.Invoke(args);
+            if (!args.Handled)
+                PluginSystem.OnEvent(args);
             return args.Handled;
         }
-        internal static bool OnGetPacket(ClientData client, Packet packet, out PacketEventArgs args)
+        internal static bool OnGetPacket(ClientData client, Packet packet, bool fromClient, out PacketEventArgs args)
         {
-            args = new(client, packet);
+            args = new(client, packet, fromClient,false);
             RecievePacket?.Invoke(args);
+            if (!args.Handled)
+                PluginSystem.OnEvent(args);
             return args.Handled;
         }
     }

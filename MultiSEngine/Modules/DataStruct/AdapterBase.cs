@@ -29,6 +29,7 @@ namespace MultiSEngine.Modules.DataStruct
         public Socket Connection { get; set; }
         public Queue PacketPool { get; set; }
         protected BinaryReader NetReader { get; set; }
+        public abstract bool ListenningClient { get; }
         #endregion
         /// <summary>
         /// 返回是否要继续传递给给定的socket
@@ -81,9 +82,9 @@ namespace MultiSEngine.Modules.DataStruct
                 var packet = PacketPool.Dequeue() as Packet;
                 try
                 {
-                    if (!Core.Hooks.OnGetPacket(Client, packet, out _)
+                    if (!Core.Hooks.OnGetPacket(Client, packet, ListenningClient, out _)
                         && GetPacket(ref packet)
-                        && !Core.Hooks.OnSendPacket(Client, packet, out _))
+                        && !Core.Hooks.OnSendPacket(Client, packet, ListenningClient, out _))
                         SendPacket(packet);
                 }
                 catch (Exception ex)
