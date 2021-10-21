@@ -64,15 +64,6 @@ namespace MultiSEngine.Modules.DataStruct
                 Connection?.Dispose();
             }
         }
-        public virtual void ChangeConnection(Socket connection)
-        {
-            Connection?.Shutdown(SocketShutdown.Both);
-            NetReader?.Dispose();
-            Connection = null;
-            NetReader = null;
-            Connection = connection;
-            NetReader = new(new NetworkStream(Connection));
-        }
         protected void ProcessPacketLoop()
         {
             while (!ShouldStop)
@@ -83,8 +74,7 @@ namespace MultiSEngine.Modules.DataStruct
                 try
                 {
                     if (!Core.Hooks.OnGetPacket(Client, packet, ListenningClient, out _)
-                        && GetPacket(ref packet)
-                        && !Core.Hooks.OnSendPacket(Client, packet, ListenningClient, out _))
+                        && GetPacket(ref packet))
                         SendPacket(packet);
                 }
                 catch (Exception ex)

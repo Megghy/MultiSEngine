@@ -4,15 +4,25 @@
 	  <LangVersion>preview</LangVersion>
     <OutputType>Exe</OutputType>
     <TargetFramework>net5.0</TargetFramework>
+    <AssemblyVersion>1.0.1</AssemblyVersion>
+    <FileVersion>1.0.1</FileVersion>
+    <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest</AnalysisLevel>
   </PropertyGroup>
 
-  <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-    <Exec Command="xcopy C:\Users\Megghy\Source\Repos\TrProtocol\TrProtocol\bin\Debug\net5.0\TrProtocol.dll D:\Code\TrProtocol\Protocal\TrProtocol\bin\Debug\net5.0\*.* /S /D /Y&#xD;&#xA;" />
-  </Target>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
 
   <ItemGroup>
     <Reference Include="TrProtocol">
-      <HintPath>..\..\TrProtocol\TrProtocol\obj\Debug\net5.0\TrProtocol.dll</HintPath>
+      <HintPath>..\..\TrProtocol\TrProtocol\bin\Release\net5.0\TrProtocol.dll</HintPath>
     </Reference>
   </ItemGroup>
 
@@ -30,9 +40,5 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
   </ItemGroup>
-
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="xcopy C:\Users\Megghy\Source\Repos\TrProtocol\TrProtocol\bin\Debug\net5.0\TrProtocol.dll D:\Code\TrProtocol\Protocal\TrProtocol\bin\Debug\net5.0\*.* /S /D /Y" />
-  </Target>
 
 </Project>

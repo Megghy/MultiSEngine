@@ -74,9 +74,25 @@ namespace MultiSEngine.Core
             public string Message { get; set; }
             public bool Handled { get; set; } = false;
         }
-        public class PacketEventArgs : IEventArgs
+        public class SendPacketEventArgs : IEventArgs
         {
-            public PacketEventArgs(ClientData client, Packet packet, bool fromClient, bool isSend)
+            public SendPacketEventArgs(ClientData client, Packet packet, bool toClient, bool isSend)
+            {
+                Client = client;
+                Packet = packet;
+                ToClient = toClient;
+                IsSend = isSend;
+            }
+            public ClientData Client { get; private set; }
+            public Packet Packet { get; set; }
+            public bool ToClient { get; }
+            public bool ToServer => !ToClient;
+            public bool IsSend { get; }
+            public bool Handled { get; set; } = false;
+        }
+        public class GetPacketEventArgs : IEventArgs
+        {
+            public GetPacketEventArgs(ClientData client, Packet packet, bool fromClient, bool isSend)
             {
                 Client = client;
                 Packet = packet;
@@ -86,6 +102,7 @@ namespace MultiSEngine.Core
             public ClientData Client { get; private set; }
             public Packet Packet { get; set; }
             public bool FromClient { get; }
+            public bool FromServer => !FromClient;
             public bool IsSend { get; }
             public bool Handled { get; set; } = false;
         }
@@ -102,9 +119,9 @@ namespace MultiSEngine.Core
         public static event PostSwitchEvent PostSwitch;
         public delegate void ChatEvent(ChatEventArgs args);
         public static event ChatEvent Chat;
-        public delegate void SendPacketEvent(PacketEventArgs args);
+        public delegate void SendPacketEvent(SendPacketEventArgs args);
         public static event SendPacketEvent SendPacket;
-        public delegate void RecievePacketEvent(PacketEventArgs args);
+        public delegate void RecievePacketEvent(GetPacketEventArgs args);
         public static event RecievePacketEvent RecievePacket;
         internal static bool OnPlayerJoin(ClientData client, string ip, int port, string version, out PlayerJoinEventArgs args)
         {
@@ -178,15 +195,15 @@ namespace MultiSEngine.Core
             }
             return args.Handled;
         }
-        internal static bool OnSendPacket(ClientData client, Packet packet, bool fromClient, out PacketEventArgs args)
+        internal static bool OnSendPacket(ClientData client, Packet packet, bool toClient, out SendPacketEventArgs args)
         {
-            args = new(client, packet, fromClient, true);
+            args = new(client, packet, toClient, true);
             SendPacket?.Invoke(args);
             if (!args.Handled)
                 PluginSystem.OnEvent(args);
             return args.Handled;
         }
-        internal static bool OnGetPacket(ClientData client, Packet packet, bool fromClient, out PacketEventArgs args)
+        internal static bool OnGetPacket(ClientData client, Packet packet, bool fromClient, out GetPacketEventArgs args)
         {
             args = new(client, packet, fromClient,false);
             RecievePacket?.Invoke(args);

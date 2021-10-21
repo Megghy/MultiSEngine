@@ -103,7 +103,7 @@ namespace MultiSEngine
         public static string GetText(this NetworkText text)
         {
             //return text._mode == NetworkText.Mode.LocalizationKey ? Language.GetTextValue(text._text) : text._text;
-            return text.GetText();
+            return text._text;
         }
         public static MessageID GetMessageID(this byte[] buffer, int start = 0) => buffer.Length >= 3 ? (MessageID)buffer[start + 2] : MessageID.NeverCalled;
     }

@@ -21,6 +21,7 @@ namespace MultiSEngine.Core.Adapter
             { 
                 Stop(true);
                 Logs.Warn($"Cannot continue to maintain connection between {Client.Name} and server {Client.Server.Name}{Environment.NewLine}{ex}");
+                Client.SendErrorMessage(Localization.Instance["Prompt_UnknownError"]);
                 Client.Back();
             }
         }

@@ -16,10 +16,10 @@ namespace MultiSEngine.Core
         public abstract void Initialize();
         public abstract void Dispose();
         public virtual PacketSerializer Serializer { get; } = new(true);
-        public virtual void GetPacket(Hooks.PacketEventArgs args)
+        public virtual void GetPacket(Hooks.GetPacketEventArgs args)
         {
         }
-        public virtual void SendPacket(Hooks.PacketEventArgs args)
+        public virtual void SendPacket(Hooks.SendPacketEventArgs args)
         {
         }
         public virtual void GetCustomPacket(Hooks.RecieveCustomPacketEventArgs p)
@@ -51,20 +51,23 @@ namespace MultiSEngine.Core
                 Directory.CreateDirectory(PluginPath);
             Directory.GetFiles(PluginPath, "*.dll").ForEach(p =>
             {
-                try
+                Assembly plugin = Assembly.LoadFile(p);
+                if (plugin.GetTypes().Where(t => t.BaseType == typeof(MSEPlugin))?.ToList() is { Count: > 0 } instances)
                 {
-                    Assembly plugin = Assembly.LoadFile(p);
-                    if (plugin.GetTypes().FirstOrDefault(t => t.BaseType == typeof(MSEPlugin)) is { } mainType)
+                    instances.ForEach(instance =>
                     {
-                        var pluginInstance = Activator.CreateInstance(mainType) as MSEPlugin;
-                        pluginInstance.Initialize();
-                        Logs.Success($"- Loaded plugin: {pluginInstance.Name} <{pluginInstance.Author}> V{pluginInstance.Version}");
-                        PluginList.Add(pluginInstance);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Logs.Warn($"Failed to load plugin: {p}{Environment.NewLine}{ex}");
+                        try
+                        {
+                            var pluginInstance = Activator.CreateInstance(instance) as MSEPlugin;
+                            pluginInstance.Initialize();
+                            Logs.Success($"- Loaded plugin: {pluginInstance.Name} <{pluginInstance.Author}> V{pluginInstance.Version}");
+                            PluginList.Add(pluginInstance);
+                        }
+                        catch (Exception ex)
+                        {
+                            Logs.Warn($"Failed to load plugin: {p}{Environment.NewLine}{ex}");
+                        }
+                    });
                 }
             });
         }
@@ -79,6 +82,8 @@ namespace MultiSEngine.Core
         }
         internal static void OnEvent(Hooks.IEventArgs e)
         {
+            if (e is null || (e.Client?.Disposed ?? true))
+                return;
             PluginList.ForEach(p =>
             {
                 try
@@ -88,11 +93,11 @@ namespace MultiSEngine.Core
                         case Hooks.ChatEventArgs chat:
                             p.OnChat(chat);
                             break;
-                        case Hooks.PacketEventArgs packet:
-                            if (packet.IsSend)
-                                p.SendPacket(packet);
-                            else
-                                p.GetPacket(packet);
+                        case Hooks.SendPacketEventArgs packet:
+                            p.SendPacket(packet);
+                            break;
+                        case Hooks.GetPacketEventArgs packet:
+                            p.GetPacket(packet);
                             break;
                         case Hooks.PlayerJoinEventArgs join:
                             p.OnJoin(join);

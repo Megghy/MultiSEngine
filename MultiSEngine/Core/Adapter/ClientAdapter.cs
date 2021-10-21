@@ -55,8 +55,7 @@ namespace MultiSEngine.Core.Adapter
                     Client.SendDataToGameServer(npcName, true);
                     return false; //特殊包
                 case TrProtocol.Packets.Modules.NetTextModuleC2S modules:
-                    if (Hooks.OnChat(Client, modules, out _))
-                        return false;
+                    Hooks.OnChat(Client, modules, out _);
                     return false;
                 default:
                     return true;

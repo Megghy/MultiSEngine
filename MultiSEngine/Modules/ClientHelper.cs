@@ -110,7 +110,7 @@ namespace MultiSEngine.Modules
                 }
                 using (var arg = new SocketAsyncEventArgs())
                 {
-                    arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer.Length);
+                    arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? 3);
                     client.CAdapter?.Connection?.SendAsync(arg);
                     //client.CAdapter?.Connection?.Send(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer.Length, SocketFlags.None);
                 }
@@ -133,7 +133,7 @@ namespace MultiSEngine.Modules
 #endif
                 using (var arg = new SocketAsyncEventArgs())
                 {
-                    arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer.Length);
+                    arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? 3);
                     client.SAdapter?.Connection?.SendAsync(arg);
                 }
             }
@@ -146,6 +146,8 @@ namespace MultiSEngine.Modules
         {
             if (packet is null) 
                 throw new ArgumentNullException(nameof(packet));
+            if (Core.Hooks.OnSendPacket(client, packet, true, out _))
+                return true;
             if (packet is WorldData world && (client.Player.TileX > world.MaxTileX || client.Player.TileY > world.MaxTileY))
                 client.TP(client.SpawnY, client.SpawnY); //防止玩家超出地图游戏崩溃
             return client.SendDataToClient(packet.Serialize(serializerAsClient), 0);
@@ -154,6 +156,8 @@ namespace MultiSEngine.Modules
         {
             if (packet is null)
                 throw new ArgumentNullException(nameof(packet));
+            if (Core.Hooks.OnSendPacket(client, packet, false, out _))
+                return;
             client.SendDataToGameServer(packet.Serialize(serializerAsClient), 0);
         }
         public static void Disconnect(this ClientData client, string reason = null)
