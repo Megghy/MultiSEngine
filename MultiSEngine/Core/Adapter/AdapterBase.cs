@@ -1,11 +1,12 @@
-﻿using System;
+﻿using MultiSEngine.Modules.DataStruct;
+using System;
 using System.Collections;
 using System.IO;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using TrProtocol;
 
-namespace MultiSEngine.Modules.DataStruct
+namespace MultiSEngine.Core.Adapter
 {
     public interface IStatusChangeable
     {
@@ -73,7 +74,8 @@ namespace MultiSEngine.Modules.DataStruct
                 var packet = PacketPool.Dequeue() as Packet;
                 try
                 {
-                    if (!Core.Hooks.OnGetPacket(Client, packet, ListenningClient, out _)
+                    if (packet is not null
+                        && !Core.Hooks.OnGetPacket(Client, packet, ListenningClient, out _)
                         && GetPacket(ref packet))
                         SendPacket(packet);
                 }

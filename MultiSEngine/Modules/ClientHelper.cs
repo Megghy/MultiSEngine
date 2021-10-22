@@ -1,12 +1,12 @@
-﻿using TrProtocol;
-using TrProtocol.Packets;
-using MultiSEngine.Core.Adapter;
+﻿using MultiSEngine.Core.Adapter;
 using MultiSEngine.Modules.DataStruct;
 using System;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
+using TrProtocol;
 using TrProtocol.Models;
+using TrProtocol.Packets;
 
 namespace MultiSEngine.Modules
 {
@@ -108,12 +108,9 @@ namespace MultiSEngine.Modules
 #endif
                     return true;
                 }
-                using (var arg = new SocketAsyncEventArgs())
-                {
-                    arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? 3);
-                    client.CAdapter?.Connection?.SendAsync(arg);
-                    //client.CAdapter?.Connection?.Send(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer.Length, SocketFlags.None);
-                }
+                using var arg = new SocketAsyncEventArgs();
+                arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer?.Length ?? 3);
+                client.CAdapter.Connection?.SendAsync(arg);
                 return true;
             }
             catch (Exception ex)
@@ -131,11 +128,9 @@ namespace MultiSEngine.Modules
 #if DEBUG
                 Console.WriteLine($"[Send to SERVER] <{BitConverter.ToInt16(buffer)} byte> {buffer.GetMessageID()}");
 #endif
-                using (var arg = new SocketAsyncEventArgs())
-                {
-                    arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? 3);
-                    client.SAdapter?.Connection?.SendAsync(arg);
-                }
+                using var arg = new SocketAsyncEventArgs();
+                arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer?.Length ?? 3);
+                client.SAdapter?.Connection?.SendAsync(arg);
             }
             catch
             {
@@ -144,13 +139,13 @@ namespace MultiSEngine.Modules
         }
         public static bool SendDataToClient(this ClientData client, Packet packet, bool serializerAsClient = false)
         {
-            if (packet is null) 
+            if (packet is null)
                 throw new ArgumentNullException(nameof(packet));
             if (Core.Hooks.OnSendPacket(client, packet, true, out _))
                 return true;
             if (packet is WorldData world && (client.Player.TileX > world.MaxTileX || client.Player.TileY > world.MaxTileY))
                 client.TP(client.SpawnY, client.SpawnY); //防止玩家超出地图游戏崩溃
-            return client.SendDataToClient(packet.Serialize(serializerAsClient), 0);
+            return client.SendDataToClient(packet.Serialize(serializerAsClient));
         }
         public static void SendDataToGameServer(this ClientData client, Packet packet, bool serializerAsClient = false)
         {
@@ -158,7 +153,7 @@ namespace MultiSEngine.Modules
                 throw new ArgumentNullException(nameof(packet));
             if (Core.Hooks.OnSendPacket(client, packet, false, out _))
                 return;
-            client.SendDataToGameServer(packet.Serialize(serializerAsClient), 0);
+            client.SendDataToGameServer(packet.Serialize(serializerAsClient));
         }
         public static void Disconnect(this ClientData client, string reason = null)
         {

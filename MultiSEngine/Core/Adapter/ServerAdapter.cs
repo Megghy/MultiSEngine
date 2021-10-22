@@ -17,13 +17,15 @@ namespace MultiSEngine.Core.Adapter
         public override bool ListenningClient => false;
         public override void OnRecieveLoopError(Exception ex)
         {
-            if (!ShouldStop)
+            if (!ShouldStop && ex is SocketException)
             { 
                 Stop(true);
-                Logs.Warn($"Cannot continue to maintain connection between {Client.Name} and server {Client.Server.Name}{Environment.NewLine}{ex}");
+                Logs.Warn($"Cannot continue to maintain connection between {Client.Name} and server {Client.Server?.Name}{Environment.NewLine}{ex}");
                 Client.SendErrorMessage(Localization.Instance["Prompt_UnknownError"]);
                 Client.Back();
             }
+            else
+                Logs.Warn($"Server packet recieve loop error.{Environment.NewLine}{ex}");
         }
         public override bool GetPacket(ref Packet packet)
         {
@@ -72,7 +74,7 @@ namespace MultiSEngine.Core.Adapter
         public override void SendPacket(Packet packet)
         {
             if (!ShouldStop)
-                Client.SendDataToClient(Serializer.Serialize(packet));
+                Client.SendDataToClient(packet, false);
         }
         public void ResetAlmostEverything()
         {

@@ -22,10 +22,7 @@ namespace MultiSEngine
         }
         public string this[string key] { get { return Get(key); } }
         public string this[string key, object[] obj] { get { return Get(key, obj); } }
-        public string this[string key, string arg1] { get { return Get(key, new[] {arg1}); } }
-        public string this[string key, string arg1, string arg2] { get { return Get(key, new[] { arg1, arg2 }); } }
-        public string this[string key, string arg1, string arg2, string arg3] { get { return Get(key, new[] { arg1, arg2, arg3 }); } }
-        public string this[string key, string arg1, string arg2, string arg3, string arg4] { get { return Get(key, new[] { arg1, arg2, arg3, arg4 }); } }
+        public string this[string key, params string[] args] { get { return Get(key, args); } }
         public static string Get(string key, object[] obj = null)
         {
             try

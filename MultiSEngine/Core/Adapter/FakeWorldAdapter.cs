@@ -48,17 +48,18 @@ namespace MultiSEngine.Core.Adapter
                     var bb = new BitsByte();
                     bb[6] = true;
                     //Client.Player.OriginData.WorldData = new() { EventInfo1 = bb, SpawnX = 4200, SpawnY = 1200 };
-                    Client.Player.OriginData.WorldData = new() { EventInfo1 = bb, SpawnX = Width / 2, SpawnY = Height / 2 };
-                    Client.SendDataToClient(new WorldData()
+                    Client.Player.OriginData.WorldData = new WorldData()
                     {
-                        SpawnX = (short)Client.Player.WorldSpawnX,
-                        SpawnY = (short)Client.Player.WorldSpawnY,
+                        EventInfo1 = bb,
+                        SpawnX = Width / 2,
+                        SpawnY = Height / 2,
                         MaxTileX = Width,
                         MaxTileY = Height,
                         GameMode = 0,
                         WorldName = Config.Instance.ServerName,
                         WorldUniqueID = Guid.NewGuid()
-                    });
+                    };
+                    Client.SendDataToClient(Client.Player.OriginData.WorldData);
                     return false;
                 case RequestTileData:
                     Client.SendDataToClient(Data.StaticSpawnSquareData);
