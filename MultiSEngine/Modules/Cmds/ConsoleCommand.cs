@@ -42,7 +42,7 @@ namespace MultiSEngine.Modules.Cmds
                 default:
                     Logs.Info($"Avaliable console commands:{Environment.NewLine}" +
                         $"- stop(exit){Environment.NewLine}" +
-                        $"- kick <Player name> (reason)" +
+                        $"- kick <Player name> (reason){Environment.NewLine}" +
                         $"- list{Environment.NewLine}" +
                         $"- online{Environment.NewLine}" +
                         $"- reload{Environment.NewLine}", false);

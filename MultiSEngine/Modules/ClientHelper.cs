@@ -196,6 +196,10 @@ namespace MultiSEngine.Modules
                             : Config.Instance.DefaultServerInternal.VersionNum;
             Logs.Info($"Version num of {client.Name} is {client.Player.VersionNum}.");
         }
+        public static bool HandleCommand(this ClientData client, string cmd)
+        {
+            return Core.Command.HandleCommand(client, cmd, out _);
+        }
         public static void TP(this ClientData client, int tileX, int tileY)
         {
             client.SendDataToClient(new Teleport() { PlayerSlot = client.Player.Index, Position = new(tileX * 16, tileY * 16) });
@@ -206,7 +210,7 @@ namespace MultiSEngine.Modules
         }
         #endregion
         #region 其他
-
+        public static ClientData GetClientByName(string name) => Data.Clients.FirstOrDefault(c => c.Name == name);
         #endregion
     }
 }

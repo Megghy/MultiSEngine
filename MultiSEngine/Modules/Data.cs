@@ -8,6 +8,7 @@ namespace MultiSEngine.Modules
 {
     internal class Data
     {
+        public const int TRVersion = 238;
         public static readonly List<DataStruct.ClientData> Clients = new();
         public static readonly List<CmdBase> Commands = new();
         public static byte[] StaticSpawnSquareData { get; set; }

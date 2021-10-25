@@ -25,7 +25,7 @@ namespace MultiSEngine.Core.Adapter
         #region 变量
         public int ErrorCount = 0;
         protected bool ShouldStop { get; set; } = false;
-        public virtual PacketSerializer Serializer { get; set; } = new(true);
+        public virtual PacketSerializer Serializer => Net.Instance.ClientSerializer;
         public ClientData Client { get; protected set; }
         public Socket Connection { get; set; }
         public Queue PacketPool { get; set; }
@@ -75,9 +75,15 @@ namespace MultiSEngine.Core.Adapter
                 try
                 {
                     if (packet is not null
-                        && !Core.Hooks.OnGetPacket(Client, packet, ListenningClient, out _)
+                        && !Hooks.OnGetPacket(Client, packet, ListenningClient, out _)
                         && GetPacket(ref packet))
                         SendPacket(packet);
+                }
+                catch(IOException io)
+                {
+#if DEBUG
+                    Console.WriteLine(io);
+#endif
                 }
                 catch (Exception ex)
                 {

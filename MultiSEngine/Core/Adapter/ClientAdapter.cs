@@ -14,7 +14,7 @@ namespace MultiSEngine.Core.Adapter
         {
             client.CAdapter = this;
         }
-        public override PacketSerializer Serializer { get; set; } = new(false);
+        public override PacketSerializer Serializer => Net.Instance.ServerSerializer;
         public override bool ListenningClient => true;
         public override void OnRecieveLoopError(Exception ex)
         {
@@ -55,7 +55,27 @@ namespace MultiSEngine.Core.Adapter
                     Client.SendDataToGameServer(npcName, true);
                     return false; //特殊包
                 case TrProtocol.Packets.Modules.NetTextModuleC2S modules:
-                    Hooks.OnChat(Client, modules, out _);
+                    if(!Hooks.OnChat(Client, modules, out _))
+                    {
+                        Logs.LogAndSave($"{Client.Name} <{Client.Server?.Name}>: {modules.Text}", "[Chat]");
+                        if (modules.Command == "Say" && (Command.HandleCommand(Client, modules.Text, out var c) && !c))
+                            return false;
+                        else if (Client.State == ClientData.ClientState.NewConnection)
+                        {
+                            Client.SendInfoMessage($"{Localization.Instance["Command_NotEntered"]}\r\n" +
+                                $"{Localization.Instance["Help_Tp"]}\r\n" +
+                                $"{Localization.Instance["Help_Back"]}\r\n" +
+                                $"{Localization.Instance["Help_List"]}\r\n" +
+                                $"{Localization.Instance["Help_Command"]}"
+                            );
+                        }
+                        else
+                        {
+                            if (Config.Instance.EnableChatForward && !modules.Text.StartsWith("/"))
+                                Client.Broadcast($"[{Client.Server?.Name ?? "Not Join"}] {Client.Name}: {modules.Text}");
+                            Client.SendDataToGameServer(modules, true);
+                        }
+                    }
                     return false;
                 default:
                     return true;

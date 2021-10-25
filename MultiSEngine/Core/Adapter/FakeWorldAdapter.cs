@@ -41,7 +41,10 @@ namespace MultiSEngine.Core.Adapter
                     if(!Hooks.OnPlayerJoin(Client, Client.IP, Client.Port, hello.Version, out var joinEvent))
                     {
                         Client.ReadVersion(joinEvent.Version);
-                        InternalSendPacket(new LoadPlayer() { PlayerSlot = 0, ServerWantsToRunCheckBytesInClientLoopThread = true });
+                        if (Client.Player.VersionNum != Data.TRVersion)
+                            Client.Disconnect($"Unallowed version: {hello.Version}");
+                        else
+                            InternalSendPacket(new LoadPlayer() { PlayerSlot = 0, ServerWantsToRunCheckBytesInClientLoopThread = true });
                     }
                     return false;
                 case RequestWorldInfo:

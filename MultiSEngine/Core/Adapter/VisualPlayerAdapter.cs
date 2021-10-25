@@ -3,7 +3,7 @@ using System.Net.Sockets;
 using TrProtocol;
 using TrProtocol.Packets;
 using MultiSEngine.Modules;
-using MultiSEngine.Modules.CustomDataPacket;
+using MultiSEngine.Modules.CustomData;
 using MultiSEngine.Modules.DataStruct;
 
 namespace MultiSEngine.Core.Adapter
@@ -45,10 +45,6 @@ namespace MultiSEngine.Core.Adapter
             {
                 Version = $"Terraria{(server.VersionNum is { } and > 0 and < 65535 ? server.VersionNum : Client.Player.VersionNum)}"
             });  //发起连接请求   
-            InternalSendPacket(new SyncIPPacket()
-            {
-                IP = Client.IP
-            });  //尝试同步玩家IP
         }
         public override bool GetPacket(ref Packet packet)
         {
@@ -69,6 +65,14 @@ namespace MultiSEngine.Core.Adapter
                     InternalSendPacket(Player.OriginData.Info);
                     InternalSendPacket(new ClientUUID() { UUID = Player.UUID });
                     InternalSendPacket(new RequestWorldInfo() { });//请求世界信息
+                    InternalSendPacket(new CustomPacketStuff.CustomDataPacket()
+                    {
+                        Data = new SyncIP()
+                        {
+                            PlayerName = Client.Name,
+                            IP = Client.IP
+                        }
+                    });  //尝试同步玩家IP
                     break;
                 case SyncPlayer playerInfo:
                     Player.UpdateData(playerInfo);

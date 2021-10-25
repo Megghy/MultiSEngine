@@ -172,27 +172,6 @@ namespace MultiSEngine.Core
             Chat?.Invoke(args); 
             if (!args.Handled)
                 PluginSystem.OnEvent(args);
-            if (!args.Handled)
-            {
-                Logs.LogAndSave($"{client.Name} <{client.Server?.Name}>: {module.Text}", "[Chat]");
-                if (module.Command == "Say" && (Command.HandleCommand(client, module.Text, out var c) && !c))
-                    return false;
-                else if (client.State == ClientData.ClientState.NewConnection)
-                {
-                    client.SendInfoMessage($"{Localization.Instance["Command_NotEntered"]}\r\n" +
-                        $"{Localization.Instance["Help_Tp"]}\r\n" +
-                        $"{Localization.Instance["Help_Back"]}\r\n" +
-                        $"{Localization.Instance["Help_List"]}\r\n" +
-                        $"{Localization.Instance["Help_Command"]}"
-                    );
-                }
-                else
-                {
-                    if (Config.Instance.EnableChatForward)
-                        client.Broadcast($"[{client.Server?.Name ?? "Not Join"}] {client.Name}: {module.Text}");
-                    client.SendDataToGameServer(module, true);
-                }
-            }
             return args.Handled;
         }
         internal static bool OnSendPacket(ClientData client, Packet packet, bool toClient, out SendPacketEventArgs args)
