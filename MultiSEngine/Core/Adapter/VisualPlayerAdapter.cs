@@ -5,6 +5,8 @@ using TrProtocol.Packets;
 using MultiSEngine.Modules;
 using MultiSEngine.Modules.CustomData;
 using MultiSEngine.Modules.DataStruct;
+using System.Threading.Tasks;
+using TrProtocol.Models;
 
 namespace MultiSEngine.Core.Adapter
 {
@@ -15,16 +17,14 @@ namespace MultiSEngine.Core.Adapter
         }
         internal MSEPlayer Player => Client.Player;
         internal bool TestConnecting = false;
+        internal ServerInfo TempServer;
         internal Action<VisualPlayerAdapter, ClientData> Callback;
         public bool RunningAsNormal { get; set; } = false;
         public void ChangeProcessState(bool asNormal)
         {
             RunningAsNormal = true;
         }
-        /// <summary>
-        /// 调用 tryconnect
-        /// </summary>
-        /// <returns></returns>
+        [Obsolete("调用 TryConnect", true)]
         public override AdapterBase Start()
         {
             //不能直接开始
@@ -39,6 +39,7 @@ namespace MultiSEngine.Core.Adapter
             if (TestConnecting)
                 return;
             base.Start();
+            TempServer = server;
             Callback = successCallback;
             TestConnecting = true;
             InternalSendPacket(new ClientHello()
@@ -83,6 +84,7 @@ namespace MultiSEngine.Core.Adapter
                     {
                         Client.TP(Client.SpawnX, Client.SpawnY - 3);
                         TestConnecting = false;
+                        Client.Server = TempServer;
                         Callback.Invoke(this, Client);
                         Callback = null;
                     }
@@ -93,8 +95,8 @@ namespace MultiSEngine.Core.Adapter
                     Player.UpdateData(invItem);
                     break;
                 case RequestPassword:
-                    Console.WriteLine($"need pass");
-                    Stop(true);
+                    Client.State = ClientData.ClientState.RequestPassword;
+                    Client.SendInfoMessage(Localization.Instance["Prompt_NeedPassword", Client.Server.Name, Localization.Get("Help_Password")]);
                     return false;
                 case StatusText:
                     return RunningAsNormal;

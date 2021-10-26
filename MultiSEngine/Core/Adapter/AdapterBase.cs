@@ -57,12 +57,20 @@ namespace MultiSEngine.Core.Adapter
             Logs.Warn($"[{GetType()}] <{Connection.RemoteEndPoint}> Stopped");
 #endif
             ShouldStop = true;
+            if (Client.CAdapter == this)
+                Client.CAdapter = null;
+            if (Client.SAdapter == this)
+                Client.SAdapter = null;
             if (disposeConnection)
             {
                 try { Connection?.Shutdown(SocketShutdown.Both); } catch { }
                 NetReader?.Dispose();
                 NetReader = null;
                 Connection?.Dispose();
+                if (Client.CAdapter == this)
+                    Client.CAdapter = null;
+                if(Client.SAdapter == this)
+                    Client.SAdapter = null;
             }
         }
         protected void ProcessPacketLoop()

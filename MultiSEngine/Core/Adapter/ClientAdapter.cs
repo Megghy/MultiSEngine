@@ -52,7 +52,7 @@ namespace MultiSEngine.Core.Adapter
                     Client.Player.UUID = uuid.UUID;
                     return true;
                 case SyncNPCName npcName:
-                    Client.SendDataToGameServer(npcName, true);
+                    Client.SendDataToServer(npcName, true);
                     return false; //特殊包
                 case TrProtocol.Packets.Modules.NetTextModuleC2S modules:
                     if(!Hooks.OnChat(Client, modules, out _))
@@ -73,7 +73,7 @@ namespace MultiSEngine.Core.Adapter
                         {
                             if (Config.Instance.EnableChatForward && !modules.Text.StartsWith("/"))
                                 Client.Broadcast($"[{Client.Server?.Name ?? "Not Join"}] {Client.Name}: {modules.Text}");
-                            Client.SendDataToGameServer(modules, true);
+                            Client.SendDataToServer(modules, true);
                         }
                     }
                     return false;
@@ -85,7 +85,7 @@ namespace MultiSEngine.Core.Adapter
         {
             //bool shouldSerializeLikeClient = packet.GetType().GetProperties().Any(p => p.GetCustomAttributes(true)?.Any(a => a.GetType() == typeof(S2COnlyAttribute)) ?? false);
             if (!ShouldStop)
-                Client.SendDataToGameServer(packet);
+                Client.SendDataToServer(packet);
         }
     }
 }

@@ -28,6 +28,53 @@ namespace MultiSEngine.Core.Adapter
                 IsEnterWorld = false;
             RunningAsNormal = true;
         }
+        public void BackToThere()
+        {
+            Client.State = ClientData.ClientState.ReadyToSwitch;
+            Client.Player.ServerData = new();
+            Client.Server = null;
+            Client.SAdapter?.Stop(true);
+            Client.TP(4200, 2100);
+            var emptySection = new TileSection()
+            {
+                Data = new()
+                {
+                    ChestCount = 0,
+                    Chests = Array.Empty<ChestData>(),
+                    SignCount = 0,
+                    Signs = Array.Empty<SignData>(),
+                    TileEntities = Array.Empty<TileEntity>(),
+                    TileEntityCount = 0,
+                    Height = 2000,
+                    Width = 2000,
+                    StartX = 4200 - 180,
+                    StartY = 2100 - 180,
+                    Tiles = new ComplexTileData[1]
+                    {
+                        new ComplexTileData()
+                        {
+                            TileType = 541,
+                            Count = 180 * 180
+                        }
+                    }
+               }
+            };
+            Client.SendDataToClient(emptySection);
+            Client.SendDataToClient(new LoadPlayer()
+            {
+                PlayerSlot = 0
+            });
+            var playerActive = new PlayerActive()
+            {
+                PlayerSlot = 0,
+                Active = false
+            };
+            for (int i = 1; i < 255; i++)
+            {
+                playerActive.PlayerSlot = (byte)i;
+                Client.SendDataToClient(playerActive);
+            }  //隐藏其他所有玩家
+        }
         public override bool GetPacket(ref Packet packet)
         {
 #if DEBUG

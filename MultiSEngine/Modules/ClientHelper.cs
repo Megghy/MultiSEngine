@@ -52,9 +52,9 @@ namespace MultiSEngine.Modules
                         client.SAdapter?.Stop(true);
                         client.SAdapter = tempAdapter;
                         client.TempConnection = null;
+                        client.TempAdapter = null;
                         client.TimeOutTimer.Stop();
                         client.Sync();
-                        client.Server = server;
                     });
                 }
                 catch (Exception ex)
@@ -119,7 +119,7 @@ namespace MultiSEngine.Modules
                 return false;
             }
         }
-        public static void SendDataToGameServer(this ClientData client, byte[] buffer, int start = 0, int? length = null)
+        public static void SendDataToServer(this ClientData client, byte[] buffer, int start = 0, int? length = null)
         {
             if (client.SAdapter is not { Connection: not null })
                 return;
@@ -147,13 +147,13 @@ namespace MultiSEngine.Modules
                 client.TP(client.SpawnY, client.SpawnY); //防止玩家超出地图游戏崩溃
             return client.SendDataToClient(packet.Serialize(serializerAsClient));
         }
-        public static void SendDataToGameServer(this ClientData client, Packet packet, bool serializerAsClient = false)
+        public static void SendDataToServer(this ClientData client, Packet packet, bool serializerAsClient = false)
         {
             if (packet is null)
                 throw new ArgumentNullException(nameof(packet));
             if (Core.Hooks.OnSendPacket(client, packet, false, out _))
                 return;
-            client.SendDataToGameServer(packet.Serialize(serializerAsClient));
+            client.SendDataToServer(packet.Serialize(serializerAsClient));
         }
         public static void Disconnect(this ClientData client, string reason = null)
         {
@@ -207,6 +207,29 @@ namespace MultiSEngine.Modules
         public static void AddBuff(this ClientData client, int buffID, int time = 60)
         {
             client?.SendDataToClient(new AddPlayerBuff() { BuffTime = time, BuffType = (ushort)buffID, OtherPlayerSlot = client.Player.Index });
+        }
+        public static void CreatePartical(this ClientData client, ParticleOrchestraType type, ParticleOrchestraSettings setting = null)
+        {
+            client.SendDataToClient(new TrProtocol.Packets.Modules.NetParticlesModule() { 
+                ParticleType = type,
+                Setting = setting ?? new()
+                {
+                    MovementVector = new(0, 0),
+                    PositionInWorld = new(client.Player.X, client.Player.Y),
+                    PackedShaderIndex = 0,
+                    IndexOfPlayerWhoInvokedThis = client.Player.Index
+                }
+            });
+        }
+        public static void CreatePartical(this ClientData client, ParticleOrchestraType type, Vector2 position, Vector2 movement = default)
+        {
+            client.CreatePartical(type, new()
+            {
+                MovementVector = movement,
+                PositionInWorld = position,
+                PackedShaderIndex = 0,
+                IndexOfPlayerWhoInvokedThis = client.Player.Index
+            });
         }
         #endregion
         #region 其他

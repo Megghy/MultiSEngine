@@ -62,7 +62,7 @@ namespace MultiSEngine
         public static Position Point(int x, int y) => new() { X = (short)x, Y = (short)y };
         public static ShortPosition ShortPoint(int x, int y) => new() { X = (short)x, Y = (short)y };
         public static Vector2 Vector2(int x, int y) => new() { X = (short)x, Y = (short)y };
-        public static byte[] GetTileSquare(int x, int y, int width, int heigh, int type = 541)
+        public static byte[] GetTileSection(int x, int y, int width, int heigh, int type = 541)
         {
             var bb = new BitsByte();
             bb[1] = true;

@@ -47,7 +47,8 @@ namespace MultiSEngine.Modules.DataStruct
                 }
             }
         }
-        public Socket TempConnection { get; set; }
+        internal Socket TempConnection { get; set; }
+        internal ServerAdapter TempAdapter { get; set; }
 
         public ClientState State { get; set; } = ClientState.NewConnection;
         public string IP { get; set; }
@@ -65,14 +66,25 @@ namespace MultiSEngine.Modules.DataStruct
 
         protected void OnTimeOut(object sender, ElapsedEventArgs args)
         {
-            State = ClientState.ReadyToSwitch;
-            if (SAdapter is VisualPlayerAdapter vpa)
-                vpa.Callback = null;
             if (State > ClientState.Switching && State < ClientState.InGame)
                 this.SendErrorMessage(Localization.Get("Prompt_CannotConnect"));
-            Logs.Warn($"{Name} timeout when request is switch to server: {TempConnection.RemoteEndPoint}");
+            State = ClientState.ReadyToSwitch;
+            
+            if (TempAdapter is VisualPlayerAdapter vpa)
+            {
+                Logs.Warn($"[{Name}] timeout when request is switch to: {vpa.TempServer.Name}");
+                vpa.Callback = null; 
+                if (Server == null && vpa.TempServer == Config.Instance.DefaultServerInternal)
+                {
+                    this.SendErrorMessage($"No default server avilable, back to FakeWorld.");
+                    Logs.Info($"No default server avilable, send [{Name}] to FakeWorld.");
+                    (CAdapter as FakeWorldAdapter)?.BackToThere();
+                }
+            }
+
             TempConnection?.Shutdown(SocketShutdown.Both);
             TempConnection?.Dispose();
+            TempConnection = null;
         }
         public void Dispose()
         {

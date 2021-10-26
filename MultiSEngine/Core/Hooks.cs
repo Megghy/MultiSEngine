@@ -76,34 +76,30 @@ namespace MultiSEngine.Core
         }
         public class SendPacketEventArgs : IEventArgs
         {
-            public SendPacketEventArgs(ClientData client, Packet packet, bool toClient, bool isSend)
+            public SendPacketEventArgs(ClientData client, Packet packet, bool toClient)
             {
                 Client = client;
                 Packet = packet;
                 ToClient = toClient;
-                IsSend = isSend;
             }
             public ClientData Client { get; private set; }
             public Packet Packet { get; set; }
             public bool ToClient { get; }
             public bool ToServer => !ToClient;
-            public bool IsSend { get; }
             public bool Handled { get; set; } = false;
         }
         public class GetPacketEventArgs : IEventArgs
         {
-            public GetPacketEventArgs(ClientData client, Packet packet, bool fromClient, bool isSend)
+            public GetPacketEventArgs(ClientData client, Packet packet, bool fromClient)
             {
                 Client = client;
                 Packet = packet;
                 FromClient = fromClient;
-                IsSend = isSend;
             }
             public ClientData Client { get; private set; }
             public Packet Packet { get; set; }
             public bool FromClient { get; }
             public bool FromServer => !FromClient;
-            public bool IsSend { get; }
             public bool Handled { get; set; } = false;
         }
 
@@ -176,7 +172,7 @@ namespace MultiSEngine.Core
         }
         internal static bool OnSendPacket(ClientData client, Packet packet, bool toClient, out SendPacketEventArgs args)
         {
-            args = new(client, packet, toClient, true);
+            args = new(client, packet, toClient);
             SendPacket?.Invoke(args);
             if (!args.Handled)
                 PluginSystem.OnEvent(args);
@@ -184,7 +180,7 @@ namespace MultiSEngine.Core
         }
         internal static bool OnGetPacket(ClientData client, Packet packet, bool fromClient, out GetPacketEventArgs args)
         {
-            args = new(client, packet, fromClient,false);
+            args = new(client, packet, fromClient);
             RecievePacket?.Invoke(args);
             if (!args.Handled)
                 PluginSystem.OnEvent(args);

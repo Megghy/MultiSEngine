@@ -21,7 +21,7 @@ namespace MultiSEngine.Modules
         public static string MotdPath => Path.Combine(Environment.CurrentDirectory, "MOTD.txt");
         public static void Init()
         {
-            StaticSpawnSquareData = Utils.GetTileSquare(4150, 1150, 100, 100);
+            StaticSpawnSquareData = Utils.GetTileSection(4150, 1150, 100, 100);
             if (!File.Exists(MotdPath))
                 File.WriteAllText(MotdPath, Properties.Resources.DefaultMotd);
             _motd = File.ReadAllText(MotdPath);
