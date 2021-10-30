@@ -16,30 +16,6 @@ namespace MultiSEngine.Core
         public abstract void Initialize();
         public abstract void Dispose();
         public virtual PacketSerializer Serializer { get; } = new(true);
-        public virtual void GetPacket(Hooks.GetPacketEventArgs args)
-        {
-        }
-        public virtual void SendPacket(Hooks.SendPacketEventArgs args)
-        {
-        }
-        public virtual void GetCustomPacket(Hooks.RecieveCustomPacketEventArgs p)
-        {
-        }
-        public virtual void OnChat(Hooks.ChatEventArgs args)
-        {
-        }
-        public virtual void OnJoin(Hooks.PlayerJoinEventArgs args)
-        {
-        }
-        public virtual void OnLeave(Hooks.PlayerLeaveEventArgs args)
-        {
-        }
-        public virtual void PreSwitch(Hooks.SwitchEventArgs args)
-        {
-        }
-        public virtual void PostSwitch(Hooks.SwitchEventArgs args)
-        {
-        }
     }
     public class PluginSystem
     {
@@ -79,48 +55,6 @@ namespace MultiSEngine.Core
                 Logs.Text($"Plugin: {p.Name} disposed.");
             });
             PluginList.Clear();
-        }
-        internal static void OnEvent(Hooks.IEventArgs e)
-        {
-            if (e is null || (e.Client?.Disposed ?? true))
-                return;
-            PluginList.ForEach(p =>
-            {
-                try
-                {
-                    switch (e)
-                    {
-                        case Hooks.ChatEventArgs chat:
-                            p.OnChat(chat);
-                            break;
-                        case Hooks.SendPacketEventArgs packet:
-                            p.SendPacket(packet);
-                            break;
-                        case Hooks.GetPacketEventArgs packet:
-                            p.GetPacket(packet);
-                            break;
-                        case Hooks.PlayerJoinEventArgs join:
-                            p.OnJoin(join);
-                            break;
-                        case Hooks.PlayerLeaveEventArgs leave:
-                            p.OnLeave(leave);
-                            break;
-                        case Hooks.SwitchEventArgs s:
-                            if (s.PreSwitch)
-                                p.PreSwitch(s);
-                            else
-                                p.PostSwitch(s);
-                            break;
-                        case Hooks.RecieveCustomPacketEventArgs custom:
-                            p.GetCustomPacket(custom);
-                            break;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Logs.Error($"[Plugin] <{p.Name}> Hook handling failed.{Environment.NewLine}{ex}");
-                }
-            });
         }
     }
 }

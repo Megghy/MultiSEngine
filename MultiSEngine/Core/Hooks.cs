@@ -1,5 +1,6 @@
 ﻿using MultiSEngine.Modules;
 using MultiSEngine.Modules.DataStruct;
+using System;
 using System.IO;
 using TrProtocol;
 using TrProtocol.Models;
@@ -122,69 +123,117 @@ namespace MultiSEngine.Core
         internal static bool OnPlayerJoin(ClientData client, string ip, int port, string version, out PlayerJoinEventArgs args)
         {
             args = new(client, ip, port, version);
-            PlayerJoin?.Invoke(args);
-            if (!args.Handled)
-                PluginSystem.OnEvent(args);
-            return args.Handled;
+            try
+            {
+                PlayerJoin?.Invoke(args);
+                return args.Handled;
+            }
+            catch (Exception ex)
+            {
+                Logs.Error($"[Hooks] <PlayerJoin> Hook handling failed.{Environment.NewLine}{ex}");
+                return false;
+            }
         }
         internal static bool OnPlayerLeave(ClientData client, out PlayerLeaveEventArgs args)
         {
             args = new(client);
-            PlayerLeave?.Invoke(args);
-            if (!args.Handled)
-                PluginSystem.OnEvent(args);
-            return args.Handled;
+            try
+            {
+                PlayerLeave?.Invoke(args);
+                return args.Handled;
+            }
+            catch (Exception ex)
+            {
+                Logs.Error($"[Hooks] <PlayerLeave> Hook handling failed.{Environment.NewLine}{ex}");
+                return false;
+            }
         }
         internal static bool OnRecieveCustomData(ClientData client, Packet packet, BinaryReader reader, out RecieveCustomPacketEventArgs args)
         {
             var position = reader.BaseStream.Position;
             args = new(client, packet, reader);
-            args.Reader.BaseStream.Position = 3L;
-            RecieveCustomData?.Invoke(args);
-            args.Reader.BaseStream.Position = position;
-            if (!args.Handled)
-                PluginSystem.OnEvent(args);
-            return args.Handled;
+            try
+            {
+                args.Reader.BaseStream.Position = 3L;
+                RecieveCustomData?.Invoke(args);
+                args.Reader.BaseStream.Position = position;
+                return args.Handled;
+            }
+            catch (Exception ex)
+            {
+                Logs.Error($"[Hooks] <RecieveCustomData> Hook handling failed.{Environment.NewLine}{ex}");
+                return false;
+            }
         }
         internal static bool OnPreSwitch(ClientData client, ServerInfo targetServer, out SwitchEventArgs args)
         {
             args = new(client, targetServer, true);
-            PreSwitch?.Invoke(args);
-            if (!args.Handled)
-                PluginSystem.OnEvent(args);
-            return args.Handled;
+            try
+            {
+                PreSwitch?.Invoke(args);
+                return args.Handled;
+            }
+            catch (Exception ex)
+            {
+                Logs.Error($"[Hooks] <PreSwitch> Hook handling failed.{Environment.NewLine}{ex}");
+                return false;
+            }
         }
         internal static bool OnPostSwitch(ClientData client, ServerInfo targetServer, out SwitchEventArgs args)
         {
             args = new(client, targetServer, false);
-            PostSwitch?.Invoke(args);
-            if (!args.Handled)
-                PluginSystem.OnEvent(args);
-            return args.Handled;
+            try
+            {
+                PostSwitch?.Invoke(args);
+                return args.Handled;
+            }
+            catch (Exception ex)
+            {
+                Logs.Error($"[Hooks] <PostSwitch> Hook handling failed.{Environment.NewLine}{ex}");
+                return false;
+            }
         }
         internal static bool OnChat(ClientData client, TrProtocol.Packets.Modules.NetTextModuleC2S module, out ChatEventArgs args)
         {
             args = new(client, module.Text); 
-            Chat?.Invoke(args); 
-            if (!args.Handled)
-                PluginSystem.OnEvent(args);
-            return args.Handled;
+            try
+            {
+                Chat?.Invoke(args);
+                return args.Handled;
+            }
+            catch (Exception ex)
+            {
+                Logs.Error($"[Hooks] <Chat> Hook handling failed.{Environment.NewLine}{ex}");
+                return false;
+            }
         }
         internal static bool OnSendPacket(ClientData client, Packet packet, bool toClient, out SendPacketEventArgs args)
         {
             args = new(client, packet, toClient);
-            SendPacket?.Invoke(args);
-            if (!args.Handled)
-                PluginSystem.OnEvent(args);
-            return args.Handled;
+            try
+            {
+                SendPacket?.Invoke(args);
+                return args.Handled;
+            }
+            catch (Exception ex)
+            {
+                Logs.Error($"[Hooks] <SendPacket> Hook handling failed.{Environment.NewLine}{ex}");
+                return false;
+            }
         }
         internal static bool OnGetPacket(ClientData client, Packet packet, bool fromClient, out GetPacketEventArgs args)
         {
             args = new(client, packet, fromClient);
-            RecievePacket?.Invoke(args);
-            if (!args.Handled)
-                PluginSystem.OnEvent(args);
-            return args.Handled;
+            try
+            {
+                RecievePacket?.Invoke(args);
+                return args.Handled;
+            }
+            catch (Exception ex)
+            {
+                Logs.Error($"[GetPacket] <PlayerLeave> Hook handling failed.{Environment.NewLine}{ex}");
+                return false;
+            }
         }
     }
 }

@@ -86,16 +86,7 @@ namespace MultiSEngine.Core.Adapter
         public void ResetAlmostEverything()
         {
             Logs.Text($"Resetting client data of [{Client.Name}]");
-            var playerActive = new PlayerActive()
-            {
-                Active = false
-            };
-            Data.Clients.Where(c => c.Server == Client.Server && c != Client)
-                .ForEach(c => c.SendDataToClient(new PlayerActive()
-                {
-                    Active = false,
-                    PlayerSlot = c.Player.Index
-                }));
+            //暂时没有要写的
         }
     }
 }
