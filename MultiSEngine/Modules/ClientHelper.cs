@@ -90,6 +90,16 @@ namespace MultiSEngine.Modules
 
             client.Syncing = false;
         }
+        public static void Disconnect(this ClientData client, string reason = null)
+        {
+            Logs.Text($"[{client.Name}] disconnected. {reason}");
+            Core.Hooks.OnPlayerLeave(client, out _);
+            if (client.State == ClientData.ClientState.NewConnection)
+                Data.Clients.Where(c => c.Server is null && c != client).ForEach(c => c.SendMessage($"{client.Name} has leave."));
+            if (client.CAdapter?.Connection is { Connected: true } && !client.Disposed)
+                client.SendDataToClient(new Kick() { Reason = new(reason ?? "Unknown", NetworkText.Mode.Literal) });
+            client.Dispose();
+        }
     }
     public static partial class ClientHelper
     {
@@ -155,17 +165,6 @@ namespace MultiSEngine.Modules
                 return;
             client.SendDataToServer(packet.Serialize(serializerAsClient));
         }
-        public static void Disconnect(this ClientData client, string reason = null)
-        {
-            Logs.Text($"[{client.Name}] disconnected. {reason}");
-            Core.Hooks.OnPlayerLeave(client, out _);
-            if (client.State == ClientData.ClientState.NewConnection)
-                Data.Clients.Where(c => c.Server is null && c != client).ForEach(c => c.SendMessage($"{client.Name} has leave."));
-            if (client.CAdapter?.Connection is { Connected: true } && !client.Disposed)
-                client.SendDataToClient(new Kick() { Reason = new(reason ?? "Unknown", NetworkText.Mode.Literal) });
-            client.Dispose();
-        }
-
         public static void SendMessage(this ClientData client, string text, Color color, bool withPrefix = true)
         {
             if (client is null)
@@ -210,7 +209,8 @@ namespace MultiSEngine.Modules
         }
         public static void CreatePartical(this ClientData client, ParticleOrchestraType type, ParticleOrchestraSettings setting = null)
         {
-            client.SendDataToClient(new TrProtocol.Packets.Modules.NetParticlesModule() { 
+            client.SendDataToClient(new TrProtocol.Packets.Modules.NetParticlesModule()
+            {
                 ParticleType = type,
                 Setting = setting ?? new()
                 {

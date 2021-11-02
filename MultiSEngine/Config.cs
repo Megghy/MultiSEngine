@@ -38,7 +38,7 @@ namespace MultiSEngine
             }
         }
 
-        public string ListenIP { get; set; } = "127.0.0.1";
+        public string ListenIP { get; set; } = "0.0.0.0";
         public int ListenPort { get; set; } = 7778;
         public string ServerName { get; set; } = "MultiSEngine";
         public string Token { get; set; } = "114514";

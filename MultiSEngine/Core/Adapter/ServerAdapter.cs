@@ -1,11 +1,9 @@
-﻿using System;
-using System.Linq;
+﻿using MultiSEngine.Modules;
+using MultiSEngine.Modules.DataStruct;
+using System;
 using System.Net.Sockets;
 using TrProtocol;
 using TrProtocol.Packets;
-using MultiSEngine.Modules;
-using MultiSEngine.Modules.DataStruct;
-using MultiSEngine.Modules.CustomData;
 
 namespace MultiSEngine.Core.Adapter
 {
@@ -19,14 +17,14 @@ namespace MultiSEngine.Core.Adapter
         public override void OnRecieveLoopError(Exception ex)
         {
             if (!ShouldStop)
-            { 
+            {
                 Stop(true);
                 Logs.Warn($"Cannot continue to maintain connection between {Client.Name} and server {Client.Server?.Name}{Environment.NewLine}{ex}");
                 Client.SendErrorMessage(Localization.Instance["Prompt_UnknownError"]);
                 Client.Back();
             }
         }
-        public override bool GetPacket(ref Packet packet)
+        public override bool GetPacket(Packet packet)
         {
             switch (packet)
             {
@@ -70,7 +68,7 @@ namespace MultiSEngine.Core.Adapter
                 #endregion
                 #region 自定义数据包
                 case CustomPacketStuff.CustomDataPacket custom:
-                    if(custom is not null)
+                    if (custom is not null)
                         custom.Data.RecievedData(Client);
                     return false;
                 #endregion

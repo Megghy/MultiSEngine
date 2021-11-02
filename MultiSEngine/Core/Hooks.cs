@@ -1,9 +1,7 @@
-﻿using MultiSEngine.Modules;
-using MultiSEngine.Modules.DataStruct;
+﻿using MultiSEngine.Modules.DataStruct;
 using System;
 using System.IO;
 using TrProtocol;
-using TrProtocol.Models;
 
 namespace MultiSEngine.Core
 {
@@ -130,7 +128,7 @@ namespace MultiSEngine.Core
             }
             catch (Exception ex)
             {
-                Logs.Error($"[Hooks] <PlayerJoin> Hook handling failed.{Environment.NewLine}{ex}");
+                Logs.Error($"<PlayerJoin> Hook handling failed.{Environment.NewLine}{ex}");
                 return false;
             }
         }
@@ -144,7 +142,7 @@ namespace MultiSEngine.Core
             }
             catch (Exception ex)
             {
-                Logs.Error($"[Hooks] <PlayerLeave> Hook handling failed.{Environment.NewLine}{ex}");
+                Logs.Error($"<PlayerLeave> Hook handling failed.{Environment.NewLine}{ex}");
                 return false;
             }
         }
@@ -161,7 +159,7 @@ namespace MultiSEngine.Core
             }
             catch (Exception ex)
             {
-                Logs.Error($"[Hooks] <RecieveCustomData> Hook handling failed.{Environment.NewLine}{ex}");
+                Logs.Error($"<RecieveCustomData> Hook handling failed.{Environment.NewLine}{ex}");
                 return false;
             }
         }
@@ -175,7 +173,7 @@ namespace MultiSEngine.Core
             }
             catch (Exception ex)
             {
-                Logs.Error($"[Hooks] <PreSwitch> Hook handling failed.{Environment.NewLine}{ex}");
+                Logs.Error($"<PreSwitch> Hook handling failed.{Environment.NewLine}{ex}");
                 return false;
             }
         }
@@ -189,13 +187,13 @@ namespace MultiSEngine.Core
             }
             catch (Exception ex)
             {
-                Logs.Error($"[Hooks] <PostSwitch> Hook handling failed.{Environment.NewLine}{ex}");
+                Logs.Error($"<PostSwitch> Hook handling failed.{Environment.NewLine}{ex}");
                 return false;
             }
         }
         internal static bool OnChat(ClientData client, TrProtocol.Packets.Modules.NetTextModuleC2S module, out ChatEventArgs args)
         {
-            args = new(client, module.Text); 
+            args = new(client, module.Text);
             try
             {
                 Chat?.Invoke(args);
@@ -203,7 +201,7 @@ namespace MultiSEngine.Core
             }
             catch (Exception ex)
             {
-                Logs.Error($"[Hooks] <Chat> Hook handling failed.{Environment.NewLine}{ex}");
+                Logs.Error($"<Chat> Hook handling failed.{Environment.NewLine}{ex}");
                 return false;
             }
         }
@@ -217,7 +215,7 @@ namespace MultiSEngine.Core
             }
             catch (Exception ex)
             {
-                Logs.Error($"[Hooks] <SendPacket> Hook handling failed.{Environment.NewLine}{ex}");
+                Logs.Error($"<SendPacket> Hook handling failed.{Environment.NewLine}{ex}");
                 return false;
             }
         }
@@ -231,7 +229,7 @@ namespace MultiSEngine.Core
             }
             catch (Exception ex)
             {
-                Logs.Error($"[GetPacket] <PlayerLeave> Hook handling failed.{Environment.NewLine}{ex}");
+                Logs.Error($"<GetPacket> Hook handling failed.{Environment.NewLine}{ex}");
                 return false;
             }
         }

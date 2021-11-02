@@ -1,10 +1,10 @@
-﻿using System;
+﻿using MultiSEngine.Core.Adapter;
+using MultiSEngine.Modules;
+using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using TrProtocol;
-using MultiSEngine.Core.Adapter;
-using MultiSEngine.Modules;
 
 namespace MultiSEngine.Core
 {
@@ -20,7 +20,7 @@ namespace MultiSEngine.Core
             {
                 SocketServer?.Dispose();
                 SocketServer = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                IPAddress address = ip is null or "127.0.0.1" or "0.0.0.0" ? IPAddress.Any : IPAddress.Parse(ip);
+                IPAddress address = ip is null or "0.0.0.0" ? IPAddress.Any : IPAddress.Parse(ip);
                 IPEndPoint point = new(address, port);
                 SocketServer.Bind(point);
                 SocketServer.Listen(50);

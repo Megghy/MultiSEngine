@@ -1,12 +1,10 @@
-﻿using System;
+﻿using MultiSEngine.Modules;
+using MultiSEngine.Modules.CustomData;
+using MultiSEngine.Modules.DataStruct;
+using System;
 using System.Net.Sockets;
 using TrProtocol;
 using TrProtocol.Packets;
-using MultiSEngine.Modules;
-using MultiSEngine.Modules.CustomData;
-using MultiSEngine.Modules.DataStruct;
-using System.Threading.Tasks;
-using TrProtocol.Models;
 
 namespace MultiSEngine.Core.Adapter
 {
@@ -47,13 +45,13 @@ namespace MultiSEngine.Core.Adapter
                 Version = $"Terraria{(server.VersionNum is { } and > 0 and < 65535 ? server.VersionNum : Client.Player.VersionNum)}"
             });  //发起连接请求   
         }
-        public override bool GetPacket(ref Packet packet)
+        public override bool GetPacket(Packet packet)
         {
 #if DEBUG
             Console.WriteLine($"[Recieve SERVER] {packet}");
 #endif
             if (RunningAsNormal)
-                return base.GetPacket(ref packet);
+                return base.GetPacket(packet);
             switch (packet)
             {
                 case Kick kick:
@@ -61,7 +59,7 @@ namespace MultiSEngine.Core.Adapter
                     Stop(true);
                     break;
                 case LoadPlayer slot:
-                    base.GetPacket(ref packet);
+                    base.GetPacket(packet);
                     Client.AddBuff(149, 120);
                     InternalSendPacket(Player.OriginData.Info);
                     InternalSendPacket(new ClientUUID() { UUID = Player.UUID });
@@ -88,8 +86,8 @@ namespace MultiSEngine.Core.Adapter
                         Callback.Invoke(this, Client);
                         Callback = null;
                     }
-                    InternalSendPacket(new RequestTileData() { Position = Utils.Point(Client.SpawnX, Client.SpawnY) });//请求物块数据
-                    InternalSendPacket(new SpawnPlayer() { Position = Utils.ShortPoint(Client.SpawnX, Client.SpawnY) });//请求物块数据
+                    InternalSendPacket(new RequestTileData() { Position = new(Client.SpawnX, Client.SpawnY) });//请求物块数据
+                    InternalSendPacket(new SpawnPlayer() { Position = new((short)Client.SpawnX, (short)Client.SpawnY) });//请求物块数据
                     break;
                 case SyncEquipment invItem:
                     Player.UpdateData(invItem);
@@ -104,7 +102,7 @@ namespace MultiSEngine.Core.Adapter
                     ChangeProcessState(true); //转换处理模式为普通
                     break;
                 default:
-                    return base.GetPacket(ref packet);
+                    return base.GetPacket(packet);
             }
             return !TestConnecting;
         }

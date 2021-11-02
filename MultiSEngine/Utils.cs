@@ -1,9 +1,9 @@
-﻿using System;
+﻿using MultiSEngine.Modules.DataStruct;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using TrProtocol;
-using MultiSEngine.Modules.DataStruct;
 using TrProtocol.Models;
 
 namespace MultiSEngine
@@ -15,7 +15,7 @@ namespace MultiSEngine
             using (var reader = new BinaryReader(new MemoryStream(buffer)))
                 return reader.Deserialize<T>();
         }*/
-        public static int Online(this ServerInfo server) => Modules.Data.Clients.Where(c => c.Server == server).Count();
+        public static ClientData[] Online(this ServerInfo server) => Modules.Data.Clients.Where(c => c.Server == server).ToArray();
         public static bool TryParseAddress(string address, out string ip)
         {
             ip = "";
@@ -59,28 +59,26 @@ namespace MultiSEngine
                 action(obj);
             }
         }
-        public static Position Point(int x, int y) => new() { X = (short)x, Y = (short)y };
-        public static ShortPosition ShortPoint(int x, int y) => new() { X = (short)x, Y = (short)y };
-        public static Vector2 Vector2(int x, int y) => new() { X = (short)x, Y = (short)y };
         public static byte[] GetTileSection(int x, int y, int width, int heigh, int type = 541)
         {
             var bb = new BitsByte();
             bb[1] = true;
             bb[5] = true;
+            var tile = new ComplexTileData()
+            {
+                TileType = (ushort)type,
+                Liquid = 0,
+                WallColor = 0,
+                WallType = 0,
+                TileColor = 0,
+                Flags1 = bb,
+                Flags2 = 0,
+                Flags3 = 0,
+            };
             var list = new ComplexTileData[width * heigh];
             for (int i = 0; i < width * heigh; i++)
             {
-                list[i] = new()
-                {
-                    TileType = (ushort)type,
-                    Liquid = 0,
-                    WallColor = 0,
-                    WallType = 0,
-                    TileColor = 0,
-                    Flags1 = bb,
-                    Flags2 = 0,
-                    Flags3 = 0,
-                };
+                list[i] = tile;
             }
             return Core.Net.Instance.ServerSerializer.Serialize(new TrProtocol.Packets.TileSection()
             {
@@ -105,6 +103,5 @@ namespace MultiSEngine
             //return text._mode == NetworkText.Mode.LocalizationKey ? Language.GetTextValue(text._text) : text._text;
             return text._text;
         }
-        public static MessageID GetMessageID(this byte[] buffer, int start = 0) => buffer.Length >= 3 ? (MessageID)buffer[start + 2] : MessageID.NeverCalled;
     }
 }

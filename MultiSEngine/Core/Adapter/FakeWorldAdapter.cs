@@ -1,12 +1,11 @@
-﻿using System;
+﻿using MultiSEngine.Modules;
+using MultiSEngine.Modules.DataStruct;
+using System;
 using System.Linq;
 using System.Net.Sockets;
-using System.Timers;
 using TrProtocol;
-using TrProtocol.Packets;
-using MultiSEngine.Modules;
-using MultiSEngine.Modules.DataStruct;
 using TrProtocol.Models;
+using TrProtocol.Packets;
 
 namespace MultiSEngine.Core.Adapter
 {
@@ -57,7 +56,7 @@ namespace MultiSEngine.Core.Adapter
                             Count = 180 * 180
                         }
                     }
-               }
+                }
             };
             Client.SendDataToClient(emptySection);
             Client.SendDataToClient(new LoadPlayer()
@@ -75,17 +74,17 @@ namespace MultiSEngine.Core.Adapter
                 Client.SendDataToClient(playerActive);
             }  //隐藏其他所有玩家
         }
-        public override bool GetPacket(ref Packet packet)
+        public override bool GetPacket(Packet packet)
         {
 #if DEBUG
             Console.WriteLine($"[Recieve CLIENT] {packet}");
 #endif
             if (RunningAsNormal)
-                return base.GetPacket(ref packet);
+                return base.GetPacket(packet);
             switch (packet)
             {
                 case ClientHello hello:
-                    if(!Hooks.OnPlayerJoin(Client, Client.IP, Client.Port, hello.Version, out var joinEvent))
+                    if (!Hooks.OnPlayerJoin(Client, Client.IP, Client.Port, hello.Version, out var joinEvent))
                     {
                         Client.ReadVersion(joinEvent.Version);
                         if (Client.Player.VersionNum != Data.TRVersion)
@@ -139,7 +138,7 @@ namespace MultiSEngine.Core.Adapter
                     }
                     return false;
                 default:
-                    return base.GetPacket(ref packet);
+                    return base.GetPacket(packet);
             }
         }
     }

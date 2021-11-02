@@ -12,11 +12,11 @@ namespace MultiSEngine.Modules.Cmds
 
         public override bool Execute(ClientData client, string cmdName, List<string> parma)
         {
-            var internalCommand = Data.Commands.FirstOrDefault(c => c.Name == "mce");
+            var internalCommand = Data.Commands.FirstOrDefault(c => c.Name == "mse");
             switch (cmdName)
             {
                 case "list":
-                    Logs.Info($"{Localization.Instance["Command_AviliableServer"]}{Environment.NewLine + "- "}{string.Join(Environment.NewLine + "- ", from server in Config.Instance.Servers let text = $"{server.Name} <{server.Online()}>" select text)}", false);
+                    Logs.Info($"{Localization.Instance["Command_AviliableServer"]}{Environment.NewLine + "- "}{string.Join(Environment.NewLine + "- ", from server in Config.Instance.Servers let text = $"{server.Name} <{server.Online().Length}>" select text)}", false);
                     break;
                 case "online":
                     Logs.Info($"{Data.Clients.Count} Player(s) Online:{Environment.NewLine}{string.Join(", ", from c in Data.Clients let text = $"{c.Name} <{c.Server?.Name ?? "FakeWorld"}>" select text)}", false);

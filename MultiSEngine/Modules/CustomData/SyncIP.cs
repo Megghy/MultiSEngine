@@ -1,5 +1,4 @@
 ﻿using System.IO;
-using TrProtocol;
 
 namespace MultiSEngine.Modules.CustomData
 {

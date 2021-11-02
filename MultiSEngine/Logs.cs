@@ -34,21 +34,22 @@ namespace MultiSEngine
         internal static void SaveLogTask()
         {
             LogQueue = new();
-            Task.Run(() =>
+            using FileStream fs = File.Open(LogPath, FileMode.OpenOrCreate);
+            while (true)
             {
-                while (true)
+                while (LogQueue.Count < 1)
+                    Task.Delay(1).Wait();
+                File.AppendAllText(LogName, LogQueue.Dequeue()?.ToString());
+                if (!Directory.Exists(LogPath))
                 {
-                    if (!Directory.Exists(LogPath))
-                        Directory.CreateDirectory(LogPath);
-                    while (LogQueue.Count < 1)
-                        Task.Delay(1).Wait();
-                    File.AppendAllText(LogName, LogQueue.Dequeue()?.ToString());
+                    LogQueue = null;
+                    return;
                 }
-            });
+            }
         }
         public static void LogAndSave(object message, string prefix = "[Log]", ConsoleColor color = DefaultColor, bool save = true)
         {
-            if (LogQueue is null) SaveLogTask();
+            if (LogQueue is null) Task.Run(SaveLogTask);
             Console.ForegroundColor = color;
             Console.WriteLine($"{prefix} {message}");
             if (save) LogQueue.Enqueue($"{DateTime.Now:yyyy-MM-dd-HH:mm:ss} - {prefix} {message}{Environment.NewLine}");

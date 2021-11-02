@@ -1,10 +1,10 @@
-﻿using TrProtocol;
-using TrProtocol.Packets;
-using MultiSEngine.Modules;
+﻿using MultiSEngine.Modules;
 using MultiSEngine.Modules.DataStruct;
 using System;
 using System.Linq;
 using System.Net.Sockets;
+using TrProtocol;
+using TrProtocol.Packets;
 
 namespace MultiSEngine.Core.Adapter
 {
@@ -22,7 +22,7 @@ namespace MultiSEngine.Core.Adapter
             if (Client.State != ClientData.ClientState.Disconnect)
                 Client.Disconnect();
         }
-        public override bool GetPacket(ref Packet packet)
+        public override bool GetPacket(Packet packet)
         {
             switch (packet)
             {
@@ -55,7 +55,7 @@ namespace MultiSEngine.Core.Adapter
                     Client.SendDataToServer(npcName, true);
                     return false; //特殊包
                 case TrProtocol.Packets.Modules.NetTextModuleC2S modules:
-                    if(!Hooks.OnChat(Client, modules, out _))
+                    if (!Hooks.OnChat(Client, modules, out _))
                     {
                         Logs.LogAndSave($"{Client.Name} <{Client.Server?.Name}>: {modules.Text}", "[Chat]");
                         if (modules.Command == "Say" && (Command.HandleCommand(Client, modules.Text, out var c) && !c))

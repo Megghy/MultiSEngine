@@ -2,8 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
-using TrProtocol.Models;
 
 namespace MultiSEngine.Modules.Cmds
 {
@@ -38,7 +36,7 @@ namespace MultiSEngine.Modules.Cmds
                         break;
                     case "list":
                     case "l":
-                        client.SendSuccessMessage($"{Localization.Get("Command_AviliableServer")}{Environment.NewLine + "- "}{string.Join(Environment.NewLine + "- ", (from server in Config.Instance.Servers let text = $"{server.Name} <{server.Online()}>" select text))}");
+                        client.SendSuccessMessage($"{Localization.Get("Command_AviliableServer")}{Environment.NewLine + "- "}{string.Join(Environment.NewLine + "- ", (from server in Config.Instance.Servers let text = $"{server.Name} <{server.Online().Length}>" select text))}");
                         break;
                     case "password":
                     case "pass":

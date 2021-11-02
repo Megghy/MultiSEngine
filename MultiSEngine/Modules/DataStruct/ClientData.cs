@@ -1,7 +1,7 @@
-﻿using System.Net;
+﻿using MultiSEngine.Core.Adapter;
+using System.Net;
 using System.Net.Sockets;
 using System.Timers;
-using MultiSEngine.Core.Adapter;
 
 namespace MultiSEngine.Modules.DataStruct
 {
@@ -69,11 +69,11 @@ namespace MultiSEngine.Modules.DataStruct
             if (State > ClientState.Switching && State < ClientState.InGame)
                 this.SendErrorMessage(Localization.Get("Prompt_CannotConnect"));
             State = ClientState.ReadyToSwitch;
-            
+
             if (TempAdapter is VisualPlayerAdapter vpa)
             {
                 Logs.Warn($"[{Name}] timeout when request is switch to: {vpa.TempServer.Name}");
-                vpa.Callback = null; 
+                vpa.Callback = null;
                 if (Server == null && vpa.TempServer == Config.Instance.DefaultServerInternal)
                 {
                     this.SendErrorMessage($"No default server avilable, back to FakeWorld.");

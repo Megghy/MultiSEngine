@@ -1,12 +1,11 @@
-﻿using System;
-using System.Linq;
+﻿using MultiSEngine.Modules;
+using System;
 using System.Threading.Tasks;
 
 namespace MultiSEngine
 {
     internal class Program
     {
-        public const bool DEBUG = true;
         static void Main(string[] args)
         {
             Init();
@@ -22,8 +21,8 @@ namespace MultiSEngine
             Logs.Info("Loading all plugins");
             Core.PluginSystem.Load();
             Logs.Info($"{Core.PluginSystem.PluginList.Count} Plugin(s) loaded.");
-            Modules.Data.Init();
-            Modules.ConsoleManager.Init();
+            Data.Init();
+            ConsoleManager.Init();
             Core.DataBridge.Init();
             Logs.Info($"Loaded all data.");
             Core.Command.InitAllCommands();
@@ -31,11 +30,11 @@ namespace MultiSEngine
             Core.Net.Instance.Init(Config.Instance.ListenIP, Config.Instance.ListenPort);
             Logs.Info($"Opened socket server successfully, listening to port {Config.Instance.ListenPort}");
             Logs.Success($"MultiSEngine startted.");
-            Console.WriteLine("-----------------------------------------------------------------------------");
         }
         public static void Close()
         {
-
+            Core.PluginSystem.Unload();
+            Data.Clients.ForEach(c => c.Disconnect("Server closed."));
         }
     }
 }

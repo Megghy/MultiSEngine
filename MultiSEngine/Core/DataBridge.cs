@@ -1,9 +1,9 @@
-﻿using System;
+﻿using MultiSEngine.Modules.CustomData;
+using MultiSEngine.Modules.DataStruct;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using TrProtocol;
-using MultiSEngine.Modules.CustomData;
-using System.Collections.Generic;
-using MultiSEngine.Modules.DataStruct;
 
 namespace MultiSEngine.Core
 {
@@ -19,12 +19,11 @@ namespace MultiSEngine.Core
             {
                 try
                 {
-                    assembly
-                        .GetTypes()
+                    assembly.GetTypes()
                         .Where(t => t.BaseType == typeof(CustomData))
                         .ForEach(t => RegisterCustomPacket(t));
                 }
-                catch (Exception ex){ Logs.Error(ex); }
+                catch (Exception ex) { Logs.Error(ex); }
             });
         }
         public static void RegisterCustomPacket<T>() where T : Packet
@@ -36,7 +35,7 @@ namespace MultiSEngine.Core
             var name = (Activator.CreateInstance(type) as CustomData).Name;
             if (CustomPackets.ContainsKey(name))
             {
-                Logs.Warn($"CustomPacket: {name} already exist.");
+                Logs.Warn($"CustomPacket: [{name}] already exist.");
                 return;
             }
             CustomPackets.Add(name, type);

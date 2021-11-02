@@ -40,7 +40,7 @@ namespace MultiSEngine.Core.Adapter
         /// <param name="start"></param>
         /// <param name="length"></param>
         /// <returns></returns>
-        public abstract bool GetPacket(ref Packet packet);
+        public abstract bool GetPacket(Packet packet);
         public abstract void SendPacket(Packet packet);
         public virtual AdapterBase Start()
         {
@@ -67,10 +67,6 @@ namespace MultiSEngine.Core.Adapter
                 NetReader?.Dispose();
                 NetReader = null;
                 Connection?.Dispose();
-                if (Client.CAdapter == this)
-                    Client.CAdapter = null;
-                if(Client.SAdapter == this)
-                    Client.SAdapter = null;
             }
         }
         protected void ProcessPacketLoop()
@@ -82,12 +78,10 @@ namespace MultiSEngine.Core.Adapter
                 var packet = PacketPool.Dequeue() as Packet;
                 try
                 {
-                    if (packet is not null
-                        && !Hooks.OnGetPacket(Client, packet, ListenningClient, out _)
-                        && GetPacket(ref packet))
+                    if (packet is not null && !Hooks.OnGetPacket(Client, packet, ListenningClient, out _) && GetPacket(packet))
                         SendPacket(packet);
                 }
-                catch(IOException io)
+                catch (IOException io)
                 {
 #if DEBUG
                     Console.WriteLine(io);
@@ -131,8 +125,11 @@ namespace MultiSEngine.Core.Adapter
             {
                 OnRecieveLoopError(ex);
             }
-            if (!ShouldStop)
-                Stop(true);
+            finally
+            {
+                if (!ShouldStop)
+                    Stop(true);
+            }
         }
         public virtual void InternalSendPacket(Packet packet)
         {
@@ -140,7 +137,7 @@ namespace MultiSEngine.Core.Adapter
             Console.WriteLine($"[Internal Send] {packet}");
 #endif
             if (!ShouldStop)
-                Connection?.Send(packet.Serialize());
+                Connection?.Send(Serializer.Serialize(packet));
         }
     }
 }
