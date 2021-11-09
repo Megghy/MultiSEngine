@@ -8,7 +8,7 @@
 
 ### 简易使用说明
 * 装.net5
-* 双击启动, 完事
+* 双击启动, 完事. 对于Linux系统则使用 ``dotnet MultiSEngine.dll``
 
 稍微具体点的部署方式和配置文件说明:https://www.yuque.com/minato-qbli7/multisengine
 
