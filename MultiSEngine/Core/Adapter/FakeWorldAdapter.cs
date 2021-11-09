@@ -29,12 +29,14 @@ namespace MultiSEngine.Core.Adapter
         }
         public void BackToThere()
         {
+            Logs.Info($"[{Client.Name}] now in FakeWorld");
             Client.State = ClientData.ClientState.ReadyToSwitch;
             Client.Player.ServerData = new();
             Client.Server = null;
             Client.SAdapter?.Stop(true);
-            Client.TP(4200, 2100);
-            var emptySection = new TileSection()
+            Client.Sync();
+            Client.TP(4200, 1200);
+            Client.SendDataToClient(new TileSection()
             {
                 Data = new()
                 {
@@ -44,10 +46,10 @@ namespace MultiSEngine.Core.Adapter
                     Signs = Array.Empty<SignData>(),
                     TileEntities = Array.Empty<TileEntity>(),
                     TileEntityCount = 0,
-                    Height = 2000,
-                    Width = 2000,
-                    StartX = 4200 - 180,
-                    StartY = 2100 - 180,
+                    Height = 180,
+                    Width = 180,
+                    StartX = 4200 - 90,
+                    StartY = 1200 - 90,
                     Tiles = new ComplexTileData[1]
                     {
                         new ComplexTileData()
@@ -57,15 +59,10 @@ namespace MultiSEngine.Core.Adapter
                         }
                     }
                 }
-            };
-            Client.SendDataToClient(emptySection);
-            Client.SendDataToClient(new LoadPlayer()
-            {
-                PlayerSlot = 0
             });
             var playerActive = new PlayerActive()
             {
-                PlayerSlot = 0,
+                PlayerSlot = 1,
                 Active = false
             };
             for (int i = 1; i < 255; i++)

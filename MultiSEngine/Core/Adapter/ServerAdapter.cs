@@ -8,7 +8,7 @@ using TrProtocol.Packets;
 namespace MultiSEngine.Core.Adapter
 {
 
-    public class ServerAdapter : AdapterBase
+    public class ServerAdapter : BaseAdapter
     {
         public ServerAdapter(ClientData client, Socket connection) : base(client, connection)
         {
@@ -31,8 +31,8 @@ namespace MultiSEngine.Core.Adapter
                 #region 原生数据包
                 case Kick kick:
                     Client.State = ClientData.ClientState.Disconnect;
-                    Client.TimeOutTimer.Stop();
                     Stop(true);
+                    Client.TimeOutTimer.Stop();
                     var reason = kick.Reason.GetText();
                     Logs.Info($"Player {Client.Player.Name} is removed from server {Client.Server.Name}, for the following reason:{reason}");
                     Client.SendErrorMessage(string.Format(Localization.Instance["Prompt_Disconnect", Client.Server.Name, kick.Reason.GetText()]));
@@ -44,14 +44,15 @@ namespace MultiSEngine.Core.Adapter
                     Client.Player.Index = slot.PlayerSlot;
                     return true;
                 case WorldData worldData:
-                    worldData.WorldName = string.IsNullOrEmpty(Config.Instance.ServerName) ? worldData.WorldName : Config.Instance.ServerName; //设置了服务器名称的话则替换
-                    Client.Player.UpdateData(worldData);
+                    Client.Player.UpdateData(worldData, false);
                     return true;
                 case SpawnPlayer spawn:
                     Client.Player.SpawnX = spawn.Position.X;
                     Client.Player.SpawnY = spawn.Position.Y;
                     return true;
                 case RequestPassword:
+                    if (Client.State == ClientData.ClientState.InGame)
+                        return false;
                     Client.State = ClientData.ClientState.RequestPassword;
                     Client.SendErrorMessage(string.Format(Localization.Instance["Prompt_NeedPassword", Client.Server.Name, Localization.Instance["Help_Password"]]));
                     return false;
@@ -83,8 +84,19 @@ namespace MultiSEngine.Core.Adapter
         }
         public void ResetAlmostEverything()
         {
-            Logs.Text($"Resetting client data of [{Client.Name}]");
+            //Logs.Text($"Resetting client data of [{Client.Name}]");
             //暂时没有要写的
+            var emptyNPC = new SyncNPC()
+            {
+                HP = 0,
+                NPCType = 0,
+                Extra = new byte[16]
+            };
+            for (int i = 0; i < 200; i++)
+            {
+                emptyNPC.NPCSlot = (short)i;
+                Client.SendDataToClient(emptyNPC);
+            }
         }
     }
 }

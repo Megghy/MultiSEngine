@@ -33,14 +33,14 @@ namespace MultiSEngine
         private static Queue LogQueue;
         internal static void SaveLogTask()
         {
-            LogQueue = new();
-            using FileStream fs = File.Open(LogPath, FileMode.OpenOrCreate);
+            using var sw = File.AppendText(LogName);
+            sw.AutoFlush = true;
             while (true)
             {
                 while (LogQueue.Count < 1)
                     Task.Delay(1).Wait();
-                File.AppendAllText(LogName, LogQueue.Dequeue()?.ToString());
-                if (!Directory.Exists(LogPath))
+                sw.WriteLine(LogQueue.Dequeue());
+                if (!File.Exists(LogName))
                 {
                     LogQueue = null;
                     return;
@@ -49,10 +49,14 @@ namespace MultiSEngine
         }
         public static void LogAndSave(object message, string prefix = "[Log]", ConsoleColor color = DefaultColor, bool save = true)
         {
-            if (LogQueue is null) Task.Run(SaveLogTask);
+            if (LogQueue is null)
+            {
+                LogQueue = new();
+                Task.Run(SaveLogTask);
+            }
             Console.ForegroundColor = color;
             Console.WriteLine($"{prefix} {message}");
-            if (save) LogQueue.Enqueue($"{DateTime.Now:yyyy-MM-dd-HH:mm:ss} - {prefix} {message}{Environment.NewLine}");
+            if (save) LogQueue.Enqueue($"{DateTime.Now:yyyy-MM-dd-HH:mm:ss} - {prefix} {message}");
             Console.ForegroundColor = DefaultColor;
         }
     }

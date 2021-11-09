@@ -61,7 +61,7 @@ namespace MultiSEngine.Core
                     }
                     else
                     {
-                        cmdName = text.Substring(0, num).ToLower();
+                        cmdName = text[..num].ToLower();
                     }
                     List<string> list;
                     if (num < 0)
@@ -70,7 +70,7 @@ namespace MultiSEngine.Core
                     }
                     else
                     {
-                        list = ParseParameters(text.Substring(num));
+                        list = ParseParameters(text[num..]);
                     }
                     List<CmdBase> aviliableCommands;
                     if (fromConsole)
@@ -102,8 +102,8 @@ namespace MultiSEngine.Core
         }
         static List<string> ParseParameters(string str)
         {
-            List<string> list = new List<string>();
-            StringBuilder stringBuilder = new StringBuilder();
+            List<string> list = new();
+            StringBuilder stringBuilder = new();
             bool flag = false;
             for (int i = 0; i < str.Length; i++)
             {

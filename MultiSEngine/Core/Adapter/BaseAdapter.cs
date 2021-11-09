@@ -13,9 +13,9 @@ namespace MultiSEngine.Core.Adapter
         public bool RunningAsNormal { get; set; }
         public void ChangeProcessState(bool asNormal);
     }
-    public abstract class AdapterBase
+    public abstract class BaseAdapter
     {
-        public AdapterBase(ClientData client, Socket connection)
+        public BaseAdapter(ClientData client, Socket connection)
         {
             Client = client;
             Connection = connection;
@@ -42,7 +42,7 @@ namespace MultiSEngine.Core.Adapter
         /// <returns></returns>
         public abstract bool GetPacket(Packet packet);
         public abstract void SendPacket(Packet packet);
-        public virtual AdapterBase Start()
+        public virtual BaseAdapter Start()
         {
             //Connection.BeginReceive(Buffer, 0, Buffer.Length, SocketFlags.None, new AsyncCallback(ReceiveMessage), null);
             Task.Run(RecieveLoop);
@@ -57,16 +57,19 @@ namespace MultiSEngine.Core.Adapter
             Logs.Warn($"[{GetType()}] <{Connection.RemoteEndPoint}> Stopped");
 #endif
             ShouldStop = true;
-            if (Client.CAdapter == this)
-                Client.CAdapter = null;
-            if (Client.SAdapter == this)
-                Client.SAdapter = null;
-            if (disposeConnection)
+            lock (this)
             {
-                try { Connection?.Shutdown(SocketShutdown.Both); } catch { }
-                NetReader?.Dispose();
-                NetReader = null;
-                Connection?.Dispose();
+                if (Client.CAdapter == this)
+                    Client.CAdapter = null;
+                if (Client.SAdapter == this)
+                    Client.SAdapter = null;
+                if (disposeConnection)
+                {
+                    try { Connection?.Shutdown(SocketShutdown.Both); } catch { }
+                    NetReader?.Dispose();
+                    NetReader = null;
+                    Connection?.Dispose();
+                }
             }
         }
         protected void ProcessPacketLoop()

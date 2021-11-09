@@ -6,8 +6,8 @@
         public string Name { get; set; }
         public string IP { get; set; }
         public int Port { get; set; }
-        public int SpawnX { get; set; } = -1;
-        public int SpawnY { get; set; } = -1;
+        public short SpawnX { get; set; } = -1;
+        public short SpawnY { get; set; } = -1;
         public int VersionNum { get; set; } = -1;
     }
 }

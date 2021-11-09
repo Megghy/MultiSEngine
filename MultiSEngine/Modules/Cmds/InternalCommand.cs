@@ -43,8 +43,8 @@ namespace MultiSEngine.Modules.Cmds
                     case "p":
                         if (parma.Count > 1)
                         {
-                            if (client.State != ClientData.ClientState.RequestPassword)
-                                client.SendDataToServer(new TrProtocol.Packets.SendPassword()
+                            if (client.State == ClientData.ClientState.RequestPassword)
+                                client.TempAdapter.InternalSendPacket(new TrProtocol.Packets.SendPassword()
                                 {
                                     Password = parma[1]
                                 });
@@ -60,38 +60,6 @@ namespace MultiSEngine.Modules.Cmds
                             Console.Write("error /mse let name server");
                         else
                             Data.Clients.FirstOrDefault(c => c.Name.ToLower().StartsWith(parma[1].ToLower()))?.Join(Utils.GetServerInfoByName(parma[2]).FirstOrDefault());
-                        break;
-                    case "test":
-                        Task.Run(() =>
-                        {
-                            for (int i = 0; i < 9; i++)
-                            {
-                                client.SendDataToClient(new TrProtocol.Packets.Modules.NetParticlesModule()
-                                {
-                                    ParticleType = (ParticleOrchestraType)i,
-                                    Setting = new()
-                                    {
-                                        IndexOfPlayerWhoInvokedThis = client.Player.Index,
-                                        MovementVector = new(1, -1),
-                                        PackedShaderIndex = i,
-                                        PositionInWorld = new(client.Player.X, client.Player.Y)
-                                    }
-                                });
-                                client.SendDataToClient(new TrProtocol.Packets.Modules.NetParticlesModule()
-                                {
-                                    ParticleType = (ParticleOrchestraType)i,
-                                    Setting = new()
-                                    {
-                                        IndexOfPlayerWhoInvokedThis = client.Player.Index,
-                                        MovementVector = new(1, -1),
-                                        PackedShaderIndex = i,
-                                        PositionInWorld = new(client.Player.X + 16, client.Player.Y - 16)
-                                    }
-                                });
-                                Task.Delay(1000).Wait();
-                                Console.WriteLine(i);
-                            }
-                        });
                         break;
 #endif
                     default:

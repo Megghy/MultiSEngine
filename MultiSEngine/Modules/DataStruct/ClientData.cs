@@ -54,8 +54,8 @@ namespace MultiSEngine.Modules.DataStruct
         public string IP { get; set; }
         public int Port { get; set; }
         public string Address => $"{IP}:{Port}";
-        public int SpawnX => Server is { SpawnX: >= 0 } ? Server.SpawnX : Player.WorldSpawnX;
-        public int SpawnY => Server is { SpawnY: >= 0 } ? Server.SpawnY : Player.WorldSpawnY;
+        public short SpawnX => Server is { SpawnX: >= 0, SpawnY: >= 0 } ? Server.SpawnX : Player.WorldSpawnX;
+        public short SpawnY => Server is { SpawnY: >= 0, SpawnY: >= 0 } ? Server.SpawnY : Player.WorldSpawnY;
         public ServerInfo Server { get; set; }
         public string Name => Player?.Name ?? Address;
         public MSEPlayer Player { get; set; } = new();
@@ -63,23 +63,20 @@ namespace MultiSEngine.Modules.DataStruct
         public Timer TimeOutTimer { get; set; }
         public bool Syncing { get; internal set; } = false;
         public bool Disposed { get; private set; } = false;
+        public byte Index => Player?.Index ?? 0;
 
         protected void OnTimeOut(object sender, ElapsedEventArgs args)
         {
-            if (State > ClientState.Switching && State < ClientState.InGame)
-                this.SendErrorMessage(Localization.Get("Prompt_CannotConnect"));
+            if (State == ClientState.RequestPassword)
+                this.SendErrorMessage(Localization.Instance["Prompt_PasswordTimeout"]);
+            else if (State >= ClientState.Switching && State < ClientState.InGame)
+                this.SendErrorMessage(Localization.Instance["Prompt_CannotConnect", (TempAdapter as VisualPlayerAdapter)?.TempServer?.Name]);
             State = ClientState.ReadyToSwitch;
 
             if (TempAdapter is VisualPlayerAdapter vpa)
             {
                 Logs.Warn($"[{Name}] timeout when request is switch to: {vpa.TempServer.Name}");
                 vpa.Callback = null;
-                if (Server == null && vpa.TempServer == Config.Instance.DefaultServerInternal)
-                {
-                    this.SendErrorMessage($"No default server avilable, back to FakeWorld.");
-                    Logs.Info($"No default server avilable, send [{Name}] to FakeWorld.");
-                    (CAdapter as FakeWorldAdapter)?.BackToThere();
-                }
             }
 
             TempConnection?.Shutdown(SocketShutdown.Both);
@@ -93,8 +90,10 @@ namespace MultiSEngine.Modules.DataStruct
             State = ClientState.Disconnect;
             SAdapter?.Stop(true);
             CAdapter?.Stop(true);
+            TempAdapter?.Stop(true);
             SAdapter = null;
             CAdapter = null;
+            TempAdapter = null;
             Player = null;
             TimeOutTimer.Dispose();
             Server = null;

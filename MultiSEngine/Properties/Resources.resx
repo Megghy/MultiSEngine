@@ -120,6 +120,7 @@
   <data name="DefaultLocallization" xml:space="preserve">
     <value>{
   "Prefix": "&lt;[C/B1DAE4:MultiSEngine]&gt; ",
+  "Command_NotJoined": "你尚未加入服务器",
   "Command_IsSwitching": "正在跳转中, 请勿使用此命令",
   "Command_AlreadyIn": "你已处于服务器 {0} 中",
   "Command_Switch": "正在传送至服务器 {0}",
@@ -134,6 +135,8 @@
   "Help_Password": "/mse password([c/B3CE95:p]) &lt;[c/B3CE95:密码]&gt; -- 向当前连接到的服务器发送指定的密码",
   
   "Prompt_InvalidFormat": "无效的格式",
+  "Prompt_PasswordTimeout": "输入密码时超时",
+  "Prompt_WrongPassword": "错误的服务器密码",
   "Prompt_UnknownError": "由于不可预料的错误, 你已被传送回主服务器",
   "Prompt_CannotConnect": "无法连接至服务器 {0}",
   "Prompt_UnknownAddress": "无效的服务器地址",

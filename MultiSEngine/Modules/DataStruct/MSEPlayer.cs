@@ -7,49 +7,53 @@ namespace MultiSEngine.Modules.DataStruct
     {
         public class PlayerData
         {
-            public int Health;
-            public int Mana;
-            public int HealthMax;
-            public int ManaMax;
+            public short Health;
+            public short Mana;
+            public short HealthMax;
+            public short ManaMax;
             public SyncPlayer Info { get; set; }
             public WorldData WorldData { get; set; }
             public SyncEquipment[] Inventory { get; set; } = new SyncEquipment[260];
         }
-        public bool SSC { get; set; } = false;
+        public bool SSC => ServerData?.WorldData?.EventInfo1[6] ?? false;
         public int VersionNum { get; set; }
         public byte Index { get; set; } = 0;
-        public string Name => (ServerData.Info ?? OriginData.Info)?.Name;
+        public string Name => (ServerData?.Info ?? OriginData.Info)?.Name;
         public string UUID { get; set; } = "";
         public int SpawnX { get; set; }
         public int SpawnY { get; set; }
-        public int WorldSpawnX => (ServerData.WorldData ?? OriginData.WorldData).SpawnX;
-        public int WorldSpawnY => (ServerData.WorldData ?? OriginData.WorldData).SpawnY;
+        public short WorldSpawnX => (ServerData?.WorldData ?? OriginData.WorldData).SpawnX;
+        public short WorldSpawnY => (ServerData?.WorldData ?? OriginData.WorldData).SpawnY;
         public float X { get; set; }
         public float Y { get; set; }
         public int TileX => (int)(X / 16);
         public int TileY => (int)(Y / 16);
 
-        public void UpdateData(Packet packet)
+        public void UpdateData(Packet packet, bool fromClient)
         {
+            var data = SSC ? ServerData : OriginData;
             switch (packet)
             {
                 case SyncEquipment item:
-                    (SSC ? ServerData : OriginData).Inventory[item.ItemSlot] = item;
+                    if (fromClient && !SSC)
+                        OriginData.Inventory[item.ItemSlot] = item;
+                    else
+                        ServerData.Inventory[item.ItemSlot] = item;
                     break;
                 case PlayerHealth health:
-                    (SSC ? ServerData : OriginData).Health = health.StatLife;
-                    (SSC ? ServerData : OriginData).HealthMax = health.StatLifeMax;
+                    data.Health = health.StatLife;
+                    data.HealthMax = health.StatLifeMax;
                     break;
                 case PlayerMana mana:
-                    (SSC ? ServerData : OriginData).Mana = mana.StatMana;
-                    (SSC ? ServerData : OriginData).ManaMax = mana.StatManaMax;
+                    data.Mana = mana.StatMana;
+                    data.ManaMax = mana.StatManaMax;
                     break;
                 case SyncPlayer playerInfo:
-                    (SSC ? ServerData : OriginData).Info = playerInfo;
+                    data.Info = playerInfo;
                     break;
                 case WorldData world:
+                    world.WorldName = string.IsNullOrEmpty(Config.Instance.ServerName) ? world.WorldName : Config.Instance.ServerName; //设置了服务器名称的话则替换
                     ServerData.WorldData = world;
-                    SSC = world.EventInfo1[6];
                     break;
                 case PlayerControls control:
                     X = control.Position.X;

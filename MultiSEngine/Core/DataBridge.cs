@@ -3,7 +3,6 @@ using MultiSEngine.Modules.DataStruct;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using TrProtocol;
 
 namespace MultiSEngine.Core
 {
@@ -26,7 +25,7 @@ namespace MultiSEngine.Core
                 catch (Exception ex) { Logs.Error(ex); }
             });
         }
-        public static void RegisterCustomPacket<T>() where T : Packet
+        public static void RegisterCustomPacket<T>() where T : CustomData
         {
             RegisterCustomPacket(typeof(T));
         }

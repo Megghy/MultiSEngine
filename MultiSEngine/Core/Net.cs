@@ -20,7 +20,7 @@ namespace MultiSEngine.Core
             {
                 SocketServer?.Dispose();
                 SocketServer = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                IPAddress address = ip is null or "0.0.0.0" ? IPAddress.Any : IPAddress.Parse(ip);
+                IPAddress address = ip is null or "0.0.0.0" or "localhost" ? IPAddress.Any : IPAddress.Parse(ip);
                 IPEndPoint point = new(address, port);
                 SocketServer.Bind(point);
                 SocketServer.Listen(50);
@@ -41,11 +41,10 @@ namespace MultiSEngine.Core
             {
                 try
                 {
-                    Socket connection = SocketServer.Accept();
-
-                    Logs.Text($"{connection.RemoteEndPoint} trying to connect...");
-                    var ca = new FakeWorldAdapter(new(), connection);
+                    var ca = new FakeWorldAdapter(new(), SocketServer.Accept());
                     ca.Start();
+
+                    Logs.Text($"{ca.Connection.RemoteEndPoint} trying to connect...");
 
                     Data.Clients.Add(ca.Client);
                 }

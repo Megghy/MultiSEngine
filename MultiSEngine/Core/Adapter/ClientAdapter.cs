@@ -8,7 +8,7 @@ using TrProtocol.Packets;
 
 namespace MultiSEngine.Core.Adapter
 {
-    public class ClientAdapter : AdapterBase
+    public class ClientAdapter : BaseAdapter
     {
         public ClientAdapter(ClientData client, Socket connection) : base(client, connection)
         {
@@ -39,15 +39,15 @@ namespace MultiSEngine.Core.Adapter
                     }
                     return false;
                 case SyncPlayer playerInfo:
-                    Client.Player.UpdateData(playerInfo);
+                    Client.Player.UpdateData(playerInfo, true);
                     return true;
                 case SyncEquipment:
                 case PlayerHealth:
                 case PlayerMana:
                 case PlayerBuffs:
                 case PlayerControls:
-                    Client.Player.UpdateData(packet);
-                    return !Client.Syncing;
+                    Client.Player.UpdateData(packet, true);
+                    return true;
                 case ClientUUID uuid:
                     Client.Player.UUID = uuid.UUID;
                     return true;
@@ -72,7 +72,7 @@ namespace MultiSEngine.Core.Adapter
                         else
                         {
                             if (Config.Instance.EnableChatForward && !modules.Text.StartsWith("/"))
-                                Client.Broadcast($"[{Client.Server?.Name ?? "Not Join"}] {Client.Name}: {modules.Text}");
+                                Data.Clients.Where(c => c.Server != Client.Server).ForEach(c => c.SendMessage($"[{Client.Server?.Name ?? "Not Join"}] {Client.Name}: {modules.Text}"));
                             Client.SendDataToServer(modules, true);
                         }
                     }

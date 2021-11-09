@@ -20,12 +20,14 @@ namespace MultiSEngine.Modules
         /// </summary>
         /// <param name="client"></param>
         /// <param name="server"></param>
-        public static void Join(this ClientData client, ServerInfo server)
+        public static async void Join(this ClientData client, ServerInfo server)
         {
             if (Core.Hooks.OnPreSwitch(client, server, out _))
                 return;
             if (client.Server?.Name == server?.Name || (client.State > ClientData.ClientState.ReadyToSwitch && client.State < ClientData.ClientState.InGame))
             {
+                if (client.Server == server)
+                    client.SendErrorMessage(string.Format(Localization.Get("Command_AlreadyIn"), server.Name));
                 Logs.Warn($"Unallowed transmission requests for [{client.Name}]");
                 return;
             }
@@ -39,18 +41,18 @@ namespace MultiSEngine.Modules
                     client.TimeOutTimer.Start();
 
                     client.TempConnection = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                    client.TempConnection.Connect(ip, server.Port); //新建与服务器的连接
+                    await client.TempConnection.ConnectAsync(ip, server.Port); //新建与服务器的连接
 
                     if (client.CAdapter is FakeWorldAdapter fwa)
                         fwa.ChangeProcessState(true);  //切换至正常的客户端处理
 
                     var tempAdapter = new VisualPlayerAdapter(client, client.TempConnection);
-                    tempAdapter.TryConnect(server, (tempAdapter, client) =>
+                    client.TempAdapter = tempAdapter;
+                    tempAdapter.TryConnect(server, (client) =>
                     {
-                        //Logs.Info($"Visual player: {client.Name} connect success.");
                         client.State = ClientData.ClientState.InGame;
                         client.SAdapter?.Stop(true);
-                        client.SAdapter = tempAdapter;
+                        client.SAdapter = client.TempAdapter;
                         client.TempConnection = null;
                         client.TempAdapter = null;
                         client.TimeOutTimer.Stop();
@@ -61,7 +63,6 @@ namespace MultiSEngine.Modules
                 {
                     client.State = ClientData.ClientState.ReadyToSwitch;
                     Logs.Error($"Unable to connect to server {server.IP}:{server.Port}{Environment.NewLine}{ex}");
-                    //client.SendErrorMessage(string.Format(Localization.Get("Prompt_CannotConnect"), server.Name));
                     client.SendErrorMessage(Localization.Instance["Prompt_CannotConnect", server.Name]);
                 }
             }
@@ -72,21 +73,45 @@ namespace MultiSEngine.Modules
         /// 返回到默认的初始服务器
         /// </summary>
         /// <param name="client"></param>
-        public static void Back(this ClientData client) => client.Join(Config.Instance.DefaultServerInternal);
+        public static void Back(this ClientData client)
+        {
+            if (client.Server == Config.Instance.DefaultServerInternal)
+            {
+                client.SendErrorMessage($"No default server avilable, back to FakeWorld.");
+                Logs.Info($"No default server avilable, send [{client.Name}] to FakeWorld.");
+                (client.CAdapter as FakeWorldAdapter)?.BackToThere();
+            }
+            else if (client.Server is null)
+                client.SendErrorMessage(Localization.Instance["Prompt_CannotConnect", (client.TempAdapter as VisualPlayerAdapter)?.TempServer?.Name]);
+            else
+                client.Join(Config.Instance.DefaultServerInternal);
+        }
         public static void Sync(this ClientData client)
         {
             Logs.Text($"Syncing player: [{client.Name}]");
             client.Syncing = true;
 
-            client.AddBuff(149, 120);
-            client.SAdapter?.ResetAlmostEverything();
-            client.SendDataToClient(new LoadPlayer() { PlayerSlot = client.Player.Index, ServerWantsToRunCheckBytesInClientLoopThread = true });
-            client.SendDataToClient(client.Player.ServerData.WorldData);
+            var data = client.Player.ServerData?.WorldData ?? client.Player.OriginData.WorldData;
             if (!client.Player.SSC && Config.Instance.RestoreDataWhenJoinNonSSC) //非ssc的话还原玩家最开始的背包
             {
+                var bb = data.EventInfo1;
+                bb[6] = true;
+                data.EventInfo1 = bb;
+                client.SendDataToClient(data); //没有ssc的话没法改背包
                 client.SendDataToClient(client.Player.OriginData.Info);
+                client.SendDataToClient(new PlayerHealth() { PlayerSlot = client.Player.Index, StatLife = client.Player.OriginData.Health, StatLifeMax = client.Player.OriginData.HealthMax });
+                client.SendDataToClient(new PlayerMana() { PlayerSlot = client.Player.Index, StatMana = client.Player.OriginData.Mana, StatManaMax = client.Player.OriginData.ManaMax });
                 client.Player.OriginData.Inventory.Where(i => i != null).ForEach(i => client.SendDataToClient(i));
+                bb[6] = false;//改回去
+                data.EventInfo1 = bb;
+                client.SendDataToClient(data);
             }
+            else
+                client.SendDataToClient(data);
+
+            client.TP(client.SpawnX, client.SpawnY - 3);
+            client.SAdapter?.ResetAlmostEverything();
+            client.SendDataToClient(new LoadPlayer() { PlayerSlot = client.Player.Index, ServerWantsToRunCheckBytesInClientLoopThread = true });
 
             client.Syncing = false;
         }
@@ -109,12 +134,12 @@ namespace MultiSEngine.Modules
             try
             {
 #if DEBUG
-                Console.WriteLine($"[Send to CLIENT] <{BitConverter.ToInt16(buffer, start)} byte> {(length is null ? "" : $"<Length: {length}>")} {buffer.GetMessageID()}");
+                Console.WriteLine($"[Send to CLIENT] <{BitConverter.ToInt16(buffer, start)} byte> {(length is null ? "" : $"<Length: {length}>")} {(MessageID)buffer[start + 2]}");
 #endif
                 if (buffer is { Length: < 3 } && buffer[start + 2] is < 1 or > 140)
                 {
 #if DEBUG
-                    Console.WriteLine($"[Send to CLIENT] <Invaild data> <{BitConverter.ToInt16(buffer, start)} byte> {(length is null ? "" : $"<Length: {length}>")} {buffer.GetMessageID()}");
+                    Console.WriteLine($"[Send to CLIENT] <Invaild data> <{BitConverter.ToInt16(buffer, start)} byte> {(length is null ? "" : $"<Length: {length}>")} {(MessageID)buffer[start + 2]}");
 #endif
                     return true;
                 }
@@ -136,7 +161,7 @@ namespace MultiSEngine.Modules
             try
             {
 #if DEBUG
-                Console.WriteLine($"[Send to SERVER] <{BitConverter.ToInt16(buffer)} byte> {buffer.GetMessageID()}");
+                Console.WriteLine($"[Send to SERVER] <{BitConverter.ToInt16(buffer)} byte> {(MessageID)buffer[start + 2]}");
 #endif
                 using var arg = new SocketAsyncEventArgs();
                 arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer?.Length ?? 3);
@@ -186,7 +211,7 @@ namespace MultiSEngine.Modules
         public static void SendErrorMessage(this ClientData client, string text, bool withPrefix = true) => SendMessage(client, text, new(220, 135, 135), withPrefix);
         #endregion
         #region 一些小工具
-        public static void Broadcast(this ClientData client, string message, bool ignoreSelf = true) => Data.Clients.Where(c => !ignoreSelf || (c != client && c.Server != client?.Server)).ForEach(c => c.SendMessage(message));
+        public static void Broadcast(this ClientData client, string message, bool ignoreSelf = true) => Data.Clients.Where(c => !ignoreSelf || c != client).ForEach(c => c.SendMessage(message, false));
         public static void ReadVersion(this ClientData client, ClientHello hello) => client.ReadVersion(hello.Version);
         public static void ReadVersion(this ClientData client, string version)
         {

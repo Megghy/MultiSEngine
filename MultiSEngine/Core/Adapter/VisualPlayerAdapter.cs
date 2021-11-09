@@ -16,14 +16,14 @@ namespace MultiSEngine.Core.Adapter
         internal MSEPlayer Player => Client.Player;
         internal bool TestConnecting = false;
         internal ServerInfo TempServer;
-        internal Action<VisualPlayerAdapter, ClientData> Callback;
+        internal Action<ClientData> Callback;
         public bool RunningAsNormal { get; set; } = false;
         public void ChangeProcessState(bool asNormal)
         {
             RunningAsNormal = true;
         }
         [Obsolete("调用 TryConnect", true)]
-        public override AdapterBase Start()
+        public override BaseAdapter Start()
         {
             //不能直接开始
             return this;
@@ -32,7 +32,7 @@ namespace MultiSEngine.Core.Adapter
         /// 如果成功连接的话则调用所给的函数
         /// </summary>
         /// <param name="successCallback"></param>
-        public void TryConnect(ServerInfo server, Action<VisualPlayerAdapter, ClientData> successCallback)
+        public void TryConnect(ServerInfo server, Action<ClientData> successCallback)
         {
             if (TestConnecting)
                 return;
@@ -55,8 +55,9 @@ namespace MultiSEngine.Core.Adapter
             switch (packet)
             {
                 case Kick kick:
-                    Client.SendErrorMessage(Localization.Instance["Prompt_Disconnect", Client.Server.Name, kick.Reason.GetText()]);
                     Stop(true);
+                    Client.SendErrorMessage(Localization.Instance["Prompt_Disconnect", (Client.Server ?? TempServer)?.Name, kick.Reason.GetText()]);
+                    Client.State = ClientData.ClientState.Disconnect;
                     break;
                 case LoadPlayer slot:
                     base.GetPacket(packet);
@@ -74,31 +75,42 @@ namespace MultiSEngine.Core.Adapter
                     });  //尝试同步玩家IP
                     break;
                 case SyncPlayer playerInfo:
-                    Player.UpdateData(playerInfo);
+                    Player.UpdateData(playerInfo, false);
                     return true;
                 case WorldData worldData:
-                    Player.UpdateData(worldData);
+                    Player.UpdateData(worldData, false);
                     if (Callback != null)
                     {
-                        Client.TP(Client.SpawnX, Client.SpawnY - 3);
                         TestConnecting = false;
                         Client.Server = TempServer;
-                        Callback.Invoke(this, Client);
+                        Callback.Invoke(Client);
                         Callback = null;
                     }
                     InternalSendPacket(new RequestTileData() { Position = new(Client.SpawnX, Client.SpawnY) });//请求物块数据
-                    InternalSendPacket(new SpawnPlayer() { Position = new((short)Client.SpawnX, (short)Client.SpawnY) });//请求物块数据
+                    InternalSendPacket(new SpawnPlayer() { Position = new(Client.SpawnX, Client.SpawnY) });//请求物块数据
                     break;
                 case SyncEquipment invItem:
-                    Player.UpdateData(invItem);
+                    Player.UpdateData(invItem, false);
                     break;
                 case RequestPassword:
-                    Client.State = ClientData.ClientState.RequestPassword;
-                    Client.SendInfoMessage(Localization.Instance["Prompt_NeedPassword", Client.Server.Name, Localization.Get("Help_Password")]);
+                    if (Client.State == ClientData.ClientState.InGame)
+                        return false;
+                    if (Client.State == ClientData.ClientState.RequestPassword)
+                    {
+                        Client.SendInfoMessage(Localization.Instance["Prompt_WrongPassword", TempServer.Name, Localization.Get("Help_Password")]);
+                    }
+                    else
+                    {
+                        Client.State = ClientData.ClientState.RequestPassword;
+                        Client.SendInfoMessage(Localization.Instance["Prompt_NeedPassword", TempServer.Name, Localization.Get("Help_Password")]);
+                    }
+                    Client.TimeOutTimer.Stop();
+                    Client.TimeOutTimer.Start();
                     return false;
                 case StatusText:
                     return RunningAsNormal;
                 case StartPlaying:
+                    Client.SendDataToClient(new SpawnPlayer() { PlayerSlot = Client.Index, Context = TrProtocol.Models.PlayerSpawnContext.RecallFromItem, Position = new(Client.SpawnX, (short)(Client.SpawnY - 3)), Timer = 0 });
                     ChangeProcessState(true); //转换处理模式为普通
                     break;
                 default:
