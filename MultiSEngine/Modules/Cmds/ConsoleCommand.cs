@@ -1,4 +1,4 @@
-﻿using MultiSEngine.Modules.DataStruct;
+﻿using MultiSEngine.DataStruct;
 using System;
 using System.Collections.Generic;
 using System.Linq;

@@ -1,7 +1,7 @@
 ﻿using System;
 using TrProtocol;
 
-namespace MultiSEngine.Modules.DataStruct
+namespace MultiSEngine.DataStruct
 {
     internal class CustomPacketStuff
     {

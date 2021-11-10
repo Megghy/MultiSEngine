@@ -47,8 +47,8 @@ namespace MultiSEngine
         public bool SwitchToDefaultServerOnJoin { get; set; } = false;
         public bool RestoreDataWhenJoinNonSSC { get; set; } = true;
         [JsonIgnore]
-        public Modules.DataStruct.ServerInfo DefaultServerInternal => Servers.FirstOrDefault(s => s.Name == DefaultServer);
+        public DataStruct.ServerInfo DefaultServerInternal => Servers.FirstOrDefault(s => s.Name == DefaultServer);
         public string DefaultServer { get; set; } = string.Empty;
-        public List<Modules.DataStruct.ServerInfo> Servers { get; set; } = new();
+        public List<DataStruct.ServerInfo> Servers { get; set; } = new();
     }
 }

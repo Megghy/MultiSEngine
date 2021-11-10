@@ -1,6 +1,6 @@
 ﻿using System.IO;
 
-namespace MultiSEngine.Modules.CustomData
+namespace MultiSEngine.DataStruct.CustomData
 {
     public class SyncIP : CustomData
     {

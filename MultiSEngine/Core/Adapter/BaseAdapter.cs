@@ -1,4 +1,4 @@
-﻿using MultiSEngine.Modules.DataStruct;
+﻿using MultiSEngine.DataStruct;
 using System;
 using System.Collections;
 using System.IO;
@@ -84,12 +84,12 @@ namespace MultiSEngine.Core.Adapter
                     if (packet is not null && !Hooks.OnGetPacket(Client, packet, ListenningClient, out _) && GetPacket(packet))
                         SendPacket(packet);
                 }
+#if DEBUG
                 catch (IOException io)
                 {
-#if DEBUG
                     Console.WriteLine(io);
-#endif
                 }
+#endif
                 catch (Exception ex)
                 {
                     Logs.Error($"An error occurred while processing packet {packet}.{Environment.NewLine}{ex}");

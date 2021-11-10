@@ -1,7 +1,7 @@
-﻿using MultiSEngine.Modules.DataStruct;
+﻿using MultiSEngine.Modules;
 using System.IO;
 
-namespace MultiSEngine.Modules.CustomData
+namespace MultiSEngine.DataStruct.CustomData
 {
     [CustomPacketStuff.TokenCheck]
     internal class ExcuteMSECommand : CustomData

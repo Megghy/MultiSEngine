@@ -1,5 +1,5 @@
 ﻿using MultiSEngine.Core.Adapter;
-using MultiSEngine.Modules.DataStruct;
+using MultiSEngine.DataStruct;
 using System;
 using System.IO;
 using System.Linq;

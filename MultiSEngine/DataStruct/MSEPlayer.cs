@@ -1,7 +1,7 @@
 ﻿using TrProtocol;
 using TrProtocol.Packets;
 
-namespace MultiSEngine.Modules.DataStruct
+namespace MultiSEngine.DataStruct
 {
     public class MSEPlayer
     {

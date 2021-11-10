@@ -28,7 +28,7 @@ namespace MultiSEngine.Core
             Directory.GetFiles(PluginPath, "*.dll").ForEach(p =>
             {
                 Assembly plugin = Assembly.LoadFile(p);
-                if (plugin.GetTypes().Where(t => t.BaseType == typeof(MSEPlugin))?.ToList() is { Count: > 0 } instances)
+                if (plugin.GetTypes().Where(t => t.BaseType == typeof(MSEPlugin))?.ToArray() is { Length: > 0 } instances)
                 {
                     instances.ForEach(instance =>
                     {

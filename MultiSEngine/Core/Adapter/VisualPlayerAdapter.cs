@@ -1,6 +1,6 @@
-﻿using MultiSEngine.Modules;
-using MultiSEngine.Modules.CustomData;
-using MultiSEngine.Modules.DataStruct;
+﻿using MultiSEngine.DataStruct;
+using MultiSEngine.DataStruct.CustomData;
+using MultiSEngine.Modules;
 using System;
 using System.Net.Sockets;
 using TrProtocol;

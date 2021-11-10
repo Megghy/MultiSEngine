@@ -1,5 +1,5 @@
-﻿using MultiSEngine.Modules.CustomData;
-using MultiSEngine.Modules.DataStruct;
+﻿using MultiSEngine.DataStruct;
+using MultiSEngine.DataStruct.CustomData;
 using System;
 using System.Collections.Generic;
 using System.Linq;

@@ -1,10 +1,9 @@
-﻿using MultiSEngine.Modules.DataStruct;
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using TrProtocol;
 
-namespace MultiSEngine.Modules.CustomData
+namespace MultiSEngine.DataStruct.CustomData
 {
     [Serializer(typeof(CustomDataSerializer))]
     public abstract class CustomData

@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace MultiSEngine.Modules.DataStruct
+namespace MultiSEngine.DataStruct
 {
     public class FakeWorldData
     {
