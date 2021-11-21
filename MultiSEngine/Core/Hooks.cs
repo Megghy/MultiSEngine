@@ -1,4 +1,5 @@
 ﻿using MultiSEngine.DataStruct;
+using MultiSEngine.DataStruct.EventArgs;
 using System;
 using System.IO;
 using TrProtocol;
@@ -7,117 +8,33 @@ namespace MultiSEngine.Core
 {
     public class Hooks
     {
-        public interface IEventArgs
+        public static class HookDelegates
         {
-            public ClientData Client { get; }
-            public bool Handled { get; set; }
-        }
-        public class PlayerJoinEventArgs : IEventArgs
-        {
-            public PlayerJoinEventArgs(ClientData client, string ip, int port, string version)
-            {
-                Client = client;
-                IP = ip;
-                Port = port;
-                Version = version;
-            }
-            public ClientData Client { get; private set; }
-            public string IP { get; private set; }
-            public int Port { get; private set; }
-            public string Version { get; set; }
-            public bool Handled { get; set; } = false;
-        }
-        public class PlayerLeaveEventArgs : IEventArgs
-        {
-            public PlayerLeaveEventArgs(ClientData client)
-            {
-                Client = client;
-            }
-            public ClientData Client { get; private set; }
-            public bool Handled { get; set; } = false;
-        }
-        public class RecieveCustomPacketEventArgs : IEventArgs
-        {
-            public RecieveCustomPacketEventArgs(ClientData client, Packet p, BinaryReader reader)
-            {
-                Client = client;
-                Reader = reader;
-                Packet = p;
-            }
-            public ClientData Client { get; private set; }
-            public Packet Packet { get; private set; }
-            public BinaryReader Reader { get; private set; }
-            public bool Handled { get; set; } = false;
-        }
-        public class SwitchEventArgs : IEventArgs
-        {
-            public SwitchEventArgs(ClientData client, ServerInfo targetServer, bool isPreSwitch)
-            {
-                Client = client;
-                TargetServer = targetServer;
-                PreSwitch = isPreSwitch;
-            }
-            public ClientData Client { get; private set; }
-            public ServerInfo TargetServer { get; private set; }
-            public bool PreSwitch { get; }
-            public bool Handled { get; set; } = false;
-        }
-        public class ChatEventArgs : IEventArgs
-        {
-            public ChatEventArgs(ClientData client, string message)
-            {
-                Client = client;
-                Message = message;
-            }
-            public ClientData Client { get; private set; }
-            public string Message { get; set; }
-            public bool Handled { get; set; } = false;
-        }
-        public class SendPacketEventArgs : IEventArgs
-        {
-            public SendPacketEventArgs(ClientData client, Packet packet, bool toClient)
-            {
-                Client = client;
-                Packet = packet;
-                ToClient = toClient;
-            }
-            public ClientData Client { get; private set; }
-            public Packet Packet { get; set; }
-            public bool ToClient { get; }
-            public bool ToServer => !ToClient;
-            public bool Handled { get; set; } = false;
-        }
-        public class GetPacketEventArgs : IEventArgs
-        {
-            public GetPacketEventArgs(ClientData client, Packet packet, bool fromClient)
-            {
-                Client = client;
-                Packet = packet;
-                FromClient = fromClient;
-            }
-            public ClientData Client { get; private set; }
-            public Packet Packet { get; set; }
-            public bool FromClient { get; }
-            public bool FromServer => !FromClient;
-            public bool Handled { get; set; } = false;
+            public delegate void PlayerJoinEvent(PlayerJoinEventArgs args);
+
+            public delegate void PlayerLeaveEvent(PlayerLeaveEventArgs args);
+
+            public delegate void RecieveCustomPacketEvent(RecieveCustomPacketEventArgs args);
+
+            public delegate void PreSwitchEvent(SwitchEventArgs args);
+
+            public delegate void PostSwitchEvent(SwitchEventArgs args);
+
+            public delegate void ChatEvent(ChatEventArgs args);
+
+            public delegate void SendPacketEvent(SendPacketEventArgs args);
+
+            public delegate void RecievePacketEvent(GetPacketEventArgs args);
         }
 
-        public delegate void PlayerJoinEvent(PlayerJoinEventArgs args);
-        public static event PlayerJoinEvent PlayerJoin;
-        public delegate void PlayerLeaveEvent(PlayerLeaveEventArgs args);
-        public static event PlayerLeaveEvent PlayerLeave;
-        public delegate void RecieveCustomPacketEvent(RecieveCustomPacketEventArgs args);
-        public static event RecieveCustomPacketEvent RecieveCustomData;
-        public delegate void PreSwitchEvent(SwitchEventArgs args);
-        public static event PreSwitchEvent PreSwitch;
-        public delegate void PostSwitchEvent(SwitchEventArgs args);
-        public static event PostSwitchEvent PostSwitch;
-        public delegate void ChatEvent(ChatEventArgs args);
-        public static event ChatEvent Chat;
-        public delegate void SendPacketEvent(SendPacketEventArgs args);
-        public static event SendPacketEvent SendPacket;
-        public delegate void RecievePacketEvent(GetPacketEventArgs args);
-        public static event RecievePacketEvent RecievePacket;
+        public static event HookDelegates.PlayerJoinEvent PlayerJoin;
+        public static event HookDelegates.PlayerLeaveEvent PlayerLeave;
+        public static event HookDelegates.RecieveCustomPacketEvent RecieveCustomData;
+        public static event HookDelegates.PreSwitchEvent PreSwitch;
+        public static event HookDelegates.PostSwitchEvent PostSwitch;
+        public static event HookDelegates.ChatEvent Chat;
+        public static event HookDelegates.SendPacketEvent SendPacket;
+        public static event HookDelegates.RecievePacketEvent RecievePacket;
         internal static bool OnPlayerJoin(ClientData client, string ip, int port, string version, out PlayerJoinEventArgs args)
         {
             args = new(client, ip, port, version);

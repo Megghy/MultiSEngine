@@ -19,7 +19,7 @@ namespace MultiSEngine.Core
             /// <param name="client"></param>
             /// <param name="parma"></param>
             /// <returns></returns>
-            public abstract bool Execute(ClientData client, string cmdName, List<string> parma);
+            public abstract bool Execute(ClientData client, string cmdName, string[] parma);
         }
         public static void InitAllCommands()
         {
@@ -81,7 +81,7 @@ namespace MultiSEngine.Core
                     {
                         try
                         {
-                            continueSend = command.Execute(client, cmdName, list);
+                            continueSend = command.Execute(client, cmdName, list.ToArray());
                         }
                         catch (Exception ex)
                         {

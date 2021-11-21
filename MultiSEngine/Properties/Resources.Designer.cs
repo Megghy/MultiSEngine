@@ -68,13 +68,13 @@ namespace MultiSEngine.Properties {
         ///  &quot;Command_AlreadyIn&quot;: &quot;你已处于服务器 {0} 中&quot;,
         ///  &quot;Command_Switch&quot;: &quot;正在传送至服务器 {0}&quot;,
         ///  &quot;Command_Back&quot;: &quot;已返回主服务器&quot;,
+        ///  &quot;Command_Kick&quot;: &quot;你已被移出服务器{0}: {1}&quot;,
         ///  &quot;Command_AviliableServer&quot;: &quot;可用的服务器: &quot;,
         ///  &quot;Command_ServerNotFound&quot;: &quot;未找到含有关键词 {0} 的服务器&quot;,
         ///
         ///  &quot;Help_Tp&quot;: &quot;/mse tp([c/B3CE95:t]) &lt;[c/B3CE95:服务器名]&gt; -- 传送到指定服务器&quot;,
         ///  &quot;Help_Back&quot;: &quot;/mse back([c/B3CE95:b]) -- 传送回主服务器&quot;,
-        ///  &quot;Help_List&quot;: &quot;/mse list([c/B3CE95:l]) -- 列出所有可用的服务器&quot;,
-        ///  &quot;H [字符串的其余部分被截断]&quot;; 的本地化字符串。
+        ///  &quot;Help_List&quot;: &quot;/mse l [字符串的其余部分被截断]&quot;; 的本地化字符串。
         /// </summary>
         internal static string DefaultLocallization {
             get {

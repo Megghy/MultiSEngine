@@ -125,6 +125,7 @@
   "Command_AlreadyIn": "你已处于服务器 {0} 中",
   "Command_Switch": "正在传送至服务器 {0}",
   "Command_Back": "已返回主服务器",
+  "Command_Kick": "你已被移出服务器{0}: {1}",
   "Command_AviliableServer": "可用的服务器: ",
   "Command_ServerNotFound": "未找到含有关键词 {0} 的服务器",
 
@@ -134,6 +135,8 @@
   "Help_Command": "/mse command([c/B3CE95:c]) &lt;[c/B3CE95:指令]&gt; -- 在传送前的服务器执行命令",
   "Help_Password": "/mse password([c/B3CE95:p]) &lt;[c/B3CE95:密码]&gt; -- 向当前连接到的服务器发送指定的密码",
   
+  "Prompt_VersionNotAllowed": "不允许的游戏版本: {0}",
+  "Prompt_NoAvailableServer": "无可用服务器, 你已被传送回临时世界",
   "Prompt_InvalidFormat": "无效的格式",
   "Prompt_PasswordTimeout": "输入密码时超时",
   "Prompt_WrongPassword": "错误的服务器密码",

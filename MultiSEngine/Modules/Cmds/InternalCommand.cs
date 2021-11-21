@@ -9,7 +9,7 @@ namespace MultiSEngine.Modules.Cmds
     {
         public override string Name => "mse";
 
-        public override bool Execute(ClientData client, string cmdName, List<string> parma)
+        public override bool Execute(ClientData client, string cmdName, string[] parma)
         {
             if (client is null)
                 client.SendErrorMessage("Unable to execute this command.");
@@ -20,7 +20,7 @@ namespace MultiSEngine.Modules.Cmds
                     case "tp":
                     case "to":
                     case "t":
-                        if (parma.Count < 2)
+                        if (parma.Length < 2)
                             client.SendInfoMessage($"{Localization.Get("Prompt_InvalidFormat")}{Environment.NewLine}{Localization.Get("Help_Tp")}");
                         else
                             SwitchServer(client, parma[1]);
@@ -41,7 +41,7 @@ namespace MultiSEngine.Modules.Cmds
                     case "password":
                     case "pass":
                     case "p":
-                        if (parma.Count > 1)
+                        if (parma.Length > 1)
                         {
                             if (client.State == ClientData.ClientState.RequestPassword)
                                 client.TempAdapter.InternalSendPacket(new TrProtocol.Packets.SendPassword()

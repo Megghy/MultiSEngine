@@ -145,7 +145,7 @@ namespace MultiSEngine.Modules
                 }
                 using var arg = new SocketAsyncEventArgs();
                 arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer?.Length ?? 3);
-                client.CAdapter.Connection?.SendAsync(arg);
+                client.CAdapter?.Connection?.SendAsync(arg);
                 return true;
             }
             catch (Exception ex)
