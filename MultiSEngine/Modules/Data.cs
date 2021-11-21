@@ -8,10 +8,10 @@ namespace MultiSEngine.Modules
 {
     internal class Data
     {
-        public const int TRVersion = 238;
+        public const int TRVersion = 242;
         public static readonly List<DataStruct.ClientData> Clients = new();
         public static readonly List<CmdBase> Commands = new();
-        public static byte[] StaticSpawnSquareData { get; set; }
+        internal static byte[] StaticSpawnSquareData { get; set; }
         private static string _motd = string.Empty;
         public static string Motd => _motd
             .Replace("{online}", Clients.Count.ToString())

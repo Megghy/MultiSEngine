@@ -77,7 +77,7 @@ namespace MultiSEngine.Modules
         {
             if (client.Server == Config.Instance.DefaultServerInternal)
             {
-                client.SendErrorMessage($"No default server avilable, back to FakeWorld.");
+                client.SendErrorMessage(Localization.Instance["Prompt_NoAvailableServer"]);
                 Logs.Info($"No default server avilable, send [{client.Name}] to FakeWorld.");
                 (client.CAdapter as FakeWorldAdapter)?.BackToThere();
             }

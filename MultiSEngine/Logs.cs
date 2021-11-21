@@ -33,9 +33,10 @@ namespace MultiSEngine
         private static Queue LogQueue;
         internal static void SaveLogTask()
         {
+            LogQueue ??= new();
             using var sw = File.AppendText(LogName);
             sw.AutoFlush = true;
-            while (true)
+            while (LogQueue != null)
             {
                 while (LogQueue.Count < 1)
                     Task.Delay(1).Wait();
@@ -50,10 +51,7 @@ namespace MultiSEngine
         public static void LogAndSave(object message, string prefix = "[Log]", ConsoleColor color = DefaultColor, bool save = true)
         {
             if (LogQueue is null)
-            {
-                LogQueue = new();
                 Task.Run(SaveLogTask);
-            }
             Console.ForegroundColor = color;
             Console.WriteLine($"{prefix} {message}");
             if (save) LogQueue.Enqueue($"{DateTime.Now:yyyy-MM-dd-HH:mm:ss} - {prefix} {message}");

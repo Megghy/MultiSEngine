@@ -15,7 +15,7 @@ namespace MultiSEngine.Core
         public abstract Version Version { get; }
         public abstract void Initialize();
         public abstract void Dispose();
-        public virtual PacketSerializer Serializer { get; } = new(true);
+        public virtual PacketSerializer Serializer => Net.Instance.ClientSerializer;
     }
     public class PluginSystem
     {

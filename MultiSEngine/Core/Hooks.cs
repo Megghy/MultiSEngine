@@ -124,13 +124,12 @@ namespace MultiSEngine.Core
             try
             {
                 PlayerJoin?.Invoke(args);
-                return args.Handled;
             }
             catch (Exception ex)
             {
                 Logs.Error($"<PlayerJoin> Hook handling failed.{Environment.NewLine}{ex}");
-                return false;
             }
+            return args.Handled;
         }
         internal static bool OnPlayerLeave(ClientData client, out PlayerLeaveEventArgs args)
         {
@@ -138,13 +137,12 @@ namespace MultiSEngine.Core
             try
             {
                 PlayerLeave?.Invoke(args);
-                return args.Handled;
             }
             catch (Exception ex)
             {
                 Logs.Error($"<PlayerLeave> Hook handling failed.{Environment.NewLine}{ex}");
-                return false;
             }
+            return args.Handled;
         }
         internal static bool OnRecieveCustomData(ClientData client, Packet packet, BinaryReader reader, out RecieveCustomPacketEventArgs args)
         {
@@ -155,13 +153,12 @@ namespace MultiSEngine.Core
                 args.Reader.BaseStream.Position = 3L;
                 RecieveCustomData?.Invoke(args);
                 args.Reader.BaseStream.Position = position;
-                return args.Handled;
             }
             catch (Exception ex)
             {
                 Logs.Error($"<RecieveCustomData> Hook handling failed.{Environment.NewLine}{ex}");
-                return false;
             }
+            return args.Handled;
         }
         internal static bool OnPreSwitch(ClientData client, ServerInfo targetServer, out SwitchEventArgs args)
         {
@@ -169,13 +166,12 @@ namespace MultiSEngine.Core
             try
             {
                 PreSwitch?.Invoke(args);
-                return args.Handled;
             }
             catch (Exception ex)
             {
                 Logs.Error($"<PreSwitch> Hook handling failed.{Environment.NewLine}{ex}");
-                return false;
             }
+            return args.Handled;
         }
         internal static bool OnPostSwitch(ClientData client, ServerInfo targetServer, out SwitchEventArgs args)
         {
@@ -183,13 +179,12 @@ namespace MultiSEngine.Core
             try
             {
                 PostSwitch?.Invoke(args);
-                return args.Handled;
             }
             catch (Exception ex)
             {
                 Logs.Error($"<PostSwitch> Hook handling failed.{Environment.NewLine}{ex}");
-                return false;
             }
+            return args.Handled;
         }
         internal static bool OnChat(ClientData client, TrProtocol.Packets.Modules.NetTextModuleC2S module, out ChatEventArgs args)
         {
@@ -197,13 +192,12 @@ namespace MultiSEngine.Core
             try
             {
                 Chat?.Invoke(args);
-                return args.Handled;
             }
             catch (Exception ex)
             {
                 Logs.Error($"<Chat> Hook handling failed.{Environment.NewLine}{ex}");
-                return false;
             }
+            return args.Handled;
         }
         internal static bool OnSendPacket(ClientData client, Packet packet, bool toClient, out SendPacketEventArgs args)
         {
@@ -211,13 +205,12 @@ namespace MultiSEngine.Core
             try
             {
                 SendPacket?.Invoke(args);
-                return args.Handled;
             }
             catch (Exception ex)
             {
                 Logs.Error($"<SendPacket> Hook handling failed.{Environment.NewLine}{ex}");
-                return false;
             }
+            return args.Handled;
         }
         internal static bool OnGetPacket(ClientData client, Packet packet, bool fromClient, out GetPacketEventArgs args)
         {
@@ -225,13 +218,12 @@ namespace MultiSEngine.Core
             try
             {
                 RecievePacket?.Invoke(args);
-                return args.Handled;
             }
             catch (Exception ex)
             {
                 Logs.Error($"<GetPacket> Hook handling failed.{Environment.NewLine}{ex}");
-                return false;
             }
+            return args.Handled;
         }
     }
 }

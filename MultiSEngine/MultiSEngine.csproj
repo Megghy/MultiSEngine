@@ -3,9 +3,9 @@
   <PropertyGroup>
 	  <LangVersion>preview</LangVersion>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net5.0</TargetFramework>
-    <AssemblyVersion>1.0.4</AssemblyVersion>
-    <FileVersion>1.0.4</FileVersion>
+    <TargetFramework>net6.0</TargetFramework>
+    <AssemblyVersion>1.0.5</AssemblyVersion>
+    <FileVersion>1.0.5</FileVersion>
     <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
     <AnalysisLevel>latest</AnalysisLevel>
   </PropertyGroup>
@@ -21,9 +21,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Reference Include="TrProtocol">
-      <HintPath>..\..\TrProtocol\TrProtocol\bin\Release\net5.0\TrProtocol.dll</HintPath>
-    </Reference>
+    <ProjectReference Include="..\..\TrProtocol\TrProtocol\TrProtocol.csproj" />
   </ItemGroup>
 
   <ItemGroup>

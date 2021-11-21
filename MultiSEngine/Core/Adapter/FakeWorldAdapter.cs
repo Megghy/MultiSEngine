@@ -85,7 +85,7 @@ namespace MultiSEngine.Core.Adapter
                     {
                         Client.ReadVersion(joinEvent.Version);
                         if (Client.Player.VersionNum != Data.TRVersion)
-                            Client.Disconnect($"Unallowed version: {hello.Version}");
+                            Client.Disconnect(Localization.Instance["Prompt_NoAvailableServer", joinEvent.Version]);
                         else
                             InternalSendPacket(new LoadPlayer() { PlayerSlot = 0, ServerWantsToRunCheckBytesInClientLoopThread = true });
                     }

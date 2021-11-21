@@ -15,7 +15,7 @@ namespace MultiSEngine.Modules
         {
             while (true)
             {
-                Console.Title = $"{Title}  {Data.Clients.Count} Online <V{Assembly.GetExecutingAssembly().GetName().Version}, for Terraria-1.4.2.3>";
+                Console.Title = $"{Title}  {Data.Clients.Count} Online <V{Assembly.GetExecutingAssembly().GetName().Version}, for Terraria-1.4.3>";
                 Task.Delay(1000).Wait();
             }
         }
