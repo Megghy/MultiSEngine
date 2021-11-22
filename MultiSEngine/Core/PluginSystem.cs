@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MultiSEngine.DataStruct;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -15,12 +16,13 @@ namespace MultiSEngine.Core
         public abstract Version Version { get; }
         public abstract void Initialize();
         public abstract void Dispose();
-        public virtual PacketSerializer Serializer => Net.Instance.ClientSerializer;
+        public virtual PacketSerializer Serializer => Net.ClientSerializer;
     }
     public class PluginSystem
     {
         public static readonly string PluginPath = Path.Combine(Environment.CurrentDirectory, "Plugins");
         public static readonly List<MSEPlugin> PluginList = new();
+        [AutoInit("Loading all plugins.", $"Plugin(s) loaded.")]
         internal static void Load()
         {
             if (!Directory.Exists(PluginPath))

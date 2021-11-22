@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MultiSEngine.DataStruct;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -19,6 +20,7 @@ namespace MultiSEngine.Modules
             .Replace("{players}", string.Join(", ", Clients.Select(c => c.Name)))
             .Replace("{servers}", string.Join(", ", Config.Instance.Servers.Select(s => s.Name)));
         public static string MotdPath => Path.Combine(Environment.CurrentDirectory, "MOTD.txt");
+        [AutoInit]
         public static void Init()
         {
             StaticSpawnSquareData = Utils.GetTileSection(4150, 1150, 100, 100);

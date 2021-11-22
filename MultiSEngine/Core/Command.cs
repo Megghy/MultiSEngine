@@ -21,6 +21,7 @@ namespace MultiSEngine.Core
             /// <returns></returns>
             public abstract bool Execute(ClientData client, string cmdName, string[] parma);
         }
+        [AutoInit(postMsg: "Registered all commands.")]
         public static void InitAllCommands()
         {
             AppDomain.CurrentDomain.GetAssemblies().ForEach(assembly =>

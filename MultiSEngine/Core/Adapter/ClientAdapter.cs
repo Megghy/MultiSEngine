@@ -14,7 +14,7 @@ namespace MultiSEngine.Core.Adapter
         {
             client.CAdapter = this;
         }
-        public override PacketSerializer Serializer => Net.Instance.ServerSerializer;
+        public override PacketSerializer Serializer => Net.ServerSerializer;
         public override bool ListenningClient => true;
         public override void OnRecieveLoopError(Exception ex)
         {

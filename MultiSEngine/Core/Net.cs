@@ -1,4 +1,5 @@
 ﻿using MultiSEngine.Core.Adapter;
+using MultiSEngine.DataStruct;
 using MultiSEngine.Modules;
 using System;
 using System.Net;
@@ -10,18 +11,18 @@ namespace MultiSEngine.Core
 {
     public class Net
     {
-        public static Net Instance { get; internal set; } = new();
-        public Socket SocketServer { get; internal set; }
-        public readonly PacketSerializer ClientSerializer = new(true);
-        public readonly PacketSerializer ServerSerializer = new(false);
-        public Net Init(string ip = null, int port = 7778)
+        public static Socket SocketServer { get; internal set; }
+        public static readonly PacketSerializer ClientSerializer = new(true);
+        public static readonly PacketSerializer ServerSerializer = new(false);
+        [AutoInit(postMsg: "Opened socket server successfully.")]
+        public static void Init()
         {
             try
             {
                 SocketServer?.Dispose();
                 SocketServer = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                IPAddress address = ip is null or "0.0.0.0" or "localhost" ? IPAddress.Any : IPAddress.Parse(ip);
-                IPEndPoint point = new(address, port);
+                IPAddress address = Config.Instance.ListenIP is null or "0.0.0.0" or "localhost" ? IPAddress.Any : IPAddress.Parse(Config.Instance.ListenIP);
+                IPEndPoint point = new(address, Config.Instance.ListenPort);
                 SocketServer.Bind(point);
                 SocketServer.Listen(50);
 
@@ -33,9 +34,8 @@ namespace MultiSEngine.Core
                 Console.ReadLine();
                 Environment.Exit(0);
             }
-            return this;
         }
-        public void WatchConnecting()
+        public static void WatchConnecting()
         {
             while (true)
             {

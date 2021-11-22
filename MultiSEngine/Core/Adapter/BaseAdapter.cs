@@ -25,7 +25,7 @@ namespace MultiSEngine.Core.Adapter
         #region 变量
         public int ErrorCount = 0;
         protected bool ShouldStop { get; set; } = false;
-        public virtual PacketSerializer Serializer => Net.Instance.ClientSerializer;
+        public virtual PacketSerializer Serializer => Net.ClientSerializer;
         public ClientData Client { get; protected set; }
         public Socket Connection { get; set; }
         public Queue PacketPool { get; set; }

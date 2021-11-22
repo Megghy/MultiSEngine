@@ -1,5 +1,8 @@
-﻿using MultiSEngine.Modules;
+﻿using MultiSEngine.DataStruct;
+using MultiSEngine.Modules;
 using System;
+using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace MultiSEngine
@@ -21,17 +24,25 @@ namespace MultiSEngine
             Logs.Warn($"> MultiSEngine IS IN DEBUG MODE <");
 #endif
             Logs.Info("Initializing the program...");
-            Logs.Info("Loading all plugins.");
-            Core.PluginSystem.Load();
-            Logs.Info($"{Core.PluginSystem.PluginList.Count} Plugin(s) loaded.");
-            Data.Init();
-            ConsoleManager.Init();
-            Core.DataBridge.Init();
-            Logs.Info($"Loaded all data.");
-            Core.Command.InitAllCommands();
-            Logs.Info($"Registered all commands.");
-            Core.Net.Instance.Init(Config.Instance.ListenIP, Config.Instance.ListenPort);
-            Logs.Info($"Opened socket server successfully, listening to port {Config.Instance.ListenPort}.");
+            Assembly.GetExecutingAssembly()
+                        .GetTypes()
+                        .ForEach(t => t.GetMethods(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)
+                        .Where(m => m.GetCustomAttribute<AutoInitAttribute>() is { }).ForEach(m =>
+                        {
+                            try
+                            {
+                                var a = m.GetCustomAttribute<AutoInitAttribute>();
+                                if (a.PreInitMessage is { } pre)
+                                    Logs.Info(pre);
+                                m.Invoke(null, null);
+                                if (a.PostInitMessage is { } post)
+                                    Logs.Info(post);
+                            }
+                            catch (Exception ex)
+                            {
+                                Logs.Error($"An error occurred while initilizing: [{m.DeclaringType.Name}.{m.Name}]{Environment.NewLine}{ex}");
+                            }
+                        }));
             Logs.Success($"MultiSEngine startted.");
         }
         public static void Close()

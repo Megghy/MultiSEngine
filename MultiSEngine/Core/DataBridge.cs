@@ -10,10 +10,11 @@ namespace MultiSEngine.Core
     {
         internal static readonly Dictionary<string, Type> CustomPackets = new();
         public static string Token => Config.Instance.Token;
+        [AutoInit]
         internal static void Init()
         {
-            Net.Instance.ServerSerializer.RegisterPacket<CustomPacketStuff.CustomDataPacket>();
-            Net.Instance.ClientSerializer.RegisterPacket<CustomPacketStuff.CustomDataPacket>();
+            Net.ServerSerializer.RegisterPacket<CustomPacketStuff.CustomDataPacket>();
+            Net.ClientSerializer.RegisterPacket<CustomPacketStuff.CustomDataPacket>();
             AppDomain.CurrentDomain.GetAssemblies().ForEach(assembly =>
             {
                 try
