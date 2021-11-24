@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.IO;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 using TrProtocol;
 
@@ -44,7 +45,6 @@ namespace MultiSEngine.Core.Adapter
         public abstract void SendPacket(Packet packet);
         public virtual BaseAdapter Start()
         {
-            //Connection.BeginReceive(Buffer, 0, Buffer.Length, SocketFlags.None, new AsyncCallback(ReceiveMessage), null);
             Task.Run(RecieveLoop);
             Task.Run(ProcessPacketLoop);
             return this;
@@ -76,8 +76,11 @@ namespace MultiSEngine.Core.Adapter
         {
             while (!ShouldStop)
             {
-                while (PacketPool.Count < 1)
-                    Task.Delay(1).Wait();
+                if (PacketPool.Count < 1)
+                {
+                    Thread.Sleep(1);
+                    continue;
+                }
                 var packet = PacketPool.Dequeue() as Packet;
                 try
                 {

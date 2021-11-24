@@ -3,6 +3,7 @@ using MultiSEngine.Modules;
 using System;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MultiSEngine
@@ -11,14 +12,15 @@ namespace MultiSEngine
     {
         static void Main(string[] args)
         {
-            Init();
+            Logs.Init();
+            AutoInit();
             while (!(Core.Command.HandleCommand(null, Console.ReadLine(), out var c, true) && !c))
-                Task.Delay(1).Wait();
+                Thread.Sleep(1);
             Close();
             Console.WriteLine("Bye!");
             Task.Delay(1000).Wait();
         }
-        public static void Init()
+        public static void AutoInit()
         {
 #if DEBUG
             Logs.Warn($"> MultiSEngine IS IN DEBUG MODE <");

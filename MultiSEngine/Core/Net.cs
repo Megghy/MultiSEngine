@@ -51,7 +51,6 @@ namespace MultiSEngine.Core
                 catch (Exception ex)
                 {
                     Logs.Error(ex);
-                    continue;
                 }
             }
         }
