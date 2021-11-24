@@ -56,7 +56,7 @@ namespace MultiSEngine.Modules.Cmds
                         break;
 #if DEBUG
                     case "let":
-                        if (parma.Count < 3)
+                        if (parma.Length < 3)
                             Console.Write("error /mse let name server");
                         else
                             Data.Clients.FirstOrDefault(c => c.Name.ToLower().StartsWith(parma[1].ToLower()))?.Join(Utils.GetServerInfoByName(parma[2]).FirstOrDefault());

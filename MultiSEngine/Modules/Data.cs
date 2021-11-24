@@ -7,10 +7,9 @@ using static MultiSEngine.Core.Command;
 
 namespace MultiSEngine.Modules
 {
-    internal class Data
+    public class Data
     {
-        public const int TRVersion = 242;
-        public static readonly List<DataStruct.ClientData> Clients = new();
+        public static readonly List<ClientData> Clients = new();
         public static readonly List<CmdBase> Commands = new();
         internal static byte[] StaticSpawnSquareData { get; set; }
         private static string _motd = string.Empty;
@@ -20,6 +19,23 @@ namespace MultiSEngine.Modules
             .Replace("{players}", string.Join(", ", Clients.Select(c => c.Name)))
             .Replace("{servers}", string.Join(", ", Config.Instance.Servers.Select(s => s.Name)));
         public static string MotdPath => Path.Combine(Environment.CurrentDirectory, "MOTD.txt");
+        public static string Convert(int version)
+        {
+            string protocol = $"Terraria{version}";
+            return protocol switch
+            {
+                "Terraria230" => "v1.4.0.5",
+                "Terraria233" => "v1.4.1.1",
+                "Terraria234" => "v1.4.1.2",
+                "Terraria235" => "v1.4.2",
+                "Terraria236" => "v1.4.2.1",
+                "Terraria237" => "v1.4.2.2",
+                "Terraria238" => "v1.4.2.3",
+                "Terraria242" => "v1.4.3",
+                "Terraria243" => "v1.4.3.1",
+                _ => "Unknown",
+            };
+        }
         [AutoInit]
         public static void Init()
         {

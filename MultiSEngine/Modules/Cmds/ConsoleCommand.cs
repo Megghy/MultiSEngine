@@ -39,6 +39,10 @@ namespace MultiSEngine.Modules.Cmds
                     Localization._instance = null;
                     Logs.Success("Successfully reloaded.");
                     break;
+                case "reloadplugin":
+                case "rp":
+                    Core.PluginSystem.Reload();
+                    break;
                 case "broadcast":
                 case "bc":
                     if (parma.Length > 1)
@@ -56,10 +60,11 @@ namespace MultiSEngine.Modules.Cmds
                     Logs.Info($"Avaliable console commands:{Environment.NewLine}" +
                         $"- stop(exit){Environment.NewLine}" +
                         $"- kick <Player name> (reason){Environment.NewLine}" +
-                        $"- bc <message> (target server){Environment.NewLine}" +
+                        $"- broadcase(bc) <message> (target server){Environment.NewLine}" +
                         $"- list{Environment.NewLine}" +
                         $"- online{Environment.NewLine}" +
-                        $"- reload{Environment.NewLine}", false);
+                        $"- reload{Environment.NewLine}" +
+                        $"- reloadplugin(rp){Environment.NewLine}", false);
                     break;
             }
             Data.Commands.FirstOrDefault(c => c.Name == "mce")?.Execute(client, cmdName, parma);

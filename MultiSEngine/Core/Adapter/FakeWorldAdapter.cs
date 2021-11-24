@@ -84,8 +84,8 @@ namespace MultiSEngine.Core.Adapter
                     if (!Hooks.OnPlayerJoin(Client, Client.IP, Client.Port, hello.Version, out var joinEvent))
                     {
                         Client.ReadVersion(joinEvent.Version);
-                        if (Client.Player.VersionNum != Data.TRVersion)
-                            Client.Disconnect(Localization.Instance["Prompt_NoAvailableServer", joinEvent.Version]);
+                        if (Client.Player.VersionNum != Config.Instance.ServerVersion)
+                            Client.Disconnect(Localization.Instance["Prompt_VersionNotAllowed", joinEvent.Version]);
                         else
                             InternalSendPacket(new LoadPlayer() { PlayerSlot = 0, ServerWantsToRunCheckBytesInClientLoopThread = true });
                     }

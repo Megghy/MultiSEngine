@@ -218,7 +218,7 @@ namespace MultiSEngine.Modules
             client.Player.VersionNum = version.StartsWith("Terraria") && int.TryParse(version[8..], out var v)
                             ? v
                             : Config.Instance.DefaultServerInternal.VersionNum;
-            Logs.Info($"Version num of {client.Name} is {client.Player.VersionNum}.");
+            Logs.Info($"Version of {client.Name} is {Data.Convert(client.Player.VersionNum)}.");
         }
         public static bool HandleCommand(this ClientData client, string cmd)
         {

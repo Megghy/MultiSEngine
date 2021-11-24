@@ -41,6 +41,7 @@ namespace MultiSEngine
         public string ListenIP { get; set; } = "0.0.0.0";
         public int ListenPort { get; set; } = 7778;
         public string ServerName { get; set; } = "MultiSEngine";
+        public int ServerVersion { get; set; } = 243;
         public string Token { get; set; } = "114514";
         public int SwitchTimeOut { get; set; } = 5000;
         public bool EnableChatForward { get; set; } = true;

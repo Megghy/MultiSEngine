@@ -78,6 +78,9 @@ namespace MultiSEngine.Core.Adapter
                     Player.UpdateData(playerInfo, false);
                     return true;
                 case WorldData worldData:
+#if DEBUG
+                    Client.SendInfoMessage($"SSC: {worldData.EventInfo1[6]}");
+#endif
                     Player.UpdateData(worldData, false);
                     if (Callback != null)
                     {
