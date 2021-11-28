@@ -8,7 +8,7 @@ using TrProtocol.Packets;
 
 namespace MultiSEngine.Core.Adapter
 {
-    internal class VisualPlayerAdapter : ServerAdapter, IStatusChangeable
+    public class VisualPlayerAdapter : ServerAdapter, IStatusChangeable
     {
         public VisualPlayerAdapter(ClientData client, Socket connection) : base(client, connection)
         {

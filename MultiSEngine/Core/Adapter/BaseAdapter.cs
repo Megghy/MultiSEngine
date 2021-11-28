@@ -1,6 +1,8 @@
 ﻿using MultiSEngine.DataStruct;
+using MultiSEngine.Modules;
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Sockets;
 using System.Threading;
@@ -26,10 +28,12 @@ namespace MultiSEngine.Core.Adapter
         #region 变量
         public int ErrorCount = 0;
         protected bool ShouldStop { get; set; } = false;
-        public virtual PacketSerializer Serializer => Net.ClientSerializer;
+        public int VersionNum => Client?.Player?.VersionNum ?? 0;
+        public virtual PacketSerializer InternalClientSerializer => VersionNum == 0 ? Net.DefaultClientSerializer : Net.ClientSerializer[VersionNum]; 
+        public virtual PacketSerializer InternalServerSerializer => VersionNum == 0 ? Net.DefaultServerSerializer : Net.ServerSerializer[VersionNum];
         public ClientData Client { get; protected set; }
         public Socket Connection { get; set; }
-        public Queue PacketPool { get; set; }
+        public ConcurrentQueue<Packet> PacketPool { get; set; }
         protected BinaryReader NetReader { get; set; }
         public abstract bool ListenningClient { get; }
         #endregion
@@ -57,50 +61,46 @@ namespace MultiSEngine.Core.Adapter
             Logs.Warn($"[{GetType()}] <{Connection.RemoteEndPoint}> Stopped");
 #endif
             ShouldStop = true;
-            lock (this)
+            if (disposeConnection)
             {
-                if (Client.CAdapter == this)
-                    Client.CAdapter = null;
-                if (Client.SAdapter == this)
-                    Client.SAdapter = null;
-                if (disposeConnection)
-                {
-                    try { Connection?.Shutdown(SocketShutdown.Both); } catch { }
-                    NetReader?.Dispose();
-                    NetReader = null;
-                    Connection?.Dispose();
-                }
+                try { Connection?.Shutdown(SocketShutdown.Both); } catch { }
+                NetReader?.Dispose();
+                NetReader = null;
+                Connection?.Dispose();
+                Connection = null;
             }
         }
         protected void ProcessPacketLoop()
         {
             while (!ShouldStop)
             {
-                if (PacketPool.Count < 1)
+                if (PacketPool.TryDequeue(out var packet))
                 {
-                    Thread.Sleep(1);
-                    continue;
-                }
-                var packet = PacketPool.Dequeue() as Packet;
-                try
-                {
-                    if (packet is not null && !Hooks.OnGetPacket(Client, packet, ListenningClient, out _) && GetPacket(packet))
-                        SendPacket(packet);
-                }
+                    try
+                    {
+                        if (packet is not null && !Hooks.OnGetPacket(Client, packet, ListenningClient, out _) && GetPacket(packet))
+                            SendPacket(packet);
+                    }
 #if DEBUG
                 catch (IOException io)
                 {
                     Console.WriteLine(io);
                 }
 #endif
-                catch (Exception ex)
-                {
-                    Logs.Error($"An error occurred while processing packet {packet}.{Environment.NewLine}{ex}");
+                    catch (BadBoundException)
+                    {
+                    }
+                    catch (Exception ex)
+                    {
+                        Logs.Error($"An error occurred while processing packet {packet}.{Environment.NewLine}{ex}");
+                    }
                 }
+                else
+                    Thread.Sleep(1);
             }
             PacketPool.Clear();
         }
-        public virtual void OnRecieveLoopError(Exception ex)
+        protected virtual void OnRecieveLoopError(Exception ex)
         {
 #if DEBUG
             Console.WriteLine($"[Recieve Loop Error] {ex}");
@@ -110,40 +110,35 @@ namespace MultiSEngine.Core.Adapter
             {
                 case EndOfStreamException:
                 case IOException:
-                    break;
-                case Exception:
-                    Logs.Warn($"Socket connection abnormally terminated.\r\n{ex}");
+                case BadBoundException:
                     break;
                 default:
+                    Logs.Warn($"{(ListenningClient ? "Client" : "Server")} recieve loop abnormally terminated.\r\n{ex}");
                     break;
             }
         }
         protected void RecieveLoop()
         {
-            try
+            while (!ShouldStop && NetReader is { BaseStream: not null })
             {
-                while (NetReader is { BaseStream: not null } && !ShouldStop)
+                try
                 {
-                    PacketPool.Enqueue(Serializer.Deserialize(NetReader));
+                    PacketPool.Enqueue((ListenningClient ? InternalServerSerializer : InternalClientSerializer).Deserialize(NetReader));
                 }
-            }
-            catch (Exception ex)
-            {
-                OnRecieveLoopError(ex);
-            }
-            finally
-            {
-                if (!ShouldStop)
-                    Stop(true);
+                catch (Exception ex)
+                {
+                    OnRecieveLoopError(ex);
+                }
+
             }
         }
-        public virtual void InternalSendPacket(Packet packet)
+        public virtual void InternalSendPacket(Packet packet, bool asClient = false)
         {
 #if DEBUG
             Console.WriteLine($"[Internal Send] {packet}");
 #endif
             if (!ShouldStop)
-                Connection?.Send(Serializer.Serialize(packet));
+                Connection?.Send((asClient ? InternalClientSerializer : InternalServerSerializer).Serialize(packet));
         }
     }
 }

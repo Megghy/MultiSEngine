@@ -53,7 +53,7 @@ namespace MultiSEngine.Modules
                         client.State = ClientData.ClientState.InGame;
                         client.SAdapter?.Stop(true);
                         client.SAdapter = client.TempAdapter;
-                        client.TempConnection = null;
+                        client.TempConnection = null; 
                         client.TempAdapter = null;
                         client.TimeOutTimer.Stop();
                         client.Sync();
@@ -119,10 +119,11 @@ namespace MultiSEngine.Modules
         {
             Logs.Text($"[{client.Name}] disconnected. {reason}");
             Core.Hooks.OnPlayerLeave(client, out _);
-            if (client.State == ClientData.ClientState.NewConnection)
-                Data.Clients.Where(c => c.Server is null && c != client).ForEach(c => c.SendMessage($"{client.Name} has leave."));
-            if (client.CAdapter?.Connection is { Connected: true } && !client.Disposed)
+            Data.Clients.Where(c => c.Server is null && c != client).ForEach(c => c.SendMessage($"{client.Name} has leave."));
+            if (client.CAdapter?.Connection is { Connected: true })
                 client.SendDataToClient(new Kick() { Reason = new(reason ?? "Unknown", NetworkText.Mode.Literal) });
+            if (!Data.Clients.Remove(client))
+                Logs.Warn($"Abnormal disposed of client data.");
             client.Dispose();
         }
     }
@@ -172,23 +173,23 @@ namespace MultiSEngine.Modules
                 Logs.Info($"Failed to send data to server: {client.Name}");
             }
         }
-        public static bool SendDataToClient(this ClientData client, Packet packet, bool serializerAsClient = false)
+        public static bool SendDataToClient(this ClientData client, Packet packet, bool asClient = false)
         {
             if (packet is null)
                 throw new ArgumentNullException(nameof(packet));
             if (Core.Hooks.OnSendPacket(client, packet, true, out _))
                 return true;
-            if (packet is WorldData world && (client.Player.TileX > world.MaxTileX || client.Player.TileY > world.MaxTileY))
+            if (packet is WorldData world && (client.Player.TileX >= world.MaxTileX || client.Player.TileY >= world.MaxTileY))
                 client.TP(client.SpawnY, client.SpawnY); //防止玩家超出地图游戏崩溃
-            return client.SendDataToClient(packet.Serialize(serializerAsClient));
+            return client.SendDataToClient((asClient ? client.CAdapter.InternalClientSerializer : client.CAdapter.InternalServerSerializer).Serialize(packet));
         }
-        public static void SendDataToServer(this ClientData client, Packet packet, bool serializerAsClient = false)
+        public static void SendDataToServer(this ClientData client, Packet packet, bool asClient = false)
         {
             if (packet is null)
                 throw new ArgumentNullException(nameof(packet));
             if (Core.Hooks.OnSendPacket(client, packet, false, out _))
                 return;
-            client.SendDataToServer(packet.Serialize(serializerAsClient));
+            client.SendDataToServer((asClient ? Core.Net.DefaultClientSerializer : Core.Net.DefaultServerSerializer).Serialize(packet)); //发送给服务端则不需要区分版本
         }
         public static void SendMessage(this ClientData client, string text, Color color, bool withPrefix = true)
         {
@@ -215,6 +216,7 @@ namespace MultiSEngine.Modules
         public static void ReadVersion(this ClientData client, ClientHello hello) => client.ReadVersion(hello.Version);
         public static void ReadVersion(this ClientData client, string version)
         {
+            
             client.Player.VersionNum = version.StartsWith("Terraria") && int.TryParse(version[8..], out var v)
                             ? v
                             : Config.Instance.DefaultServerInternal.VersionNum;

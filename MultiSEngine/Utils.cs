@@ -39,7 +39,6 @@ namespace MultiSEngine
             catch { }
             return false;
         }
-        public static byte[] Serialize<T>(this T packet, bool client = true) where T : Packet => client ? Core.Net.ClientSerializer?.Serialize(packet) : Core.Net.ServerSerializer?.Serialize(packet);
         public static ServerInfo[] GetServerInfoByName(string name)
         {
             return Config.Instance.Servers.Where(s => s.Name.ToLower().StartsWith(name.ToLower()) || s.Name.ToLower().Contains(name.ToLower())).ToArray();
@@ -80,7 +79,7 @@ namespace MultiSEngine
             {
                 list[i] = tile;
             }
-            return Core.Net.ServerSerializer.Serialize(new TrProtocol.Packets.TileSection()
+            return Core.Net.DefaultServerSerializer.Serialize(new TrProtocol.Packets.TileSection()
             {
                 Data = new()
                 {

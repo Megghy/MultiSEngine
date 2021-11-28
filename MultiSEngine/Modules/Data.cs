@@ -1,4 +1,5 @@
-﻿using MultiSEngine.DataStruct;
+﻿using MultiSEngine.Core;
+using MultiSEngine.DataStruct;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,7 +8,7 @@ using static MultiSEngine.Core.Command;
 
 namespace MultiSEngine.Modules
 {
-    public class Data
+    public static class Data
     {
         public static readonly List<ClientData> Clients = new();
         public static readonly List<CmdBase> Commands = new();
@@ -33,12 +34,19 @@ namespace MultiSEngine.Modules
                 "Terraria238" => "v1.4.2.3",
                 "Terraria242" => "v1.4.3",
                 "Terraria243" => "v1.4.3.1",
+                "Terraria244" => "v1.4.3.2",
                 _ => "Unknown",
             };
         }
-        [AutoInit]
+        public static readonly int[] Versions = { 230, 233, 234, 235, 236, 237, 238, 242, 243, 244 };
+        [AutoInit(order: 0)]
         public static void Init()
         {
+            Versions.ForEach(v =>
+            {
+                Net.ClientSerializer.TryAdd(v, new(true, $"Terraria{v}"));
+                Net.ServerSerializer.TryAdd(v, new(false, $"Terraria{v}"));
+            });
             StaticSpawnSquareData = Utils.GetTileSection(4150, 1150, 100, 100);
             if (!File.Exists(MotdPath))
                 File.WriteAllText(MotdPath, Properties.Resources.DefaultMotd);

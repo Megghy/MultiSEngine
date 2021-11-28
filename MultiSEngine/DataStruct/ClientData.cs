@@ -6,7 +6,7 @@ using System.Timers;
 
 namespace MultiSEngine.DataStruct
 {
-    public class ClientData
+    public class ClientData : IClientAdapter<FakeWorldAdapter>, IServerAdapter<VisualPlayerAdapter>
     {
         public enum ClientState
         {
@@ -21,8 +21,6 @@ namespace MultiSEngine.DataStruct
         }
         public ClientData(ClientAdapter ca = null)
         {
-            CAdapter = ca;
-
             TimeOutTimer = new()
             {
                 Interval = Config.Instance.SwitchTimeOut,
@@ -30,26 +28,10 @@ namespace MultiSEngine.DataStruct
             };
             TimeOutTimer.Elapsed += OnTimeOut;
         }
-        public ServerAdapter SAdapter
-        {
-            get;
-            set;
-        }
-        private ClientAdapter _cAdapter;
-        public ClientAdapter CAdapter
-        {
-            get => _cAdapter; set
-            {
-                _cAdapter = value;
-                if (value != null)
-                {
-                    IP = (value.Connection.RemoteEndPoint as IPEndPoint)?.Address.ToString();
-                    Port = (value.Connection.RemoteEndPoint as IPEndPoint)?.Port ?? -1;
-                }
-            }
-        }
+        public FakeWorldAdapter CAdapter { get; set; }
+        public VisualPlayerAdapter SAdapter { get; set; }
         internal Socket TempConnection { get; set; }
-        internal ServerAdapter TempAdapter { get; set; }
+        internal VisualPlayerAdapter TempAdapter { get; set; }
 
         public ClientState State { get; set; } = ClientState.NewConnection;
         public string IP { get; set; }
@@ -86,7 +68,6 @@ namespace MultiSEngine.DataStruct
         }
         public void Dispose()
         {
-            Data.Clients.Remove(this);
             Disposed = true;
             State = ClientState.Disconnect;
             SAdapter?.Stop(true);

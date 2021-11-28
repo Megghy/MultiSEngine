@@ -4,7 +4,7 @@
 	  <LangVersion>preview</LangVersion>
     <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
-    <AssemblyVersion>1.0.5.2</AssemblyVersion>
+    <AssemblyVersion>1.0.5.3</AssemblyVersion>
     <FileVersion>1.0.5.2</FileVersion>
     <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
     <AnalysisLevel>latest</AnalysisLevel>

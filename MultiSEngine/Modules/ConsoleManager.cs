@@ -1,7 +1,5 @@
 ﻿using MultiSEngine.DataStruct;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Timers;
@@ -24,7 +22,7 @@ namespace MultiSEngine.Modules
         }
         private static void Loop(object sender, ElapsedEventArgs e)
         {
-            Console.Title = $"{Title}  {Data.Clients.Count} Online @{Config.Instance.ListenIP}:{Config.Instance.ListenPort} <V{Assembly.GetExecutingAssembly().GetName().Version}, for Terraria-1.4.3>";
+            Console.Title = $"{Title}  {Data.Clients.Count} Online @{Config.Instance.ListenIP}:{Config.Instance.ListenPort} <V{Assembly.GetExecutingAssembly().GetName().Version}, for {Data.Convert(Config.Instance.ServerVersion)}>";
             Task.Delay(1000).Wait();
         }
     }

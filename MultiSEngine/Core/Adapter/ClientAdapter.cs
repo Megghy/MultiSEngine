@@ -2,6 +2,7 @@
 using MultiSEngine.Modules;
 using System;
 using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using TrProtocol;
 using TrProtocol.Packets;
@@ -12,16 +13,15 @@ namespace MultiSEngine.Core.Adapter
     {
         public ClientAdapter(ClientData client, Socket connection) : base(client, connection)
         {
-            client.CAdapter = this;
+            client.IP = (Connection.RemoteEndPoint as IPEndPoint)?.Address.ToString();
+            client.Port = (Connection.RemoteEndPoint as IPEndPoint)?.Port ?? -1;
         }
-        public override PacketSerializer Serializer => Net.ServerSerializer;
-        public override bool ListenningClient => true;
-        public override void OnRecieveLoopError(Exception ex)
+        protected override void OnRecieveLoopError(Exception ex)
         {
             base.OnRecieveLoopError(ex);
-            if (Client.State != ClientData.ClientState.Disconnect)
-                Client.Disconnect();
+            Client.Disconnect();
         }
+        public override bool ListenningClient => true;
         public override bool GetPacket(Packet packet)
         {
             switch (packet)

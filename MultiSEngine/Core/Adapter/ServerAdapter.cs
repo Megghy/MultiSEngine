@@ -14,15 +14,17 @@ namespace MultiSEngine.Core.Adapter
         {
         }
         public override bool ListenningClient => false;
-        public override void OnRecieveLoopError(Exception ex)
+        protected override void OnRecieveLoopError(Exception ex)
         {
-            if (!ShouldStop)
+            if (ex is SocketException && !ShouldStop)
             {
                 Stop(true);
                 Logs.Warn($"Cannot continue to maintain connection between {Client.Name} and server {Client.Server?.Name}{Environment.NewLine}{ex}");
                 Client.SendErrorMessage(Localization.Instance["Prompt_UnknownError"]);
                 Client.Back();
             }
+            else
+                base.OnRecieveLoopError(ex);
         }
         public override bool GetPacket(Packet packet)
         {

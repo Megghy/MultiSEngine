@@ -1,6 +1,7 @@
 ﻿using MultiSEngine.DataStruct;
 using MultiSEngine.Modules;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -26,26 +27,40 @@ namespace MultiSEngine
             Logs.Warn($"> MultiSEngine IS IN DEBUG MODE <");
 #endif
             Logs.Info("Initializing the program...");
+            AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(CurrentDomain_UnhandledException);
+            var auto = new Dictionary<MethodInfo, AutoInitAttribute>();
             Assembly.GetExecutingAssembly()
                         .GetTypes()
                         .ForEach(t => t.GetMethods(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)
-                        .Where(m => m.GetCustomAttribute<AutoInitAttribute>() is { }).ForEach(m =>
+                        .ForEach(m =>
                         {
-                            try
-                            {
-                                var a = m.GetCustomAttribute<AutoInitAttribute>();
-                                if (a.PreInitMessage is { } pre)
-                                    Logs.Info(pre);
-                                m.Invoke(null, null);
-                                if (a.PostInitMessage is { } post)
-                                    Logs.Info(post);
-                            }
-                            catch (Exception ex)
-                            {
-                                Logs.Error($"An error occurred while initilizing: [{m.DeclaringType.Name}.{m.Name}]{Environment.NewLine}{ex}");
-                            }
+                            if (m.GetCustomAttribute<AutoInitAttribute>() is { } attr)
+                                auto.Add(m, attr);
                         }));
+            auto.OrderBy(a => a.Value.Order).ForEach(kv =>
+            {
+                try
+                {
+#if DEBUG
+                    Console.WriteLine($"[{kv.Key.DeclaringType.Name}.{kv.Key.Name}] => Initialzing");
+#endif
+                    var attr = kv.Value;
+                    if (attr.PreInitMessage is { } pre)
+                        Logs.Info(pre);
+                    kv.Key.Invoke(null, null);
+                    if (attr.PostInitMessage is { } post)
+                        Logs.Info(post);
+                }
+                catch (Exception ex)
+                {
+                    Logs.Error($"An error occurred while initilizing: [{kv.Key.DeclaringType.Name}.{kv.Key.Name}]{Environment.NewLine}{ex}");
+                }
+            });
             Logs.Success($"MultiSEngine startted.");
+        }
+        static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            Logs.Error(e.ExceptionObject as Exception is { } error ? string.Format("Application UnhandledException:{0};\nStackTrace:{1}", error.Message, error.StackTrace) : string.Format("Application UnhandledError:{0}", e));
         }
         public static void Close()
         {

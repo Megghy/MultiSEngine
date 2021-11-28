@@ -15,7 +15,7 @@ namespace MultiSEngine
         public static Config Load()
         {
             if (File.Exists(ConfigPath))
-                return JsonSerializer.Deserialize<Config>(File.ReadAllText(ConfigPath));
+                return CheckConfig(JsonSerializer.Deserialize<Config>(File.ReadAllText(ConfigPath)));
             else
             {
                 var confg = new Config()
@@ -37,13 +37,34 @@ namespace MultiSEngine
                 return confg;
             }
         }
-
+        public static Config CheckConfig(Config config)
+        {
+            for (int i = 0; i < config.Servers.Count; i++)
+            {
+                var c = config.Servers[i];
+                var sameNames = config.Servers.Where(s => s.Name == c.Name).ToList();
+                if (sameNames.Count > 1)
+                {
+                    sameNames.RemoveAt(0);
+                    sameNames.ForEach(s => config.Servers.Remove(s));
+                    Logs.Warn($"A server with the same name was found in the config file: [{c.Name}], redundant items have been removed");
+                }
+            }
+            if(config.Servers.Where(s => string.IsNullOrEmpty(s.Name)).ToArray() is { Length: > 0 } emptyNames)
+            {
+                emptyNames.ForEach(s => config.Servers.Remove(s));
+                Logs.Warn($"Found [{emptyNames.Length}] servers with empty names in the configuration file, removed");
+            }
+            config.Servers.Where(s => Modules.Data.Convert(config.ServerVersion) == "Unknown").ForEach(s => Logs.Warn($"The server [{s.Name}] specifies an unknown ServerVersion, which may cause some problems."));
+            return config;
+        }
         public string ListenIP { get; set; } = "0.0.0.0";
         public int ListenPort { get; set; } = 7778;
         public string ServerName { get; set; } = "MultiSEngine";
-        public int ServerVersion { get; set; } = 243;
+        public int ServerVersion { get; set; } = 244;
         public string Token { get; set; } = "114514";
         public int SwitchTimeOut { get; set; } = 5000;
+        public bool EnableCrossplayFeature { get; set; } = false;
         public bool EnableChatForward { get; set; } = true;
         public bool SwitchToDefaultServerOnJoin { get; set; } = false;
         public bool RestoreDataWhenJoinNonSSC { get; set; } = true;

@@ -9,7 +9,7 @@ using TrProtocol.Packets;
 
 namespace MultiSEngine.Core.Adapter
 {
-    internal class FakeWorldAdapter : ClientAdapter, IStatusChangeable
+    public class FakeWorldAdapter : ClientAdapter, IStatusChangeable
     {
         public FakeWorldAdapter(Socket connection) : this(null, connection)
         {
@@ -84,16 +84,17 @@ namespace MultiSEngine.Core.Adapter
                     if (!Hooks.OnPlayerJoin(Client, Client.IP, Client.Port, hello.Version, out var joinEvent))
                     {
                         Client.ReadVersion(joinEvent.Version);
-                        if (Client.Player.VersionNum != Config.Instance.ServerVersion)
+                        if (Client.Player.VersionNum != Config.Instance.ServerVersion && !Config.Instance.EnableCrossplayFeature)
                             Client.Disconnect(Localization.Instance["Prompt_VersionNotAllowed", joinEvent.Version]);
                         else
+                        {
                             InternalSendPacket(new LoadPlayer() { PlayerSlot = 0, ServerWantsToRunCheckBytesInClientLoopThread = true });
+                        }
                     }
                     return false;
                 case RequestWorldInfo:
                     var bb = new BitsByte();
                     bb[6] = true;
-                    //Client.Player.OriginData.WorldData = new() { EventInfo1 = bb, SpawnX = 4200, SpawnY = 1200 };
                     Client.Player.OriginData.WorldData = new WorldData()
                     {
                         EventInfo1 = bb,
@@ -103,7 +104,7 @@ namespace MultiSEngine.Core.Adapter
                         MaxTileY = Height,
                         GameMode = 0,
                         WorldName = Config.Instance.ServerName,
-                        WorldUniqueID = Guid.NewGuid()
+                        WorldUniqueID = Guid.Empty
                     };
                     Client.SendDataToClient(Client.Player.OriginData.WorldData);
                     return false;

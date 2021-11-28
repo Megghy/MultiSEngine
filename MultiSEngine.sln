@@ -9,8 +9,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MultiSEngine", "MultiSEngin
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MultiSEngine.TShock", "..\MultiSEngine.TShock\MultiSEngine.TShock\MultiSEngine.TShock.csproj", "{140D6D24-1EA3-45C1-AC9B-E5266FED1A94}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MultiSEngine.Crossplay", "..\MultiSEngine.Crossplay\MultiSEngine.Crossplay\MultiSEngine.Crossplay.csproj", "{CAF8A4E1-D207-4FDF-A4AF-4AA46AF75B43}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,10 +27,6 @@ Global
 		{140D6D24-1EA3-45C1-AC9B-E5266FED1A94}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{140D6D24-1EA3-45C1-AC9B-E5266FED1A94}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{140D6D24-1EA3-45C1-AC9B-E5266FED1A94}.Release|Any CPU.Build.0 = Release|Any CPU
-		{CAF8A4E1-D207-4FDF-A4AF-4AA46AF75B43}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{CAF8A4E1-D207-4FDF-A4AF-4AA46AF75B43}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{CAF8A4E1-D207-4FDF-A4AF-4AA46AF75B43}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{CAF8A4E1-D207-4FDF-A4AF-4AA46AF75B43}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
