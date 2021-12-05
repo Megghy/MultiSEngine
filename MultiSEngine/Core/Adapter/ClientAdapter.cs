@@ -38,9 +38,7 @@ namespace MultiSEngine.Core.Adapter
                             Client.Disconnect("No default server is set for the current server.");
                     }
                     return false;
-                case SyncPlayer playerInfo:
-                    Client.Player.UpdateData(playerInfo, true);
-                    return true;
+                case SyncPlayer:
                 case SyncEquipment:
                 case PlayerHealth:
                 case PlayerMana:

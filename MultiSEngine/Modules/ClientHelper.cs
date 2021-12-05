@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
+using System.Runtime.Intrinsics.X86;
 using TrProtocol;
 using TrProtocol.Models;
 using TrProtocol.Packets;
@@ -43,8 +44,7 @@ namespace MultiSEngine.Modules
                     client.TempConnection = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                     await client.TempConnection.ConnectAsync(ip, server.Port); //新建与服务器的连接
 
-                    if (client.CAdapter is FakeWorldAdapter fwa)
-                        fwa.ChangeProcessState(true);  //切换至正常的客户端处理
+                    client.CAdapter.ChangeProcessState(true);  //切换至正常的客户端处理
 
                     var tempAdapter = new VisualPlayerAdapter(client, client.TempConnection);
                     client.TempAdapter = tempAdapter;
@@ -56,7 +56,7 @@ namespace MultiSEngine.Modules
                         client.TempConnection = null; 
                         client.TempAdapter = null;
                         client.TimeOutTimer.Stop();
-                        client.Sync();
+                        client.Sync(server);
                     });
                 }
                 catch (Exception ex)
@@ -82,11 +82,11 @@ namespace MultiSEngine.Modules
                 (client.CAdapter as FakeWorldAdapter)?.BackToThere();
             }
             else if (client.Server is null)
-                client.SendErrorMessage(Localization.Instance["Prompt_CannotConnect", (client.TempAdapter as VisualPlayerAdapter)?.TempServer?.Name]);
+                client.SendErrorMessage(Localization.Instance["Prompt_CannotConnect", client.TempAdapter?.TempServer?.Name]);
             else
                 client.Join(Config.Instance.DefaultServerInternal);
         }
-        public static void Sync(this ClientData client)
+        public static void Sync(this ClientData client, ServerInfo targetServer)
         {
             Logs.Text($"Syncing player: [{client.Name}]");
             client.Syncing = true;

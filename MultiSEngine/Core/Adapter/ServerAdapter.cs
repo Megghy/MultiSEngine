@@ -24,7 +24,13 @@ namespace MultiSEngine.Core.Adapter
                 Client.Back();
             }
             else
+            {
                 base.OnRecieveLoopError(ex);
+                if (ErrorCount > 10)
+                {
+                    Stop(true);
+                }
+            }
         }
         public override bool GetPacket(Packet packet)
         {

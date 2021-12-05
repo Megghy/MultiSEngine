@@ -13,7 +13,6 @@ namespace MultiSEngine
     {
         static void Main(string[] args)
         {
-            Logs.Init();
             AutoInit();
             while (!(Core.Command.HandleCommand(null, Console.ReadLine(), out var c, true) && !c))
                 Thread.Sleep(1);
@@ -26,6 +25,7 @@ namespace MultiSEngine
 #if DEBUG
             Logs.Warn($"> MultiSEngine IS IN DEBUG MODE <");
 #endif
+            Logs.Init();
             Logs.Info("Initializing the program...");
             AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(CurrentDomain_UnhandledException);
             var auto = new Dictionary<MethodInfo, AutoInitAttribute>();

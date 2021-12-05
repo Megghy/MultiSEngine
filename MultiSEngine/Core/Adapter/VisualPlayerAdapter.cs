@@ -85,9 +85,9 @@ namespace MultiSEngine.Core.Adapter
                     if (Callback != null)
                     {
                         TestConnecting = false;
-                        Client.Server = TempServer;
-                        Callback.Invoke(Client);
+                        Callback?.Invoke(Client);
                         Callback = null;
+                        Client.Server = TempServer;
                     }
                     InternalSendPacket(new RequestTileData() { Position = new(Client.SpawnX, Client.SpawnY) });//请求物块数据
                     InternalSendPacket(new SpawnPlayer() { Position = new(Client.SpawnX, Client.SpawnY) });//请求物块数据

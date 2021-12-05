@@ -35,7 +35,7 @@ namespace MultiSEngine.DataStruct
             switch (packet)
             {
                 case SyncEquipment item:
-                    if (fromClient && !SSC)
+                    if (!SSC)
                         OriginData.Inventory[item.ItemSlot] = item;
                     else
                         ServerData.Inventory[item.ItemSlot] = item;

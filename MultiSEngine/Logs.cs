@@ -31,25 +31,18 @@ namespace MultiSEngine
         {
             LogAndSave(text, "[Success]", ConsoleColor.Green, save);
         }
-        private static StreamWriter logSW;
         internal static void Init()
         {
             if (!Directory.Exists(LogPath))
                 Directory.CreateDirectory(LogPath);
-            logSW = new(new FileStream(LogName, FileMode.OpenOrCreate));
         }
         public static void LogAndSave(object message, string prefix = "[Log]", ConsoleColor color = DefaultColor, bool save = true)
         {
-            if (!File.Exists(LogName))
-            {
-                logSW?.Dispose();
-                logSW = new(new FileStream(LogName, FileMode.OpenOrCreate)); ;
-            }
             Console.ForegroundColor = color;
             Console.WriteLine($"{prefix} {message}");
             Console.ForegroundColor = DefaultColor;
             if (save)
-                logSW.WriteLine($"{DateTime.Now:yyyy-MM-dd-HH:mm:ss} - {prefix} {message}");
+                File.WriteAllText(LogName, $"{DateTime.Now:yyyy-MM-dd-HH:mm:ss} - {prefix} {message}");
         }
     }
 }

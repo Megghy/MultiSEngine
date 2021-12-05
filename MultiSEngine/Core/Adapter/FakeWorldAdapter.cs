@@ -34,7 +34,7 @@ namespace MultiSEngine.Core.Adapter
             Client.Player.ServerData = new();
             Client.Server = null;
             Client.SAdapter?.Stop(true);
-            Client.Sync();
+            Client.Sync(null);
             Client.TP(4200, 1200);
             Client.SendDataToClient(new TileSection()
             {
@@ -85,7 +85,7 @@ namespace MultiSEngine.Core.Adapter
                     {
                         Client.ReadVersion(joinEvent.Version);
                         if (Client.Player.VersionNum != Config.Instance.ServerVersion && !Config.Instance.EnableCrossplayFeature)
-                            Client.Disconnect(Localization.Instance["Prompt_VersionNotAllowed", joinEvent.Version]);
+                            Client.Disconnect(Localization.Instance["Prompt_VersionNotAllowed", Data.Convert(Client.Player.VersionNum)]);
                         else
                         {
                             InternalSendPacket(new LoadPlayer() { PlayerSlot = 0, ServerWantsToRunCheckBytesInClientLoopThread = true });
@@ -125,7 +125,7 @@ namespace MultiSEngine.Core.Adapter
                         {
                             if (Config.Instance.DefaultServerInternal is { })
                             {
-                                Client.SendInfoMessage(Localization.Instance["Command_Switch", new[] { Config.Instance.DefaultServerInternal.Name }]);
+                                Client.SendInfoMessage(Localization.Instance["Command_Switch", Config.Instance.DefaultServerInternal.Name]);
                                 Client.Join(Config.Instance.DefaultServerInternal);
                             }
                             else

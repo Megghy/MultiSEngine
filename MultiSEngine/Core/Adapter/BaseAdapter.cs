@@ -28,7 +28,7 @@ namespace MultiSEngine.Core.Adapter
         #region 变量
         public int ErrorCount = 0;
         protected bool ShouldStop { get; set; } = false;
-        public int VersionNum => Client?.Player?.VersionNum ?? 0;
+        public int VersionNum => Client.Player?.VersionNum ?? 0;
         public virtual PacketSerializer InternalClientSerializer => VersionNum == 0 ? Net.DefaultClientSerializer : Net.ClientSerializer[VersionNum]; 
         public virtual PacketSerializer InternalServerSerializer => VersionNum == 0 ? Net.DefaultServerSerializer : Net.ServerSerializer[VersionNum];
         public ClientData Client { get; protected set; }
@@ -55,12 +55,11 @@ namespace MultiSEngine.Core.Adapter
         }
         public virtual void Stop(bool disposeConnection = false)
         {
-            if (ShouldStop)
-                return;
 #if DEBUG
-            Logs.Warn($"[{GetType()}] <{Connection.RemoteEndPoint}> Stopped");
+            Logs.Warn($"[{GetType()}] <{Connection?.RemoteEndPoint}> Stopped");
 #endif
             ShouldStop = true;
+            Client.TimeOutTimer?.Stop();
             if (disposeConnection)
             {
                 try { Connection?.Shutdown(SocketShutdown.Both); } catch { }
@@ -123,7 +122,7 @@ namespace MultiSEngine.Core.Adapter
             {
                 try
                 {
-                    PacketPool.Enqueue((ListenningClient ? InternalServerSerializer : InternalClientSerializer).Deserialize(NetReader));
+                    PacketPool.Enqueue((ListenningClient ? InternalServerSerializer : Net.DefaultClientSerializer).Deserialize(NetReader));
                 }
                 catch (Exception ex)
                 {
@@ -138,7 +137,7 @@ namespace MultiSEngine.Core.Adapter
             Console.WriteLine($"[Internal Send] {packet}");
 #endif
             if (!ShouldStop)
-                Connection?.Send((asClient ? InternalClientSerializer : InternalServerSerializer).Serialize(packet));
+                Connection?.Send((ListenningClient ? (asClient ? InternalClientSerializer : InternalServerSerializer) : (asClient ? Net.DefaultClientSerializer : Net.DefaultServerSerializer)).Serialize(packet));
         }
     }
 }
