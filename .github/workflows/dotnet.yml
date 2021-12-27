@@ -1,0 +1,38 @@
+name: Nighty
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 6.0.x
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Build
+      run: |
+        dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true --self-contained false
+        dotnet publish -c Release -r linux-x64 -p:PublishSingleFile=true --self-contained false
+        dotnet publish -c Release -r linux-arm64 -p:PublishSingleFile=true --self-contained false
+    - uses: actions/upload-artifact@v2
+      with:
+        name: MultiSEngine-Win.exe
+        path: ./BiliAPI/bin/Release/net6.0/win-x64/publish/MultiSEngine.exe
+    - uses: actions/upload-artifact@v2
+      with:
+        name: MultiSEngine-Linux
+        path: ./BiliAPI/bin/Release/net6.0/linux-x64/publish/MultiSEngine
+    - uses: actions/upload-artifact@v2
+      with:
+        name: MultiSEngine-Arm64
+        path: ./BiliAPI/bin/Release/net6.0/linux-arm64/publish/MultiSEngine
