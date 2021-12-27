@@ -146,7 +146,7 @@ namespace MultiSEngine.Modules
                 }
                 using var arg = new SocketAsyncEventArgs();
                 arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer?.Length ?? 3);
-                client.CAdapter?.Connection?.SendAsync(arg);
+                client?.CAdapter?.Connection?.SendAsync(arg);
                 return true;
             }
             catch (Exception ex)
@@ -177,6 +177,8 @@ namespace MultiSEngine.Modules
         {
             if (packet is null)
                 throw new ArgumentNullException(nameof(packet));
+            if (client is null)
+                throw new ArgumentNullException(nameof(client));
             if (Core.Hooks.OnSendPacket(client, packet, true, out _))
                 return true;
             if (packet is WorldData world && (client.Player.TileX >= world.MaxTileX || client.Player.TileY >= world.MaxTileY))
@@ -187,6 +189,8 @@ namespace MultiSEngine.Modules
         {
             if (packet is null)
                 throw new ArgumentNullException(nameof(packet));
+            if (client is null)
+                throw new ArgumentNullException(nameof(client));
             if (Core.Hooks.OnSendPacket(client, packet, false, out _))
                 return;
             client.SendDataToServer((asClient ? Core.Net.DefaultClientSerializer : Core.Net.DefaultServerSerializer).Serialize(packet)); //发送给服务端则不需要区分版本
