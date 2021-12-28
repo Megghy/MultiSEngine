@@ -1,6 +1,7 @@
 ﻿using MultiSEngine.DataStruct;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -94,11 +95,13 @@ namespace MultiSEngine.Core
                     }
                 }
             }
+
             /// <summary>
             /// 寻找存在指定类型的程序集路径
             /// </summary>
             /// <param name="path">路径</param>
             /// <returns></returns>
+            [UnconditionalSuppressMessage("SingleFile", "IL3000:Avoid accessing Assembly file path when publishing as a single file", Justification = "<Pending>")]
             public static IReadOnlyCollection<string> FindAssemliesWithPlugins(string path)
             {
                 var assemblies = Directory.GetFiles(path, "*.dll");

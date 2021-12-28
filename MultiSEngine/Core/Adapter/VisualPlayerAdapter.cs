@@ -23,7 +23,9 @@ namespace MultiSEngine.Core.Adapter
             RunningAsNormal = true;
         }
         [Obsolete("调用 TryConnect", true)]
+#pragma warning disable CS0809
         public override BaseAdapter Start()
+#pragma warning restore CS0809
         {
             //不能直接开始
             return this;
