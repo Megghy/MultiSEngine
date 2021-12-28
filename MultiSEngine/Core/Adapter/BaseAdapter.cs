@@ -1,7 +1,5 @@
 ﻿using MultiSEngine.DataStruct;
-using MultiSEngine.Modules;
 using System;
-using System.Collections;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Sockets;
@@ -29,7 +27,7 @@ namespace MultiSEngine.Core.Adapter
         public int ErrorCount = 0;
         protected bool ShouldStop { get; set; } = false;
         public int VersionNum => Client.Player?.VersionNum ?? 0;
-        public virtual PacketSerializer InternalClientSerializer => VersionNum == 0 ? Net.DefaultClientSerializer : Net.ClientSerializer[VersionNum]; 
+        public virtual PacketSerializer InternalClientSerializer => VersionNum == 0 ? Net.DefaultClientSerializer : Net.ClientSerializer[VersionNum];
         public virtual PacketSerializer InternalServerSerializer => VersionNum == 0 ? Net.DefaultServerSerializer : Net.ServerSerializer[VersionNum];
         public ClientData Client { get; protected set; }
         public Socket Connection { get; set; }

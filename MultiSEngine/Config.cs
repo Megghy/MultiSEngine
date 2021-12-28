@@ -50,7 +50,7 @@ namespace MultiSEngine
                     Logs.Warn($"A server with the same name was found in the config file: [{c.Name}], redundant items have been removed");
                 }
             }
-            if(config.Servers.Where(s => string.IsNullOrEmpty(s.Name)).ToArray() is { Length: > 0 } emptyNames)
+            if (config.Servers.Where(s => string.IsNullOrEmpty(s.Name)).ToArray() is { Length: > 0 } emptyNames)
             {
                 emptyNames.ForEach(s => config.Servers.Remove(s));
                 Logs.Warn($"Found [{emptyNames.Length}] servers with empty names in the configuration file, removed");

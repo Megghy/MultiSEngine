@@ -9,7 +9,7 @@ namespace MultiSEngine.DataStruct
         {
             PreInitMessage = preMsg;
             PostInitMessage = postMsg;
-            Order = order;  
+            Order = order;
         }
         public int Order { get; private set; }
         public string PreInitMessage { get; private set; }

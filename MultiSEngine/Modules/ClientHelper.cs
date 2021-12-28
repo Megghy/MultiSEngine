@@ -4,7 +4,6 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
-using System.Runtime.Intrinsics.X86;
 using TrProtocol;
 using TrProtocol.Models;
 using TrProtocol.Packets;
@@ -53,7 +52,7 @@ namespace MultiSEngine.Modules
                         client.State = ClientData.ClientState.InGame;
                         client.SAdapter?.Stop(true);
                         client.SAdapter = client.TempAdapter;
-                        client.TempConnection = null; 
+                        client.TempConnection = null;
                         client.TempAdapter = null;
                         client.TimeOutTimer.Stop();
                         client.Sync(server);
@@ -220,7 +219,7 @@ namespace MultiSEngine.Modules
         public static void ReadVersion(this ClientData client, ClientHello hello) => client.ReadVersion(hello.Version);
         public static void ReadVersion(this ClientData client, string version)
         {
-            
+
             client.Player.VersionNum = version.StartsWith("Terraria") && int.TryParse(version[8..], out var v)
                             ? v
                             : Config.Instance.DefaultServerInternal.VersionNum;

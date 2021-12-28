@@ -38,7 +38,7 @@ namespace MultiSEngine.Modules
         }
         internal static async Task<Version> GetNewestVersion()
         {
-            return Version.TryParse(await httpClient.GetStringAsync(UpdateURL), out var version) 
+            return Version.TryParse(await httpClient.GetStringAsync(UpdateURL), out var version)
                 ? version
                 : new(0, 0);
         }
