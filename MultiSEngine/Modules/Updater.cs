@@ -2,6 +2,7 @@
 using System;
 using System.Net.Http;
 using System.Reflection;
+using System.Threading.Tasks;
 using System.Timers;
 
 namespace MultiSEngine.Modules
@@ -9,7 +10,10 @@ namespace MultiSEngine.Modules
     class Updater
     {
         public const string UpdateURL = "https://api.suki.club/v1/myapi/version?program=multisengine";
-        private static readonly HttpClient httpClient = new();
+        private static readonly HttpClient httpClient = new()
+        {
+            Timeout = new(0, 0, 0, 5)
+        };
         [AutoInit]
         public static void Init()
         {
@@ -22,15 +26,21 @@ namespace MultiSEngine.Modules
             Interval = 1000 * 60 * 5,
             AutoReset = true
         };
-        private static void CheckUpdate(object sender, ElapsedEventArgs e)
+        private static async void CheckUpdate(object sender, ElapsedEventArgs e)
         {
             try
             {
-                var version = Version.Parse(httpClient.GetStringAsync(UpdateURL).Result);
+                var version = await GetNewestVersion();
                 if (version > Assembly.GetExecutingAssembly().GetName().Version)
                     Logs.LogAndSave($"New version found: {version}, please go to [https://github.com/Megghy/MultiSEngine/releases] to download.", "[Updater]", ConsoleColor.DarkYellow);
             }
             catch { }
+        }
+        internal static async Task<Version> GetNewestVersion()
+        {
+            return Version.TryParse(await httpClient.GetStringAsync(UpdateURL), out var version) 
+                ? version
+                : new(0, 0);
         }
     }
 }

@@ -13,6 +13,7 @@ namespace MultiSEngine
     {
         static void Main(string[] args)
         {
+            ShowLogo();
             AutoInit();
             while (!(Core.Command.HandleCommand(null, Console.ReadLine(), out var c, true) && !c))
                 Thread.Sleep(1);
@@ -20,7 +21,22 @@ namespace MultiSEngine
             Console.WriteLine("Bye!");
             Task.Delay(1000).Wait();
         }
-        public static void AutoInit()
+        private static void ShowLogo()
+        {
+            Console.WriteLine(@"
+    __  ___      ____  _ _____ ______            _          
+   /  |/  /_  __/ / /_(_) ___// ____/___  ____ _(_)___  ___ 
+  / /|_/ / / / / / __/ /\__ \/ __/ / __ \/ __ `/ / __ \/ _ \
+ / /  / / /_/ / / /_/ /___/ / /___/ / / / /_/ / / / / /  __/
+/_/  /_/\__,_/_/\__/_//____/_____/_/ /_/\__, /_/_/ /_/\___/ 
+                                       /____/               
+");
+            var version = Assembly.GetExecutingAssembly().GetName().Version;
+            var newest = Updater.GetNewestVersion().Result;
+            Console.WriteLine($" - Version {version}, Latest Version {(newest > version ? newest : version)}");
+            Console.WriteLine();
+        }
+        private static void AutoInit()
         {
 #if DEBUG
             Logs.Warn($"> MultiSEngine IS IN DEBUG MODE <");

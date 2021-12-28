@@ -22,7 +22,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TrProtocol\TrProtocol\TrProtocol.csproj" />
+    <Reference Include="TrProtocol">
+      <HintPath>lib\TrProtocol.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>

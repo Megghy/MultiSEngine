@@ -7,8 +7,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MultiSEngine", "MultiSEngin
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MultiSEngine.TShock", "..\MultiSEngine.TShock\MultiSEngine.TShock\MultiSEngine.TShock.csproj", "{140D6D24-1EA3-45C1-AC9B-E5266FED1A94}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TrProtocol", "TrProtocol\TrProtocol\TrProtocol.csproj", "{63198BFF-C514-4450-81A7-D18052EA5E0D}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,10 +21,6 @@ Global
 		{140D6D24-1EA3-45C1-AC9B-E5266FED1A94}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{140D6D24-1EA3-45C1-AC9B-E5266FED1A94}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{140D6D24-1EA3-45C1-AC9B-E5266FED1A94}.Release|Any CPU.Build.0 = Release|Any CPU
-		{63198BFF-C514-4450-81A7-D18052EA5E0D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{63198BFF-C514-4450-81A7-D18052EA5E0D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{63198BFF-C514-4450-81A7-D18052EA5E0D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{63198BFF-C514-4450-81A7-D18052EA5E0D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

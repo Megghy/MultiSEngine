@@ -22,7 +22,7 @@ namespace MultiSEngine.Modules
         }
         private static void Loop(object sender, ElapsedEventArgs e)
         {
-            Console.Title = $"{Title}  {Data.Clients.Count} Online @{Config.Instance.ListenIP}:{Config.Instance.ListenPort} <V{Assembly.GetExecutingAssembly().GetName().Version}, for {Data.Convert(Config.Instance.ServerVersion)}>";
+            Console.Title = $"{Title}  {Data.Clients.Count} Online @{Config.Instance.ListenIP}:{Config.Instance.ListenPort} <V{Assembly.GetExecutingAssembly().GetName().Version}, for {Data.Convert(Config.Instance.ServerVersion)}{(Config.Instance.EnableCrossplayFeature ? " + Crossplay" : "")}>";
             Task.Delay(1000).Wait();
         }
     }
