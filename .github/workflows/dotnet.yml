@@ -26,7 +26,7 @@ jobs:
         dotnet publish -c Release -r linux-arm64 -p:PublishSingleFile=true --self-contained false
     - uses: actions/upload-artifact@v2
       with:
-        name: MultiSEngine-Win.exe
+        name: MultiSEngine-Win
         path: ./MultiSEngine/bin/Release/net6.0/win-x64/publish/MultiSEngine.exe
     - uses: actions/upload-artifact@v2
       with:
