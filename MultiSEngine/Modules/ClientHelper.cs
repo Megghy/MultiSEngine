@@ -78,7 +78,7 @@ namespace MultiSEngine.Modules
             {
                 client.SendErrorMessage(Localization.Instance["Prompt_NoAvailableServer"]);
                 Logs.Info($"No default server avilable, send [{client.Name}] to FakeWorld.");
-                (client.CAdapter as FakeWorldAdapter)?.BackToThere();
+                client.CAdapter?.BackToThere();
             }
             else if (client.Server is null)
                 client.SendErrorMessage(Localization.Instance["Prompt_CannotConnect", client.TempAdapter?.TempServer?.Name]);
@@ -214,6 +214,7 @@ namespace MultiSEngine.Modules
         public static void SendSuccessMessage(this ClientData client, string text, bool withPrefix = true) => SendMessage(client, text, new(165, 230, 155), withPrefix);
         public static void SendErrorMessage(this ClientData client, string text, bool withPrefix = true) => SendMessage(client, text, new(220, 135, 135), withPrefix);
         #endregion
+
         #region 一些小工具
         public static void Broadcast(this ClientData client, string message, bool ignoreSelf = true) => Data.Clients.Where(c => !ignoreSelf || c != client).ForEach(c => c.SendMessage(message, false));
         public static void ReadVersion(this ClientData client, ClientHello hello) => client.ReadVersion(hello.Version);
@@ -262,6 +263,7 @@ namespace MultiSEngine.Modules
             });
         }
         #endregion
+
         #region 其他
         public static ClientData GetClientByName(string name) => Data.Clients.FirstOrDefault(c => c.Name == name);
         #endregion

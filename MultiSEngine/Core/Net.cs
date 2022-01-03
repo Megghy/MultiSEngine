@@ -16,8 +16,8 @@ namespace MultiSEngine.Core
         public static Socket SocketServer { get; internal set; }
         public static readonly Dictionary<int, PacketSerializer> ClientSerializer = new();
         public static readonly Dictionary<int, PacketSerializer> ServerSerializer = new();
-        public static PacketSerializer DefaultClientSerializer => ClientSerializer[Config.Instance.ServerVersion > Data.Versions.Last() ? Data.Versions.Last() : Config.Instance.ServerVersion];
-        public static PacketSerializer DefaultServerSerializer => ServerSerializer[Config.Instance.ServerVersion > Data.Versions.Last() ? Data.Versions.Last() : Config.Instance.ServerVersion];
+        public static PacketSerializer DefaultClientSerializer => ClientSerializer[Config.Instance.ServerVersion > Modules.Data.Versions.Last() ? Modules.Data.Versions.Last() : Config.Instance.ServerVersion];
+        public static PacketSerializer DefaultServerSerializer => ServerSerializer[Config.Instance.ServerVersion > Modules.Data.Versions.Last() ? Modules.Data.Versions.Last() : Config.Instance.ServerVersion];
         [AutoInit(postMsg: "Opened socket server successfully.")]
         public static void Init()
         {
@@ -52,7 +52,7 @@ namespace MultiSEngine.Core
 
                     Logs.Text($"{client.CAdapter.Connection.RemoteEndPoint} trying to connect...");
 
-                    Data.Clients.Add(client);
+                    Modules.Data.Clients.Add(client);
                 }
                 catch (Exception ex)
                 {

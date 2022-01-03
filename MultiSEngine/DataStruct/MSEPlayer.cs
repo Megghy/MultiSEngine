@@ -20,12 +20,12 @@ namespace MultiSEngine.DataStruct
         public byte Index { get; set; } = 0;
         public string Name => (ServerData?.Info ?? OriginData.Info)?.Name;
         public string UUID { get; set; } = "";
-        public int SpawnX { get; set; }
-        public int SpawnY { get; set; }
+        public int SpawnX { get; set; } = -1;
+        public int SpawnY { get; set; } = -1;
         public short WorldSpawnX => (ServerData?.WorldData ?? OriginData.WorldData).SpawnX;
         public short WorldSpawnY => (ServerData?.WorldData ?? OriginData.WorldData).SpawnY;
-        public float X { get; set; }
-        public float Y { get; set; }
+        public float X { get; set; } = -1;
+        public float Y { get; set; } = -1;
         public int TileX => (int)(X / 16);
         public int TileY => (int)(Y / 16);
 

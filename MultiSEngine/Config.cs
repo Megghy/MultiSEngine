@@ -2,23 +2,34 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Unicode;
 
 namespace MultiSEngine
 {
     public class Config
     {
+        public static readonly JsonSerializerOptions DefaultSerializerOptions = new()
+        {
+            WriteIndented = true,
+            Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
+        };
         internal static Config _instance;
         public static Config Instance { get { _instance ??= Load(); return _instance; } }
         public static string ConfigPath => Path.Combine(Environment.CurrentDirectory, "Config.json");
         public static Config Load()
         {
             if (File.Exists(ConfigPath))
-                return CheckConfig(JsonSerializer.Deserialize<Config>(File.ReadAllText(ConfigPath)));
+            {
+                var config = CheckConfig(JsonSerializer.Deserialize<Config>(File.ReadAllText(ConfigPath)));
+                config.Save();
+                return config;
+            }
             else
             {
-                var confg = new Config()
+                var config = new Config()
                 {
                     SwitchToDefaultServerOnJoin = true,
                     DefaultServer = "yfeil",
@@ -33,8 +44,8 @@ namespace MultiSEngine
                         }
                     }
                 };
-                File.WriteAllText(ConfigPath, JsonSerializer.Serialize(confg, new JsonSerializerOptions() { WriteIndented = true }));
-                return confg;
+                config.Save();
+                return config;
             }
         }
         public static Config CheckConfig(Config config)
@@ -55,8 +66,13 @@ namespace MultiSEngine
                 emptyNames.ForEach(s => config.Servers.Remove(s));
                 Logs.Warn($"Found [{emptyNames.Length}] servers with empty names in the configuration file, removed");
             }
-            config.Servers.Where(s => Modules.Data.Convert(config.ServerVersion) == "Unknown").ForEach(s => Logs.Warn($"The server [{s.Name}] specifies an unknown ServerVersion, which may cause some problems."));
+            config.Servers.Where(s => Modules.Data.Convert(config.ServerVersion) == "Unknown")
+                .ForEach(s => Logs.Warn($"The server [{s.Name}] specifies an unknown ServerVersion, which may cause some problems."));
             return config;
+        }
+        public void Save()
+        {
+            File.WriteAllText(ConfigPath, JsonSerializer.Serialize(this, DefaultSerializerOptions));
         }
         public string ListenIP { get; set; } = "0.0.0.0";
         public int ListenPort { get; set; } = 7778;

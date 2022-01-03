@@ -1,5 +1,9 @@
-﻿using System;
+﻿using MultiSEngine.DataStruct;
+using System;
+using System.Collections.Concurrent;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace MultiSEngine
 {
@@ -33,13 +37,28 @@ namespace MultiSEngine
             if (!Directory.Exists(LogPath))
                 Directory.CreateDirectory(LogPath);
         }
+        private static readonly ConcurrentQueue<string> _queue = new();
+        [AutoInit]
+        private static void SaveLogTask()
+        {
+            Task.Run(() =>
+            {
+                while (true)
+                {
+                    if (_queue.TryDequeue(out var text))
+                        File.AppendAllText(LogName, text + Environment.NewLine);
+                    else
+                        Thread.Sleep(1);
+                }
+            });
+        }
         public static void LogAndSave(object message, string prefix = "[Log]", ConsoleColor color = DefaultColor, bool save = true)
         {
             Console.ForegroundColor = color;
             Console.WriteLine($"{prefix} {message}");
             Console.ForegroundColor = DefaultColor;
             if (save)
-                File.WriteAllText(LogName, $"{DateTime.Now:yyyy-MM-dd-HH:mm:ss} - {prefix} {message}");
+                _queue.Enqueue($"{DateTime.Now:HH:mm:ss} - {prefix} {message}");
         }
     }
 }

@@ -8,7 +8,6 @@ namespace MultiSEngine.Modules.Cmds
     {
         public override string Name => "";
         public override bool ServerCommand => true;
-
         public override bool Execute(ClientData client, string cmdName, string[] parma)
         {
             var internalCommand = Data.Commands.FirstOrDefault(c => c.Name == "mse");

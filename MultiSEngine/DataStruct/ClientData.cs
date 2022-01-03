@@ -1,11 +1,12 @@
 ﻿using MultiSEngine.Core.Adapter;
 using MultiSEngine.Modules;
+using System;
 using System.Net.Sockets;
 using System.Timers;
 
 namespace MultiSEngine.DataStruct
 {
-    public class ClientData : IClientAdapter<FakeWorldAdapter>, IServerAdapter<VisualPlayerAdapter>
+    public class ClientData : IClientAdapter<FakeWorldAdapter>, IServerAdapter<VisualPlayerAdapter>, IDisposable
     {
         public enum ClientState
         {
@@ -18,7 +19,7 @@ namespace MultiSEngine.DataStruct
             SyncData,
             InGame,
         }
-        public ClientData(ClientAdapter ca = null)
+        public ClientData()
         {
             TimeOutTimer = new()
             {
@@ -31,22 +32,26 @@ namespace MultiSEngine.DataStruct
         public VisualPlayerAdapter SAdapter { get; set; }
         internal Socket TempConnection { get; set; }
         internal VisualPlayerAdapter TempAdapter { get; set; }
+        public Timer TimeOutTimer { get; init; }
 
+        #region 客户端信息
         public ClientState State { get; set; } = ClientState.NewConnection;
-        public string IP { get; set; }
-        public int Port { get; set; }
-        public string Address => $"{IP}:{Port}";
+        public string IP { get; internal set; }
+        public int Port { get; internal set; }
+        public string Address => $"{IP}:{Port}"; public bool Syncing { get; internal set; } = false;
+        public bool Disposed { get; private set; } = false;
+        #endregion
+
+        #region 常用的玩家信息
         public short SpawnX => Server is { SpawnX: >= 0, SpawnY: >= 0 } ? Server.SpawnX : Player.WorldSpawnX;
         public short SpawnY => Server is { SpawnY: >= 0, SpawnY: >= 0 } ? Server.SpawnY : Player.WorldSpawnY;
         public ServerInfo Server { get; set; }
         public string Name => Player?.Name ?? Address;
-        public MSEPlayer Player { get; set; } = new();
-
-        public Timer TimeOutTimer { get; set; }
-        public bool Syncing { get; internal set; } = false;
-        public bool Disposed { get; private set; } = false;
         public byte Index => Player?.Index ?? 0;
+        public MSEPlayer Player { get; private set; } = new();
+        #endregion
 
+        #region 方法
         protected void OnTimeOut(object sender, ElapsedEventArgs args)
         {
             if (State == ClientState.RequestPassword)
@@ -65,6 +70,20 @@ namespace MultiSEngine.DataStruct
             TempConnection?.Dispose();
             TempConnection = null;
         }
+        public override bool Equals(object obj)
+        {
+            if (obj is null)
+                return false;
+            return obj.ToString() is { } text && !string.IsNullOrEmpty(text) && ToString() == text;
+        }
+        public override string ToString()
+            => $"{Address}:{Name}_{Player.UUID}";
+        public static bool operator ==(ClientData data1, ClientData data2)
+            => data1.Equals(data2);
+        public static bool operator !=(ClientData data1, ClientData data2)
+            => !(data1 == data2);
+        public override int GetHashCode()
+            => Address.GetHashCode() ^ Name.GetHashCode() ^ Player.GetHashCode();
         public void Dispose()
         {
             Disposed = true;
@@ -79,5 +98,6 @@ namespace MultiSEngine.DataStruct
             TimeOutTimer.Dispose();
             Server = null;
         }
+        #endregion
     }
 }

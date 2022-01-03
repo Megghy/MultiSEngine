@@ -85,7 +85,7 @@ namespace MultiSEngine.Core.Adapter
                     {
                         Client.ReadVersion(joinEvent.Version);
                         if (Client.Player.VersionNum != Config.Instance.ServerVersion && !Config.Instance.EnableCrossplayFeature)
-                            Client.Disconnect(Localization.Instance["Prompt_VersionNotAllowed", Data.Convert(Client.Player.VersionNum)]);
+                            Client.Disconnect(Localization.Instance["Prompt_VersionNotAllowed", Modules.Data.Convert(Client.Player.VersionNum)]);
                         else
                         {
                             InternalSendPacket(new LoadPlayer() { PlayerSlot = 0, ServerWantsToRunCheckBytesInClientLoopThread = true });
@@ -109,7 +109,7 @@ namespace MultiSEngine.Core.Adapter
                     Client.SendDataToClient(Client.Player.OriginData.WorldData);
                     return false;
                 case RequestTileData:
-                    Client.SendDataToClient(Data.StaticSpawnSquareData);
+                    Client.SendDataToClient(Modules.Data.StaticSpawnSquareData);
                     Client.SendDataToClient(new StartPlaying());
                     return false;
                 case SpawnPlayer spawn:
@@ -119,7 +119,7 @@ namespace MultiSEngine.Core.Adapter
                         Client.Player.SpawnX = spawn.Position.X;
                         Client.Player.SpawnY = spawn.Position.Y;
                         Client.SendDataToClient(new FinishedConnectingToServer());
-                        Client.SendMessage(Data.Motd, false);
+                        Client.SendMessage(Modules.Data.Motd, false);
                         Data.Clients.Where(c => c.Server is null && c != Client).ForEach(c => c.SendMessage($"{Client.Name} has join."));
                         if (Config.Instance.SwitchToDefaultServerOnJoin)
                         {

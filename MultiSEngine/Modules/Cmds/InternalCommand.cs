@@ -7,7 +7,6 @@ namespace MultiSEngine.Modules.Cmds
     internal class InternalCommand : Core.Command.CmdBase
     {
         public override string Name => "mse";
-
         public override bool Execute(ClientData client, string cmdName, string[] parma)
         {
             if (client is null)
