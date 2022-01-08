@@ -20,19 +20,18 @@ namespace MultiSEngine.Core.Adapter
         {
             Client = client;
             Connection = connection;
-            PacketPool = new();
             NetReader = new BinaryReader(new NetworkStream(Connection));
         }
         #region 变量
-        public int ErrorCount = 0;
+        public int ErrorCount { get; protected set; } = 0;
         protected bool ShouldStop { get; set; } = false;
-        public int VersionNum => Client.Player?.VersionNum ?? 0;
-        public virtual PacketSerializer InternalClientSerializer => VersionNum == 0 ? Net.DefaultClientSerializer : Net.ClientSerializer[VersionNum];
-        public virtual PacketSerializer InternalServerSerializer => VersionNum == 0 ? Net.DefaultServerSerializer : Net.ServerSerializer[VersionNum];
+        public int VersionNum => Client?.Player?.VersionNum ?? -1;
+        public virtual PacketSerializer InternalClientSerializer => VersionNum == -1 ? Net.DefaultClientSerializer : Net.ClientSerializer[VersionNum];
+        public virtual PacketSerializer InternalServerSerializer => VersionNum == -1 ? Net.DefaultServerSerializer : Net.ServerSerializer[VersionNum];
         public ClientData Client { get; protected set; }
-        public Socket Connection { get; set; }
-        public ConcurrentQueue<Packet> PacketPool { get; set; }
+        public Socket Connection { get; internal set; }
         protected BinaryReader NetReader { get; set; }
+        public ConcurrentQueue<Packet> PacketPool { get; protected set; } = new();
         public abstract bool ListenningClient { get; }
         #endregion
         /// <summary>

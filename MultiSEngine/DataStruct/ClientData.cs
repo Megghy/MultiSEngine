@@ -70,23 +70,13 @@ namespace MultiSEngine.DataStruct
             TempConnection?.Dispose();
             TempConnection = null;
         }
-        public override bool Equals(object obj)
-        {
-            if (obj is null)
-                return false;
-            return obj.ToString() is { } text && !string.IsNullOrEmpty(text) && ToString() == text;
-        }
         public override string ToString()
             => $"{Address}:{Name}_{Player.UUID}";
-        public static bool operator ==(ClientData data1, ClientData data2)
-            => data1.Equals(data2);
-        public static bool operator !=(ClientData data1, ClientData data2)
-            => !(data1 == data2);
-        public override int GetHashCode()
-            => Address.GetHashCode() ^ Name.GetHashCode() ^ Player.GetHashCode();
         public void Dispose()
         {
             Disposed = true;
+            if (!Data.Clients.Remove(this))
+                Logs.Warn($"Abnormal remove of client data.");
             State = ClientState.Disconnect;
             SAdapter?.Stop(true);
             CAdapter?.Stop(true);

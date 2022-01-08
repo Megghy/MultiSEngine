@@ -16,7 +16,7 @@ namespace MultiSEngine.DataStruct
             public SyncEquipment[] Inventory { get; set; } = new SyncEquipment[260];
         }
         public bool SSC => ServerData?.WorldData?.EventInfo1[6] ?? false;
-        public int VersionNum { get; set; }
+        public int VersionNum { get; set; } = -1;
         public byte Index { get; set; } = 0;
         public string Name => (ServerData?.Info ?? OriginData.Info)?.Name;
         public string UUID { get; set; } = "";

@@ -29,44 +29,46 @@ namespace MultiSEngine.Modules
                 if (client.Server == server)
                     client.SendErrorMessage(string.Format(Localization.Get("Command_AlreadyIn"), server.Name));
                 Logs.Warn($"Unallowed transmission requests for [{client.Name}]");
-                return;
-            }
-            Logs.Info($"Switching [{client.Name}] to the server: [{server.Name}]");
-            client.State = ClientData.ClientState.ReadyToSwitch;
-            if (Utils.TryParseAddress(server.IP, out var ip))
-            {
-                try
-                {
-                    client.State = ClientData.ClientState.Switching;
-                    client.TimeOutTimer.Start();
-
-                    client.TempConnection = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                    await client.TempConnection.ConnectAsync(ip, server.Port); //新建与服务器的连接
-
-                    client.CAdapter.ChangeProcessState(true);  //切换至正常的客户端处理
-
-                    var tempAdapter = new VisualPlayerAdapter(client, client.TempConnection);
-                    client.TempAdapter = tempAdapter;
-                    tempAdapter.TryConnect(server, (client) =>
-                    {
-                        client.State = ClientData.ClientState.InGame;
-                        client.SAdapter?.Stop(true);
-                        client.SAdapter = client.TempAdapter;
-                        client.TempConnection = null;
-                        client.TempAdapter = null;
-                        client.TimeOutTimer.Stop();
-                        client.Sync(server);
-                    });
-                }
-                catch (Exception ex)
-                {
-                    client.State = ClientData.ClientState.ReadyToSwitch;
-                    Logs.Error($"Unable to connect to server {server.IP}:{server.Port}{Environment.NewLine}{ex}");
-                    client.SendErrorMessage(Localization.Instance["Prompt_CannotConnect", server.Name]);
-                }
             }
             else
-                client.SendErrorMessage(Localization.Instance["Prompt_UnknownAddress"]);
+            {
+                Logs.Info($"Switching [{client.Name}] to the server: [{server.Name}]");
+                client.State = ClientData.ClientState.ReadyToSwitch;
+                if (Utils.TryParseAddress(server.IP, out var ip))
+                {
+                    try
+                    {
+                        client.State = ClientData.ClientState.Switching;
+                        client.TimeOutTimer.Start();
+
+                        client.TempConnection = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                        await client.TempConnection.ConnectAsync(ip, server.Port); //新建与服务器的连接
+
+                        client.CAdapter.ChangeProcessState(true);  //切换至正常的客户端处理
+
+                        var tempAdapter = new VisualPlayerAdapter(client, client.TempConnection);
+                        client.TempAdapter = tempAdapter;
+                        tempAdapter.TryConnect(server, (client) =>
+                        {
+                            client.State = ClientData.ClientState.InGame;
+                            client.SAdapter?.Stop(true);
+                            client.SAdapter = client.TempAdapter;
+                            client.TempConnection = null;
+                            client.TempAdapter = null;
+                            client.TimeOutTimer.Stop();
+                            client.Sync(server);
+                        });
+                    }
+                    catch
+                    {
+                        client.State = ClientData.ClientState.ReadyToSwitch;
+                        Logs.Error($"Unable to connect to server {server.IP}:{server.Port}");
+                        client.SendErrorMessage(Localization.Instance["Prompt_CannotConnect", server.Name]);
+                    }
+                }
+                else
+                    client.SendErrorMessage(Localization.Instance["Prompt_UnknownAddress"]);
+            }
         }
         /// <summary>
         /// 返回到默认的初始服务器
@@ -120,9 +122,7 @@ namespace MultiSEngine.Modules
             Core.Hooks.OnPlayerLeave(client, out _);
             Data.Clients.Where(c => c.Server is null && c != client).ForEach(c => c.SendMessage($"{client.Name} has leave."));
             if (client.CAdapter?.Connection is { Connected: true })
-                client.SendDataToClient(new Kick() { Reason = new(reason ?? "Unknown", NetworkText.Mode.Literal) });
-            if (!Data.Clients.Remove(client))
-                Logs.Warn($"Abnormal disposed of client data.");
+                client.SendDataToClient(new Kick() { Reason = new(reason ?? "Unknown", NetworkText.Mode.Literal) });            
             client.Dispose();
         }
     }
@@ -180,6 +180,8 @@ namespace MultiSEngine.Modules
                 throw new ArgumentNullException(nameof(client));
             if (Core.Hooks.OnSendPacket(client, packet, true, out _))
                 return true;
+            if (client.Disposed)
+                return false;
             if (packet is WorldData world && (client.Player.TileX >= world.MaxTileX || client.Player.TileY >= world.MaxTileY))
                 client.TP(client.SpawnY, client.SpawnY); //防止玩家超出地图游戏崩溃
             return client.SendDataToClient((asClient ? client.CAdapter.InternalClientSerializer : client.CAdapter.InternalServerSerializer).Serialize(packet));
@@ -191,6 +193,8 @@ namespace MultiSEngine.Modules
             if (client is null)
                 throw new ArgumentNullException(nameof(client));
             if (Core.Hooks.OnSendPacket(client, packet, false, out _))
+                return;
+            if (client.Disposed)
                 return;
             client.SendDataToServer((asClient ? Core.Net.DefaultClientSerializer : Core.Net.DefaultServerSerializer).Serialize(packet)); //发送给服务端则不需要区分版本
         }
