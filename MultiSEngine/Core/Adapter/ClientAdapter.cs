@@ -20,7 +20,7 @@ namespace MultiSEngine.Core.Adapter
         protected override void OnRecieveLoopError(Exception ex)
         {
             base.OnRecieveLoopError(ex);
-            if(ex.Source != "TrProtocol")
+            if(ex is EndOfStreamException or IOException or SocketException)
                 Client.Disconnect();
         }
         public override bool ListenningClient => true;
