@@ -87,9 +87,7 @@ namespace MultiSEngine.Core.Adapter
                         if (Client.Player.VersionNum != Config.Instance.ServerVersion && !Config.Instance.EnableCrossplayFeature)
                             Client.Disconnect(Localization.Instance["Prompt_VersionNotAllowed", Modules.Data.Convert(Client.Player.VersionNum)]);
                         else
-                        {
                             InternalSendPacket(new LoadPlayer() { PlayerSlot = 0, ServerWantsToRunCheckBytesInClientLoopThread = true });
-                        }
                     }
                     return false;
                 case RequestWorldInfo:

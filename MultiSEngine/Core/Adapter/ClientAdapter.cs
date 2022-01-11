@@ -1,6 +1,7 @@
 ﻿using MultiSEngine.DataStruct;
 using MultiSEngine.Modules;
 using System;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -19,7 +20,8 @@ namespace MultiSEngine.Core.Adapter
         protected override void OnRecieveLoopError(Exception ex)
         {
             base.OnRecieveLoopError(ex);
-            Client.Disconnect();
+            if(ex.Source != "TrProtocol")
+                Client.Disconnect();
         }
         public override bool ListenningClient => true;
         public override bool GetPacket(Packet packet)

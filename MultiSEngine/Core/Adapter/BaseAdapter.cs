@@ -107,6 +107,7 @@ namespace MultiSEngine.Core.Adapter
                 case EndOfStreamException:
                 case IOException:
                 case BadBoundException:
+                    //
                     break;
                 default:
                     Logs.Warn($"{(ListenningClient ? "Client" : "Server")} recieve loop abnormally terminated.\r\n{ex}");
