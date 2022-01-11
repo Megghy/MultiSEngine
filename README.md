@@ -18,7 +18,7 @@ A Telarea server-independent proxy service for cross-server transfers, based on 
 * Out-of-the-box deployment and useful configuration items
 
 ## 关于单文件和CI About single file and CI
-* 自动化构建出的为单文件程序, 即整个项目只有一个文件, Release则为普通项目, 如果需要的话可以只从[Action](https://github.com/Megghy/MultiSEngine/actions)下载
+* 自动化构建出的为单文件程序, 即整个项目只有一个文件, Release则为普通项目, 如果需要的话可以只从[CI](https://github.com/Megghy/MultiSEngine/actions)下载
 * 目前只会构建Windows, Linux64, Arm64平台的文件, 如要在其他平台运行请自行构建 (dotnet publish -c Release -r ([目标平台](https://docs.microsoft.com/zh-cn/dotnet/core/rid-catalog)) -p:PublishSingleFile=true --self-contained false
 
 ---
@@ -39,6 +39,9 @@ A Telarea server-independent proxy service for cross-server transfers, based on 
 Slightly more specific deployment methods and configuration file instructions:https://www.yuque.com/minato-qbli7/multisengine
 
 ## 发布地址 Release address
-https://www.bbstr.net/r/93/
+[BBSTR](https://www.bbstr.net/r/93/)
+
+[Github Action](https://github.com/Megghy/MultiSEngine/actions)
+
 ## 引用项目 Reference project
 [TrProtocol](https://github.com/chi-rei-den/TrProtocol/tree/dev)
