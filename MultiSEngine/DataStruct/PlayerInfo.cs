@@ -3,7 +3,7 @@ using TrProtocol.Packets;
 
 namespace MultiSEngine.DataStruct
 {
-    public class MSEPlayer
+    public class PlayerInfo
     {
         public class PlayerData
         {

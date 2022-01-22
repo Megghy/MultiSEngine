@@ -1,6 +1,7 @@
 ﻿using MultiSEngine.DataStruct;
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace MultiSEngine.Modules.Cmds
 {
@@ -34,7 +35,7 @@ namespace MultiSEngine.Modules.Cmds
                         break;
                     case "list":
                     case "l":
-                        client.SendSuccessMessage($"{Localization.Get("Command_AviliableServer")}{Environment.NewLine + "- "}{string.Join(Environment.NewLine + "- ", (from server in Config.Instance.Servers let text = $"{server.Name} <{server.Online().Length}>" select text))}");
+                        client.SendSuccessMessage($"{Localization.Get("Command_AviliableServer")}{Environment.NewLine + "- "}{string.Join(Environment.NewLine + "- ", (from server in Config.Instance.Servers let text = $"{server.Name} {(string.IsNullOrEmpty(server.ShortName) ? "" : $"[{server.ShortName}]")} <{server.Online().Length}>" select text))}");
                         break;
                     case "password":
                     case "pass":
@@ -85,7 +86,7 @@ namespace MultiSEngine.Modules.Cmds
                 client.SendErrorMessage(Localization.Get("Command_IsSwitching"));
                 return;
             }
-            if (Utils.GetServerInfoByName(serverName).FirstOrDefault() is { } server)
+            if (Utils.GetServersInfoByName(serverName).FirstOrDefault() is { } server)
             {
                 if (client.Server == server)
                     client.SendErrorMessage(string.Format(Localization.Get("Command_AlreadyIn"), server.Name));

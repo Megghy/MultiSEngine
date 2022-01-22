@@ -1,12 +1,13 @@
 ﻿using MultiSEngine.Core.Adapter;
 using MultiSEngine.Modules;
 using System;
+using System.Net;
 using System.Net.Sockets;
 using System.Timers;
 
 namespace MultiSEngine.DataStruct
 {
-    public class ClientData : IClientAdapter<FakeWorldAdapter>, IServerAdapter<VisualPlayerAdapter>, IDisposable
+    public class ClientData : IClientAdapter<FakeWorldAdapter>, IServerAdapter<VisualPlayerAdapter>
     {
         public enum ClientState
         {
@@ -30,14 +31,13 @@ namespace MultiSEngine.DataStruct
         }
         public FakeWorldAdapter CAdapter { get; set; }
         public VisualPlayerAdapter SAdapter { get; set; }
-        internal Socket TempConnection { get; set; }
         internal VisualPlayerAdapter TempAdapter { get; set; }
         public Timer TimeOutTimer { get; init; }
 
         #region 客户端信息
         public ClientState State { get; set; } = ClientState.NewConnection;
-        public string IP { get; internal set; }
-        public int Port { get; internal set; }
+        public string IP => (CAdapter?.Connection?.RemoteEndPoint as IPEndPoint)?.Address?.ToString();
+        public int Port => (CAdapter?.Connection?.RemoteEndPoint as IPEndPoint)?.Port ?? -1;
         public string Address => $"{IP}:{Port}"; public bool Syncing { get; internal set; } = false;
         public bool Disposed { get; private set; } = false;
         #endregion
@@ -48,7 +48,7 @@ namespace MultiSEngine.DataStruct
         public ServerInfo Server { get; set; }
         public string Name => Player?.Name ?? Address;
         public byte Index => Player?.Index ?? 0;
-        public MSEPlayer Player { get; private set; } = new();
+        public PlayerInfo Player { get; private set; } = new();
         #endregion
 
         #region 方法
@@ -57,18 +57,13 @@ namespace MultiSEngine.DataStruct
             if (State == ClientState.RequestPassword)
                 this.SendErrorMessage(Localization.Instance["Prompt_PasswordTimeout"]);
             else if (State >= ClientState.Switching && State < ClientState.InGame)
-                this.SendErrorMessage(Localization.Instance["Prompt_CannotConnect", (TempAdapter as VisualPlayerAdapter)?.TempServer?.Name]);
+                this.SendErrorMessage(Localization.Instance["Prompt_CannotConnect", (TempAdapter as VisualPlayerAdapter)?.TargetServer?.Name]);
             State = ClientState.ReadyToSwitch;
 
-            if (TempAdapter is VisualPlayerAdapter vpa)
-            {
-                Logs.Warn($"[{Name}] timeout when request is switch to: {vpa.TempServer.Name}");
-                vpa.Callback = null;
-            }
+            Logs.Warn($"[{Name}] timeout when request is switch to: {TempAdapter.TargetServer?.Name}");
 
-            TempConnection?.Shutdown(SocketShutdown.Both);
-            TempConnection?.Dispose();
-            TempConnection = null;
+            TempAdapter.Stop(true);
+            TempAdapter = null;
         }
         public override string ToString()
             => $"{Address}:{Name}_{Player.UUID}";

@@ -60,6 +60,60 @@ namespace MultiSEngine.Core
                 }
             }
         }
+        static bool isTesting = false;
+        internal static void TestAll(bool showDetails = false) 
+        {
+            Task.Run(() =>
+            {
+                Logs.Info($"Ready to start testing all server connectivity");
+                int successCount = 0;
+                Config.Instance.Servers.ForEach(s =>
+                {
+                    if (TestConnect(s, showDetails))
+                        successCount++;
+                });
+                Logs.Info($"Test completed. Number of available servers:{successCount}/{Config.Instance.Servers.Count}");
+            });
+        }
+        internal static bool TestConnect(ServerInfo server, bool showDetails = false)
+        {
+            return Task.Run(() =>
+            {
+                if (isTesting)
+                {
+                    Logs.Warn($"Now testing other servers, please do so when it finished");
+                    return false;
+                }
+                isTesting = true;
+                try
+                {
+                    using var tempConnection = new TestAdapter(server, showDetails);
+                    Logs.Info($"Start testing the connectivity of [{server.Name}]");
+                    tempConnection.Start();
+                    long waitTime = 0;
+                    while (Config.Instance.SwitchTimeOut > waitTime)
+                    {
+                        if (tempConnection?.IsSuccess ?? false)
+                        {
+                            isTesting = false;
+                            Logs.Success($"Server [{server.Name}] is in good condition :)");
+                            return true;
+                        }
+                        else
+                            waitTime += 50;
+                        Task.Delay(50).Wait();
+                    }
+                    if (!tempConnection.IsSuccess.HasValue)
+                        Logs.LogAndSave($"Test FAILED: Time out", $"[TEST] <{server.Name}>", ConsoleColor.Red, false);
+                }
+                catch (Exception ex)
+                {
+                    Logs.LogAndSave($"Test FAILED: Unable to connect to {server.IP}:{server.Port}{Environment.NewLine}{ex}", $"[TEST] <{server.Name}>", ConsoleColor.Red, false);
+                }
+                isTesting = false;
+                return false;
+            }).Result;
+        }
     }
 
 }

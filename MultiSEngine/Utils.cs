@@ -38,9 +38,15 @@ namespace MultiSEngine
             catch { }
             return false;
         }
-        public static ServerInfo[] GetServerInfoByName(string name)
+        public static ServerInfo[] GetServersInfoByName(string name)
         {
-            return Config.Instance.Servers.Where(s => s.Name.ToLower().StartsWith(name.ToLower()) || s.Name.ToLower().Contains(name.ToLower())).ToArray();
+            return Config.Instance.Servers.Where(s => s.Name.ToLower().StartsWith(name.ToLower()) || s.Name.ToLower().Contains(name.ToLower()) || s.ShortName == name).ToArray();
+        }
+        public static ServerInfo GetSingleServerInfoByName(string name)
+        {
+            if (GetServersInfoByName(name) is { } temp && temp.Any())
+                return temp.First();
+            return null;
         }
         public static void ForEach<T>(this IEnumerable<T> source, Action<T> action)
         {

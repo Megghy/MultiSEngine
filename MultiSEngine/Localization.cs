@@ -29,10 +29,8 @@ namespace MultiSEngine
             {
                 return obj is null ? Instance.JsonData?.RootElement.GetProperty(key).GetString() : string.Format(Instance.JsonData?.RootElement.GetProperty(key).GetString(), obj);
             }
-            catch (JsonException) { return key; }
-            catch (Exception ex)
+            catch
             {
-                Logs.Error(ex);
                 return key;
             }
         }

@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 using TrProtocol;
 using TrProtocol.Models;
 using TrProtocol.Packets;
@@ -20,7 +21,7 @@ namespace MultiSEngine.Modules
         /// </summary>
         /// <param name="client"></param>
         /// <param name="server"></param>
-        public static async void Join(this ClientData client, ServerInfo server)
+        public static async Task Join(this ClientData client, ServerInfo server)
         {
             if (Core.Hooks.OnPreSwitch(client, server, out _))
                 return;
@@ -41,28 +42,25 @@ namespace MultiSEngine.Modules
                         client.State = ClientData.ClientState.Switching;
                         client.TimeOutTimer.Start();
 
-                        client.TempConnection = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                        await client.TempConnection.ConnectAsync(ip, server.Port); //新建与服务器的连接
+                        client.TempAdapter = new(client, server);//新建与服务器的连接
 
-                        client.CAdapter.ChangeProcessState(true);  //切换至正常的客户端处理
-
-                        var tempAdapter = new VisualPlayerAdapter(client, client.TempConnection);
-                        client.TempAdapter = tempAdapter;
-                        tempAdapter.TryConnect(server, (client) =>
+                        await client.TempAdapter.TryConnect(server, (client) =>
                         {
                             client.State = ClientData.ClientState.InGame;
                             client.SAdapter?.Stop(true);
                             client.SAdapter = client.TempAdapter;
-                            client.TempConnection = null;
+                            client.CAdapter.ChangeProcessState(true);  //切换至正常的客户端处理
                             client.TempAdapter = null;
                             client.TimeOutTimer.Stop();
                             client.Sync(server);
                         });
                     }
-                    catch
+                    catch(Exception ex)
                     {
                         client.State = ClientData.ClientState.ReadyToSwitch;
-                        Logs.Error($"Unable to connect to server {server.IP}:{server.Port}");
+                        if (ex is SocketException se && se.SocketErrorCode == SocketError.OperationAborted)
+                            return;
+                        Logs.Error($"Unable to connect to server {server.IP}:{server.Port}{Environment.NewLine}{ex}");
                         client.SendErrorMessage(Localization.Instance["Prompt_CannotConnect", server.Name]);
                     }
                 }
@@ -83,9 +81,9 @@ namespace MultiSEngine.Modules
                 client.CAdapter?.BackToThere();
             }
             else if (client.Server is null)
-                client.SendErrorMessage(Localization.Instance["Prompt_CannotConnect", client.TempAdapter?.TempServer?.Name]);
+                client.SendErrorMessage(Localization.Instance["Prompt_CannotConnect", client.TempAdapter?.TargetServer?.Name]);
             else
-                client.Join(Config.Instance.DefaultServerInternal);
+                Task.Run(() => client.Join(Config.Instance.DefaultServerInternal));
         }
         public static void Sync(this ClientData client, ServerInfo targetServer)
         {

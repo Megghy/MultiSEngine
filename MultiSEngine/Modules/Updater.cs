@@ -32,7 +32,7 @@ namespace MultiSEngine.Modules
             {
                 var version = await GetNewestVersion();
                 if (version > Assembly.GetExecutingAssembly().GetName().Version)
-                    Logs.LogAndSave($"New version found: {version}, please go to [https://github.com/Megghy/MultiSEngine/releases] to download.", "[Updater]", ConsoleColor.DarkYellow);
+                    Logs.LogAndSave($"New version found: {version}, please download at [https://github.com/Megghy/MultiSEngine/releases] or [https://github.com/Megghy/MultiSEngine/actions].", "[Updater]", ConsoleColor.DarkYellow);
             }
             catch { }
         }

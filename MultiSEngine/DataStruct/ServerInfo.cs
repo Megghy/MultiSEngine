@@ -4,8 +4,9 @@
     {
         public bool Visible { get; set; } = true;
         public string Name { get; set; }
-        public string IP { get; set; }
-        public int Port { get; set; }
+        public string ShortName { get; set; } = "";
+        public string IP { get; set; } = "127.0.0.1";
+        public int Port { get; set; } = 7777;
         public short SpawnX { get; set; } = -1;
         public short SpawnY { get; set; } = -1;
         public int VersionNum { get; set; } = -1;

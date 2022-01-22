@@ -3,6 +3,7 @@ using MultiSEngine.DataStruct.CustomData;
 using MultiSEngine.Modules;
 using System;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 using TrProtocol;
 using TrProtocol.Packets;
 
@@ -10,13 +11,15 @@ namespace MultiSEngine.Core.Adapter
 {
     public class VisualPlayerAdapter : ServerAdapter, IStatusChangeable
     {
-        public VisualPlayerAdapter(ClientData client, Socket connection) : base(client, connection)
+        public VisualPlayerAdapter(ClientData client, ServerInfo server) : base(client, new(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
         {
+            TargetServer = server;
         }
-        internal MSEPlayer Player => Client.Player;
+
+        internal PlayerInfo Player => Client.Player;
         internal bool TestConnecting = false;
-        internal ServerInfo TempServer;
-        internal Action<ClientData> Callback;
+        internal ServerInfo TargetServer;
+        internal Action<ClientData> SuccessCallback;
         public bool RunningAsNormal { get; set; } = false;
         public void ChangeProcessState(bool asNormal)
         {
@@ -34,13 +37,14 @@ namespace MultiSEngine.Core.Adapter
         /// 如果成功连接的话则调用所给的函数
         /// </summary>
         /// <param name="successCallback"></param>
-        public void TryConnect(ServerInfo server, Action<ClientData> successCallback)
+        public async Task TryConnect(ServerInfo server, Action<ClientData> successCallback)
         {
             if (TestConnecting)
                 return;
+            await Connection.ConnectAsync(server.IP, server.Port);
             base.Start();
-            TempServer = server;
-            Callback = successCallback;
+            TargetServer = server;
+            SuccessCallback = successCallback;
             TestConnecting = true;
             InternalSendPacket(new ClientHello()
             {
@@ -58,7 +62,7 @@ namespace MultiSEngine.Core.Adapter
             {
                 case Kick kick:
                     Stop(true);
-                    Client.SendErrorMessage(Localization.Instance["Prompt_Disconnect", (Client.Server ?? TempServer)?.Name, kick.Reason.GetText()]);
+                    Client.SendErrorMessage(Localization.Instance["Prompt_Disconnect", (Client.Server ?? TargetServer)?.Name, kick.Reason.GetText()]);
                     Client.State = ClientData.ClientState.Disconnect;
                     break;
                 case LoadPlayer slot:
@@ -84,12 +88,12 @@ namespace MultiSEngine.Core.Adapter
                     Client.SendInfoMessage($"SSC: {worldData.EventInfo1[6]}");
 #endif
                     Player.UpdateData(worldData, false);
-                    if (Callback != null)
+                    if (SuccessCallback != null)
                     {
                         TestConnecting = false;
-                        Callback?.Invoke(Client);
-                        Callback = null;
-                        Client.Server = TempServer;
+                        SuccessCallback?.Invoke(Client);
+                        SuccessCallback = null;
+                        Client.Server = TargetServer;
                     }
                     InternalSendPacket(new RequestTileData() { Position = new(Client.SpawnX, Client.SpawnY) });//请求物块数据
                     InternalSendPacket(new SpawnPlayer() { Position = new(Client.SpawnX, Client.SpawnY) });//请求物块数据
@@ -102,12 +106,12 @@ namespace MultiSEngine.Core.Adapter
                         return false;
                     if (Client.State == ClientData.ClientState.RequestPassword)
                     {
-                        Client.SendInfoMessage(Localization.Instance["Prompt_WrongPassword", TempServer.Name, Localization.Get("Help_Password")]);
+                        Client.SendInfoMessage(Localization.Instance["Prompt_WrongPassword", TargetServer.Name, Localization.Get("Help_Password")]);
                     }
                     else
                     {
                         Client.State = ClientData.ClientState.RequestPassword;
-                        Client.SendInfoMessage(Localization.Instance["Prompt_NeedPassword", TempServer.Name, Localization.Get("Help_Password")]);
+                        Client.SendInfoMessage(Localization.Instance["Prompt_NeedPassword", TargetServer.Name, Localization.Get("Help_Password")]);
                     }
                     Client.TimeOutTimer.Stop();
                     Client.TimeOutTimer.Start();

@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 using TrProtocol;
 using TrProtocol.Packets;
 
@@ -14,8 +15,6 @@ namespace MultiSEngine.Core.Adapter
     {
         public ClientAdapter(ClientData client, Socket connection) : base(client, connection)
         {
-            client.IP = (Connection.RemoteEndPoint as IPEndPoint)?.Address.ToString();
-            client.Port = (Connection.RemoteEndPoint as IPEndPoint)?.Port ?? -1;
         }
         protected override void OnRecieveLoopError(Exception ex)
         {
@@ -34,7 +33,7 @@ namespace MultiSEngine.Core.Adapter
                         if (Config.Instance.DefaultServerInternal is { })
                         {
                             Client.ReadVersion(hello);
-                            Client.Join(Config.Instance.DefaultServerInternal);
+                            Task.Run(() => Client.Join(Config.Instance.DefaultServerInternal));
                         }
                         else
                             Client.Disconnect("No default server is set for the current server.");
@@ -83,7 +82,6 @@ namespace MultiSEngine.Core.Adapter
         }
         public override void SendPacket(Packet packet)
         {
-            //bool shouldSerializeLikeClient = packet.GetType().GetProperties().Any(p => p.GetCustomAttributes(true)?.Any(a => a.GetType() == typeof(S2COnlyAttribute)) ?? false);
             if (!ShouldStop)
                 Client.SendDataToServer(packet);
         }

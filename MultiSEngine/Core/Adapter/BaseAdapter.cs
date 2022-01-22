@@ -20,7 +20,6 @@ namespace MultiSEngine.Core.Adapter
         {
             Client = client;
             Connection = connection;
-            NetReader = new BinaryReader(new NetworkStream(Connection));
         }
         #region 变量
         public int ErrorCount { get; protected set; } = 0;
@@ -46,6 +45,7 @@ namespace MultiSEngine.Core.Adapter
         public abstract void SendPacket(Packet packet);
         public virtual BaseAdapter Start()
         {
+            NetReader = new BinaryReader(new NetworkStream(Connection));
             Task.Run(RecieveLoop);
             Task.Run(ProcessPacketLoop);
             return this;
@@ -56,7 +56,7 @@ namespace MultiSEngine.Core.Adapter
             Logs.Warn($"[{GetType()}] <{Connection?.RemoteEndPoint}> Stopped");
 #endif
             ShouldStop = true;
-            Client.TimeOutTimer?.Stop();
+            Client?.TimeOutTimer?.Stop();
             if (disposeConnection)
             {
                 try { Connection?.Shutdown(SocketShutdown.Both); } catch { }
