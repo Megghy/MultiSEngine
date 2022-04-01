@@ -25,8 +25,8 @@ namespace MultiSEngine.Core.Adapter
         public int ErrorCount { get; protected set; } = 0;
         protected bool ShouldStop { get; set; } = false;
         public int VersionNum => Client?.Player?.VersionNum ?? -1;
-        public virtual PacketSerializer InternalClientSerializer => VersionNum == -1 ? Net.DefaultClientSerializer : Net.ClientSerializer[VersionNum];
-        public virtual PacketSerializer InternalServerSerializer => VersionNum == -1 ? Net.DefaultServerSerializer : Net.ServerSerializer[VersionNum];
+        public virtual PacketSerializer InternalClientSerializer => Net.ClientSerializer.TryGetValue(VersionNum, out var result) ? result : Net.DefaultClientSerializer;
+        public virtual PacketSerializer InternalServerSerializer => Net.ServerSerializer.TryGetValue(VersionNum, out var result) ? result : Net.DefaultServerSerializer;
         public ClientData Client { get; protected set; }
         public Socket Connection { get; internal set; }
         protected BinaryReader NetReader { get; set; }

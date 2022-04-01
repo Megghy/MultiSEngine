@@ -11,6 +11,8 @@ namespace MultiSEngine.Modules.Cmds
         public override bool ServerCommand => true;
         public override bool Execute(ClientData client, string cmdName, string[] parma)
         {
+            if (string.IsNullOrEmpty(cmdName))
+                return true;
             var internalCommand = Data.Commands.FirstOrDefault(c => c.Name == "mse");
             switch (cmdName)
             {
@@ -20,6 +22,7 @@ namespace MultiSEngine.Modules.Cmds
                     break;
                 case "ol":
                 case "online":
+                case "playing":
                     Logs.Info($"{Data.Clients.Count} Player(s) Online:{Environment.NewLine}{string.Join(", ", from c in Data.Clients let text = $"{c.Name} <{c.Server?.Name ?? "FakeWorld"}>" select text)}", false);
                     break;
                 case "stop":

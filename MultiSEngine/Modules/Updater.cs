@@ -26,7 +26,7 @@ namespace MultiSEngine.Modules
             Interval = 1000 * 60 * 5,
             AutoReset = true
         };
-        private static async void CheckUpdate(object sender, ElapsedEventArgs e)
+        internal static async void CheckUpdate(object sender, ElapsedEventArgs e)
         {
             try
             {

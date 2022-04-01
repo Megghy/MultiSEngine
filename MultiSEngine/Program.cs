@@ -24,17 +24,14 @@ namespace MultiSEngine
         private static void ShowLogo()
         {
             Console.WriteLine(@"
-    __  ___      ____  _ _____ ______            _          
-   /  |/  /_  __/ / /_(_) ___// ____/___  ____ _(_)___  ___ 
-  / /|_/ / / / / / __/ /\__ \/ __/ / __ \/ __ `/ / __ \/ _ \
- / /  / / /_/ / / /_/ /___/ / /___/ / / / /_/ / / / / /  __/
-/_/  /_/\__,_/_/\__/_//____/_____/_/ /_/\__, /_/_/ /_/\___/ 
+        __  ___      ____  _ _____ ______            _          
+       /  |/  /_  __/ / /_(_) ___// ____/___  ____ _(_)___  ___ 
+      / /|_/ / / / / / __/ /\__ \/ __/ / __ \/ __ `/ / __ \/ _ \
+     / /  / / /_/ / / /_/ /___/ / /___/ / / / /_/ / / / / /  __/
+    /_/  /_/\__,_/_/\__/_//____/_____/_/ /_/\__, /_/_/ /_/\___/ 
                                        /____/               
 ");
-            var version = Assembly.GetExecutingAssembly().GetName().Version;
-            var newest = Updater.GetNewestVersion().Result;
-            Console.WriteLine($" - Version {version}, Latest Version {(newest > version ? newest : version)}");
-            Console.WriteLine();
+            Updater.CheckUpdate(null, null);
         }
         private static void AutoInit()
         {

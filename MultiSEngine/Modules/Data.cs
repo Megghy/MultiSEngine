@@ -35,10 +35,14 @@ namespace MultiSEngine.Modules
                 "Terraria242" => "v1.4.3",
                 "Terraria243" => "v1.4.3.1",
                 "Terraria244" => "v1.4.3.2",
+                "Terraria245" => "v1.4.3.3",
+                "Terraria246" => "v1.4.3.4",
+                "Terraria247" => "v1.4.3.5",
+                "Terraria248" => "v1.4.3.6",
                 _ => "Unknown",
             };
         }
-        public static readonly int[] Versions = { 230, 233, 234, 235, 236, 237, 238, 242, 243, 244 };
+        public static readonly int[] Versions = { 230, 233, 234, 235, 236, 237, 238, 242, 243, 244, 245, 246, 247, 248 };
         [AutoInit(order: 0)]
         public static void Init()
         {
