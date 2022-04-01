@@ -1,7 +1,7 @@
 # MultiSEngine
 一个独立于泰拉瑞亚服务器的代理服务, 用于进行跨服传送, 基于.Net 6
 
-A Telarea server-independent proxy service for cross-server transfers, based on .Net6
+A Terraria server-independent proxy service for cross-server transfers, based on .Net6
 
 [![CI](https://github.com/Megghy/MultiSEngine/actions/workflows/dotnet.yml/badge.svg)](https://github.com/Megghy/MultiSEngine/actions/workflows/dotnet.yml)
 ## 独特功能 Unique features
