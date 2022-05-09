@@ -61,7 +61,7 @@ namespace MultiSEngine.Core
             }
         }
         static bool isTesting = false;
-        internal static void TestAll(bool showDetails = false) 
+        internal static void TestAll(bool showDetails = false)
         {
             Task.Run(() =>
             {

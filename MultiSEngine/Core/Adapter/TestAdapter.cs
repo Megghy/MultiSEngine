@@ -1,5 +1,4 @@
 ﻿using MultiSEngine.DataStruct;
-using MultiSEngine.Modules;
 using System;
 using System.Net.Sockets;
 using System.Threading.Tasks;

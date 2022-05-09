@@ -26,10 +26,6 @@ namespace MultiSEngine.Core.Adapter
             else
             {
                 base.OnRecieveLoopError(ex);
-                if (ErrorCount > 10)
-                {
-                    Stop(true);
-                }
             }
         }
         public override bool GetPacket(Packet packet)

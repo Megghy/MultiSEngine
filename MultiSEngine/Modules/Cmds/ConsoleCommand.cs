@@ -68,7 +68,7 @@ namespace MultiSEngine.Modules.Cmds
                     if (parma.Any())
                     {
                         bool showDetail = parma.Length > 1 && parma[1].ToLower() == "-detail";
-                        if(parma[0].ToLower() == "all")
+                        if (parma[0].ToLower() == "all")
                             Core.Net.TestAll(showDetail);
                         else if (Utils.GetSingleServerInfoByName(parma[0]) is { } testServer)
                             Task.Run(() => Core.Net.TestConnect(testServer, showDetail));

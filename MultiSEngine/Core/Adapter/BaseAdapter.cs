@@ -110,7 +110,7 @@ namespace MultiSEngine.Core.Adapter
                     //
                     break;
                 default:
-                    Logs.Warn($"{(ListenningClient ? "Client" : "Server")} recieve loop abnormally terminated.\r\n{ex}");
+                    Logs.Warn($"{(ListenningClient ? "Client" : "Server")} recieve loop abnormally terminated. [{ErrorCount}]\r\n{ex}");
                     break;
             }
         }

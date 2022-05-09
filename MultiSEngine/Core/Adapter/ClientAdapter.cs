@@ -3,7 +3,6 @@ using MultiSEngine.Modules;
 using System;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using TrProtocol;
@@ -19,7 +18,7 @@ namespace MultiSEngine.Core.Adapter
         protected override void OnRecieveLoopError(Exception ex)
         {
             base.OnRecieveLoopError(ex);
-            if(ex is EndOfStreamException or IOException or SocketException)
+            if (ex is EndOfStreamException or IOException or SocketException)
                 Client.Disconnect();
         }
         public override bool ListenningClient => true;

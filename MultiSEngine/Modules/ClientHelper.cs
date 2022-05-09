@@ -1,5 +1,4 @@
-﻿using MultiSEngine.Core.Adapter;
-using MultiSEngine.DataStruct;
+﻿using MultiSEngine.DataStruct;
 using System;
 using System.IO;
 using System.Linq;
@@ -55,7 +54,7 @@ namespace MultiSEngine.Modules
                             client.Sync(server);
                         });
                     }
-                    catch(Exception ex)
+                    catch (Exception ex)
                     {
                         client.State = ClientData.ClientState.ReadyToSwitch;
                         if (ex is SocketException se && se.SocketErrorCode == SocketError.OperationAborted)
@@ -120,7 +119,7 @@ namespace MultiSEngine.Modules
             Core.Hooks.OnPlayerLeave(client, out _);
             Data.Clients.Where(c => c.Server is null && c != client).ForEach(c => c.SendMessage($"{client.Name} has leave."));
             if (client.CAdapter?.Connection is { Connected: true })
-                client.SendDataToClient(new Kick() { Reason = new(reason ?? "Unknown", NetworkText.Mode.Literal) });            
+                client.SendDataToClient(new Kick() { Reason = new(reason ?? "Unknown", NetworkText.Mode.Literal) });
             client.Dispose();
         }
     }
