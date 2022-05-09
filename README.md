@@ -1,7 +1,7 @@
 # MultiSEngine
 一个独立于泰拉瑞亚服务器的代理服务, 用于进行跨服传送, 基于.Net 6
 
-A Telarea server-independent proxy service for cross-server transfers, based on .Net6
+A Terraria server-independent proxy service for cross-server transfers, based on .Net6
 
 [![CI](https://github.com/Megghy/MultiSEngine/actions/workflows/dotnet.yml/badge.svg)](https://github.com/Megghy/MultiSEngine/actions/workflows/dotnet.yml)
 ## 独特功能 Unique features
@@ -29,14 +29,14 @@ A Telarea server-independent proxy service for cross-server transfers, based on 
 * 装[.Net 6](https://dotnet.microsoft.com/download/dotnet/6.0)
 * 双击启动, 完事. 对于Linux系统则使用 ``dotnet MultiSEngine.dll``
 
-稍微具体点的部署方式和配置文件说明:https://www.yuque.com/minato-qbli7/multisengine
+稍微具体点的部署方式和配置文件说明:https://www.yuque.com/megghy/multisengine
 
 ---
 
 * Install [Net 6](https://dotnet.microsoft.com/download/dotnet/6.0)
 * Double-click to start, and you're done. For Linux systems use ``dotnet MultiSEngine.dll``.
 
-Slightly more specific deployment methods and configuration file instructions:https://www.yuque.com/minato-qbli7/multisengine
+Slightly more specific deployment methods and configuration file instructions:https://www.yuque.com/megghy/multisengine
 
 ## 发布地址 Release address
 [BBSTR](https://www.bbstr.net/r/93/)
