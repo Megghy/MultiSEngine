@@ -13,7 +13,7 @@ namespace MultiSEngine.Modules
     /// <summary>
     /// 服务器切换
     /// </summary>
-    public static partial class ClientHelper
+    public static partial class ClientManager
     {
         /// <summary>
         /// 加入到指定的服务器
@@ -59,6 +59,8 @@ namespace MultiSEngine.Modules
                         client.State = ClientData.ClientState.ReadyToSwitch;
                         if (ex is SocketException se && se.SocketErrorCode == SocketError.OperationAborted)
                             return;
+                        client.TempAdapter?.Stop();
+                        client.TempAdapter = null;
                         Logs.Error($"Unable to connect to server {server.IP}:{server.Port}{Environment.NewLine}{ex}");
                         client.SendErrorMessage(Localization.Instance["Prompt_CannotConnect", server.Name]);
                     }
@@ -123,7 +125,7 @@ namespace MultiSEngine.Modules
             client.Dispose();
         }
     }
-    public static partial class ClientHelper
+    public static partial class ClientManager
     {
         #region 消息函数
         public static bool SendDataToClient(this ClientData client, byte[] buffer, int start = 0, int? length = null)
@@ -140,9 +142,9 @@ namespace MultiSEngine.Modules
 #endif
                     return true;
                 }
-                using var arg = new SocketAsyncEventArgs();
-                arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer?.Length ?? 3);
-                client?.CAdapter?.Connection?.SendAsync(arg);
+                //using var arg = new SocketAsyncEventArgs();
+                //arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer?.Length ?? 3);
+                client?.CAdapter?.Connection?.Send(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer?.Length ?? 3, SocketFlags.None);
                 return true;
             }
             catch (Exception ex)
@@ -160,9 +162,9 @@ namespace MultiSEngine.Modules
 #if DEBUG
                 Console.WriteLine($"[Send to SERVER] <{BitConverter.ToInt16(buffer)} byte> {(MessageID)buffer[start + 2]}");
 #endif
-                using var arg = new SocketAsyncEventArgs();
-                arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer?.Length ?? 3);
-                client.SAdapter?.Connection?.SendAsync(arg);
+                //using var arg = new SocketAsyncEventArgs();
+                //arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer?.Length ?? 3);
+                client.SAdapter?.Connection?.Send(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer?.Length ?? 3, SocketFlags.None);
             }
             catch
             {

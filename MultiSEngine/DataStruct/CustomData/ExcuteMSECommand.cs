@@ -23,7 +23,7 @@ namespace MultiSEngine.DataStruct.CustomData
         }
         public override void RecievedData(ClientData client)
         {
-            if (ClientHelper.GetClientByName(PlayerName) is { } tempClient)
+            if (ClientManager.GetClientByName(PlayerName) is { } tempClient)
             {
                 tempClient.HandleCommand($"/{Command}");
             }

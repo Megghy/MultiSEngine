@@ -60,7 +60,7 @@ namespace MultiSEngine.Modules.Cmds
                             Logs.Error(string.Format(Localization.Get("Command_ServerNotFound"), parma[1]));
                     }
                     else
-                        ClientHelper.Broadcast(null, $"[Broadcast] {parma.FirstOrDefault()}");
+                        ClientManager.Broadcast(null, $"[Broadcast] {parma.FirstOrDefault()}");
                     Logs.Info($"Broadcast: {(parma.Length > 1 ? parma[1] : parma[0])}");
                     break;
                 case "t":

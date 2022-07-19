@@ -32,15 +32,15 @@ namespace MultiSEngine
                 var config = new Config()
                 {
                     SwitchToDefaultServerOnJoin = true,
-                    DefaultServer = "yfeil",
+                    DefaultServer = "boss",
                     Servers = new()
                     {
                         new()
                         {
                             Visible = true,
-                            IP = "yfeil.top",
+                            IP = "trcn.fun",
                             Port = 7777,
-                            Name = "yfeil",
+                            Name = "boss",
                         }
                     }
                 };
@@ -77,9 +77,9 @@ namespace MultiSEngine
         public string ListenIP { get; set; } = "0.0.0.0";
         public int ListenPort { get; set; } = 7778;
         public string ServerName { get; set; } = "MultiSEngine";
-        public int ServerVersion { get; set; } = 244;
+        public int ServerVersion { get; set; } = 248;
         public string Token { get; set; } = "114514";
-        public int SwitchTimeOut { get; set; } = 5000;
+        public int SwitchTimeOut { get; set; } = 10000;
         public bool EnableCrossplayFeature { get; set; } = false;
         public bool EnableChatForward { get; set; } = true;
         public bool SwitchToDefaultServerOnJoin { get; set; } = false;

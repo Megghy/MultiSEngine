@@ -1,4 +1,5 @@
 ﻿using MultiSEngine.DataStruct;
+using MultiSEngine.Modules;
 using System;
 using System.Collections.Concurrent;
 using System.IO;
@@ -78,12 +79,12 @@ namespace MultiSEngine.Core.Adapter
                             SendPacket(packet);
                     }
 #if DEBUG
-                catch (IOException io)
-                {
-                    Console.WriteLine(io);
-                }
+                    catch (IOException io)
+                    {
+                        Console.WriteLine(io);
+                    }
 #endif
-                    catch (BadBoundException)
+                    catch (OutOfBoundsException)
                     {
                     }
                     catch (Exception ex)
@@ -106,13 +107,15 @@ namespace MultiSEngine.Core.Adapter
             {
                 case EndOfStreamException:
                 case IOException:
-                case BadBoundException:
+                case OutOfBoundsException:
                     //
                     break;
                 default:
                     Logs.Warn($"{(ListenningClient ? "Client" : "Server")} recieve loop abnormally terminated. [{ErrorCount}]\r\n{ex}");
                     break;
             }
+            if (ErrorCount > 10)
+                Client.Back();
         }
         protected void RecieveLoop()
         {

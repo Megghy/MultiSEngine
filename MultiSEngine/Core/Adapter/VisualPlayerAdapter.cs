@@ -88,13 +88,6 @@ namespace MultiSEngine.Core.Adapter
                     Client.SendInfoMessage($"SSC: {worldData.EventInfo1[6]}");
 #endif
                     Player.UpdateData(worldData, false);
-                    if (SuccessCallback != null)
-                    {
-                        TestConnecting = false;
-                        SuccessCallback?.Invoke(Client);
-                        SuccessCallback = null;
-                        Client.Server = TargetServer;
-                    }
                     InternalSendPacket(new RequestTileData() { Position = new(Client.SpawnX, Client.SpawnY) });//请求物块数据
                     InternalSendPacket(new SpawnPlayer() { Position = new(Client.SpawnX, Client.SpawnY) });//请求物块数据
                     break;
@@ -121,6 +114,14 @@ namespace MultiSEngine.Core.Adapter
                 case StartPlaying:
                     Client.SendDataToClient(new SpawnPlayer() { PlayerSlot = Client.Index, Context = TrProtocol.Models.PlayerSpawnContext.RecallFromItem, Position = new(Client.SpawnX, (short)(Client.SpawnY - 3)), Timer = 0 });
                     ChangeProcessState(true); //转换处理模式为普通
+
+                    if (SuccessCallback != null)
+                    {
+                        TestConnecting = false;
+                        SuccessCallback?.Invoke(Client);
+                        SuccessCallback = null;
+                        Client.Server = TargetServer;
+                    }
                     break;
                 default:
                     return base.GetPacket(packet);

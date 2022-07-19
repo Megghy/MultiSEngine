@@ -4,8 +4,8 @@
 	  <LangVersion>preview</LangVersion>
     <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
-    <AssemblyVersion>1.0.7.1</AssemblyVersion>
-    <FileVersion>1.0.7.1</FileVersion>
+    <AssemblyVersion>1.0.7.2</AssemblyVersion>
+    <FileVersion>1.0.7.2</FileVersion>
     <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
     <AnalysisLevel>latest</AnalysisLevel>
 	<PublishSingleFile>true</PublishSingleFile>
@@ -20,6 +20,10 @@
     <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="lib\TrProtocol.zip" />
+  </ItemGroup>
 
   <ItemGroup>
     <Reference Include="TrProtocol">

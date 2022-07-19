@@ -1,6 +1,7 @@
 ﻿using MultiSEngine.Core;
 using MultiSEngine.DataStruct;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -10,8 +11,8 @@ namespace MultiSEngine.Modules
 {
     public static class Data
     {
-        public static readonly List<ClientData> Clients = new();
-        public static readonly List<CmdBase> Commands = new();
+        public static List<ClientData> Clients { get; } = new();
+        public static List<CmdBase> Commands { get; } = new();
         internal static byte[] StaticSpawnSquareData { get; set; }
         private static string _motd = string.Empty;
         public static string Motd => _motd

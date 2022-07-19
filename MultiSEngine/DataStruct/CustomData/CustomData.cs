@@ -18,7 +18,7 @@ namespace MultiSEngine.DataStruct.CustomData
         }
         private class CustomDataSerializer : FieldSerializer<CustomData>
         {
-            protected override CustomData _Read(BinaryReader br)
+            protected override CustomData ReadOverride(BinaryReader br)
             {
                 var name = br.ReadString();
                 if (Core.DataBridge.CustomPackets.TryGetValue(name, out var type))
@@ -40,7 +40,7 @@ namespace MultiSEngine.DataStruct.CustomData
                 }
             }
 
-            protected override void _Write(BinaryWriter bw, CustomData t)
+            protected override void WriteOverride(BinaryWriter bw, CustomData t)
             {
                 bw.Write(t.Name);
                 bw.Write(t.Token);

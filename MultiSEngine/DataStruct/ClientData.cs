@@ -68,8 +68,11 @@ namespace MultiSEngine.DataStruct
         public void Dispose()
         {
             Disposed = true;
-            if (!Data.Clients.Remove(this))
-                Logs.Warn($"Abnormal remove of client data.");
+            lock (Data.Clients)
+            {
+                if (!Data.Clients.Remove(this))
+                    Logs.Warn($"Abnormal remove of client data.");
+            }
             State = ClientState.Disconnect;
             SAdapter?.Stop(true);
             CAdapter?.Stop(true);
