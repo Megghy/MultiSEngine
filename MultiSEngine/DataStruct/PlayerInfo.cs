@@ -13,7 +13,7 @@ namespace MultiSEngine.DataStruct
             public short ManaMax;
             public SyncPlayer Info { get; set; }
             public WorldData WorldData { get; set; }
-            public SyncEquipment[] Inventory { get; set; } = new SyncEquipment[260];
+            public SyncEquipment[] Inventory { get; set; } = new SyncEquipment[350];
         }
         public bool SSC => ServerData?.WorldData?.EventInfo1[6] ?? false;
         public int VersionNum { get; set; } = -1;
@@ -31,6 +31,8 @@ namespace MultiSEngine.DataStruct
 
         public void UpdateData(Packet packet, bool fromClient)
         {
+            if (packet is null)
+                return;
             var data = SSC ? ServerData : OriginData;
             switch (packet)
             {

@@ -1,7 +1,7 @@
-﻿using MultiSEngine.Core.Adapter;
-using MultiSEngine.Modules;
-using System.Net;
+﻿using System.Net;
 using System.Timers;
+using MultiSEngine.Core.Adapter;
+using MultiSEngine.Modules;
 
 namespace MultiSEngine.DataStruct
 {
@@ -20,22 +20,15 @@ namespace MultiSEngine.DataStruct
         }
         public ClientData()
         {
-            TimeOutTimer = new()
-            {
-                Interval = Config.Instance.SwitchTimeOut,
-                AutoReset = false
-            };
-            TimeOutTimer.Elapsed += OnTimeOut;
         }
         public FakeWorldAdapter CAdapter { get; set; }
         public VisualPlayerAdapter SAdapter { get; set; }
         internal VisualPlayerAdapter TempAdapter { get; set; }
-        public Timer TimeOutTimer { get; init; }
 
         #region 客户端信息
         public ClientState State { get; set; } = ClientState.NewConnection;
-        public string IP => (CAdapter?.Connection?.RemoteEndPoint as IPEndPoint)?.Address?.ToString();
-        public int Port => (CAdapter?.Connection?.RemoteEndPoint as IPEndPoint)?.Port ?? -1;
+        public string IP => (CAdapter?._clientConnection?.Socket.RemoteEndPoint as IPEndPoint)?.Address?.ToString();
+        public int Port => (CAdapter?._clientConnection?.Socket.RemoteEndPoint as IPEndPoint)?.Port ?? -1;
         public string Address => $"{IP}:{Port}"; public bool Syncing { get; internal set; } = false;
         public bool Disposed { get; private set; } = false;
         #endregion
@@ -50,23 +43,12 @@ namespace MultiSEngine.DataStruct
         #endregion
 
         #region 方法
-        protected void OnTimeOut(object sender, ElapsedEventArgs args)
-        {
-            if (State == ClientState.RequestPassword)
-                this.SendErrorMessage(Localization.Instance["Prompt_PasswordTimeout"]);
-            else if (State >= ClientState.Switching && State < ClientState.InGame)
-                this.SendErrorMessage(Localization.Instance["Prompt_CannotConnect", (TempAdapter as VisualPlayerAdapter)?.TargetServer?.Name]);
-            State = ClientState.ReadyToSwitch;
-
-            Logs.Warn($"[{Name}] timeout when request is switch to: {TempAdapter.TargetServer?.Name}");
-
-            TempAdapter.Stop(true);
-            TempAdapter = null;
-        }
         public override string ToString()
             => $"{Address}:{Name}_{Player.UUID}";
         public void Dispose()
         {
+            if (Disposed)
+                return;
             Disposed = true;
             lock (Data.Clients)
             {
@@ -81,7 +63,6 @@ namespace MultiSEngine.DataStruct
             CAdapter = null;
             TempAdapter = null;
             Player = null;
-            TimeOutTimer.Dispose();
             Server = null;
         }
         #endregion

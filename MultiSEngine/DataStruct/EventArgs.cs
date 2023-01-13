@@ -70,9 +70,9 @@ namespace MultiSEngine.DataStruct.EventArgs
         public string Message { get; set; }
         public bool Handled { get; set; } = false;
     }
-    public class SendPacketEventArgs : IEventArgs
+    /*public class SendDataEventArgs : IEventArgs
     {
-        public SendPacketEventArgs(ClientData client, Packet packet, bool toClient)
+        public SendDataEventArgs(ClientData client, Packet packet, bool toClient)
         {
             Client = client;
             Packet = packet;
@@ -84,9 +84,9 @@ namespace MultiSEngine.DataStruct.EventArgs
         public bool ToServer => !ToClient;
         public bool Handled { get; set; } = false;
     }
-    public class GetPacketEventArgs : IEventArgs
+    public ref struct GetDataEventArgs : IEventArgs
     {
-        public GetPacketEventArgs(ClientData client, Packet packet, bool fromClient)
+        public GetDataEventArgs(ClientData client, Packet packet, bool fromClient)
         {
             Client = client;
             Packet = packet;
@@ -97,5 +97,5 @@ namespace MultiSEngine.DataStruct.EventArgs
         public bool FromClient { get; }
         public bool FromServer => !FromClient;
         public bool Handled { get; set; } = false;
-    }
+    }*/
 }

@@ -16,19 +16,37 @@ namespace MultiSEngine
             WriteIndented = true,
             Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
         };
-        internal static Config _instance;
+        private static Config _oldInstance = new();
+        private static Config _instance;
+        private static bool _first = true;
         public static Config Instance { get { _instance ??= Load(); return _instance; } }
         public static string ConfigPath => Path.Combine(Environment.CurrentDirectory, "Config.json");
+        public static void Reload()
+        {
+            _oldInstance = _instance;
+            _instance = null;
+        }
         public static Config Load()
         {
             if (File.Exists(ConfigPath))
             {
-                var config = CheckConfig(JsonSerializer.Deserialize<Config>(File.ReadAllText(ConfigPath)));
-                config.Save();
-                return config;
+                try
+                {
+                    var config = CheckConfig(JsonSerializer.Deserialize<Config>(File.ReadAllText(ConfigPath)));
+                    _oldInstance = config;
+                    if (_first)
+                        config.Save();
+                    return config;
+                }
+                catch(Exception ex)
+                {
+                    Logs.Warn($"Unable to load config. {Environment.NewLine}{ex}");
+                    return _oldInstance;
+                }
             }
             else
             {
+                Logs.Info($"Config file not found, creating...");
                 var config = new Config()
                 {
                     SwitchToDefaultServerOnJoin = true,
@@ -41,6 +59,7 @@ namespace MultiSEngine
                             IP = "trcn.fun",
                             Port = 7777,
                             Name = "boss",
+                            VersionNum = -1
                         }
                     }
                 };
@@ -77,11 +96,12 @@ namespace MultiSEngine
         public string ListenIP { get; set; } = "0.0.0.0";
         public int ListenPort { get; set; } = 7778;
         public string ServerName { get; set; } = "MultiSEngine";
-        public int ServerVersion { get; set; } = 248;
+        public int ServerVersion { get; set; } = 279;
         public string Token { get; set; } = "114514";
         public int SwitchTimeOut { get; set; } = 10000;
         public bool EnableCrossplayFeature { get; set; } = false;
         public bool EnableChatForward { get; set; } = true;
+        public string ChatFormat { get; set; } = "[{servername}] {username}: {message}";
         public bool SwitchToDefaultServerOnJoin { get; set; } = false;
         public bool RestoreDataWhenJoinNonSSC { get; set; } = true;
         [JsonIgnore]

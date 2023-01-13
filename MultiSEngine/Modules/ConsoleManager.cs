@@ -1,8 +1,8 @@
-﻿using MultiSEngine.DataStruct;
-using System;
+﻿using System;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Timers;
+using MultiSEngine.DataStruct;
 
 namespace MultiSEngine.Modules
 {

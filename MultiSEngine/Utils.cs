@@ -1,8 +1,9 @@
-﻿using MultiSEngine.DataStruct;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
+using MultiSEngine.DataStruct;
 using TrProtocol.Models;
 
 namespace MultiSEngine
@@ -15,14 +16,13 @@ namespace MultiSEngine
                 return reader.Deserialize<T>();
         }*/
         public static ClientData[] Online(this ServerInfo server) => Modules.Data.Clients.Where(c => c.Server == server).ToArray();
-        public static bool TryParseAddress(string address, out string ip)
+        public static bool TryParseAddress(string address, out IPAddress ip)
         {
-            ip = "";
+            ip = default;
             try
             {
-                if (IPAddress.TryParse(address, out _))
+                if (IPAddress.TryParse(address, out ip))
                 {
-                    ip = address;
                     return true;
                 }
                 else
@@ -30,7 +30,7 @@ namespace MultiSEngine
                     IPHostEntry hostinfo = Dns.GetHostEntry(address);
                     if (hostinfo.AddressList.FirstOrDefault() is { } _ip)
                     {
-                        ip = _ip.ToString();
+                        ip = _ip;
                         return true;
                     }
                 }
@@ -41,6 +41,10 @@ namespace MultiSEngine
         public static ServerInfo[] GetServersInfoByName(string name)
         {
             return Config.Instance.Servers.Where(s => s.Name.ToLower().StartsWith(name.ToLower()) || s.Name.ToLower().Contains(name.ToLower()) || s.ShortName == name).ToArray();
+        }
+        public static bool IsOnline(this TcpClient c)
+        {
+            return !((c.Client.Poll(1000, SelectMode.SelectRead) && (c.Client.Available == 0)) || !c.Client.Connected);
         }
         public static ServerInfo GetSingleServerInfoByName(string name)
         {
@@ -88,6 +92,7 @@ namespace MultiSEngine
             {
                 Data = new()
                 {
+                    //IsCompressed = true,
                     StartX = x,
                     StartY = y,
                     Width = (short)width,

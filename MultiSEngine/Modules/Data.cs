@@ -1,10 +1,11 @@
-﻿using MultiSEngine.Core;
-using MultiSEngine.DataStruct;
-using System;
-using System.Collections.Concurrent;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using MultiSEngine.Core;
+using MultiSEngine.DataStruct;
+using NetCoreServer;
+using TrProtocol.Packets;
 using static MultiSEngine.Core.Command;
 
 namespace MultiSEngine.Modules
@@ -14,32 +15,29 @@ namespace MultiSEngine.Modules
         public static List<ClientData> Clients { get; } = new();
         public static List<CmdBase> Commands { get; } = new();
         internal static byte[] StaticSpawnSquareData { get; set; }
+        internal static byte[] StaticDeactiveAllPlayer { get; set; }
         private static string _motd = string.Empty;
         public static string Motd => _motd
             .Replace("{online}", Clients.Count.ToString())
             .Replace("{name}", Config.Instance.ServerName)
             .Replace("{players}", string.Join(", ", Clients.Select(c => c.Name)))
-            .Replace("{servers}", string.Join(", ", Config.Instance.Servers.Select(s => s.Name)));
+            .Replace("{servers}", string.Join(", ", Config.Instance.Servers.Where(s => s.Visible).Select(s => s.Name)));
         public static string MotdPath => Path.Combine(Environment.CurrentDirectory, "MOTD.txt");
         public static string Convert(int version)
         {
-            string protocol = $"Terraria{version}";
-            return protocol switch
+            return version switch
             {
-                "Terraria230" => "v1.4.0.5",
-                "Terraria233" => "v1.4.1.1",
-                "Terraria234" => "v1.4.1.2",
-                "Terraria235" => "v1.4.2",
-                "Terraria236" => "v1.4.2.1",
-                "Terraria237" => "v1.4.2.2",
-                "Terraria238" => "v1.4.2.3",
-                "Terraria242" => "v1.4.3",
-                "Terraria243" => "v1.4.3.1",
-                "Terraria244" => "v1.4.3.2",
-                "Terraria245" => "v1.4.3.3",
-                "Terraria246" => "v1.4.3.4",
-                "Terraria247" => "v1.4.3.5",
-                "Terraria248" => "v1.4.3.6",
+                269 => "v1.4.4",
+                270 => "v1.4.4.1",
+                271 => "v1.4.4.2",
+                272 => "v1.4.4.3",
+                273 => "v1.4.4.4",
+                274 => "v1.4.4.5",
+                275 => "v1.4.4.6",
+                276 => "v1.4.4.7",
+                277 => "v1.4.4.8",
+                278 => "v1.4.4.8.1",
+                279 => "v1.4.4.9",
                 _ => "Unknown",
             };
         }
@@ -53,6 +51,18 @@ namespace MultiSEngine.Modules
                 Net.ServerSerializer.TryAdd(v, new(false, $"Terraria{v}"));
             });
             StaticSpawnSquareData = Utils.GetTileSection(4150, 1150, 100, 100);
+            var deactivePlayers = new List<byte>();
+            var playerActive = new PlayerActive()
+            {
+                PlayerSlot = 1,
+                Active = false
+            };
+            for (int i = 1; i < 255; i++)
+            {
+                playerActive.PlayerSlot = (byte)i;
+                deactivePlayers.AddRange(Net.DefaultServerSerializer.Serialize(playerActive));
+            }  //隐藏其他所有玩家
+            StaticDeactiveAllPlayer = deactivePlayers.ToArray();
             if (!File.Exists(MotdPath))
                 File.WriteAllText(MotdPath, Properties.Resources.DefaultMotd);
             _motd = File.ReadAllText(MotdPath);

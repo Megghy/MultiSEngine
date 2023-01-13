@@ -1,6 +1,10 @@
-﻿using MultiSEngine.DataStruct;
-using System;
+﻿using System;
 using System.Linq;
+using System.Threading.Channels;
+using System.Threading;
+using System.Threading.Tasks;
+using MultiSEngine.DataStruct;
+using NetCoreServer;
 
 namespace MultiSEngine.Modules.Cmds
 {
@@ -21,7 +25,10 @@ namespace MultiSEngine.Modules.Cmds
                         if (parma.Length < 2)
                             client.SendInfoMessage($"{Localization.Get("Prompt_InvalidFormat")}{Environment.NewLine}{Localization.Get("Help_Tp")}");
                         else
-                            SwitchServer(client, parma[1]);
+                            Task.Run(() =>
+                            {
+                                SwitchServer(client, parma[1]);
+                            });
                         break;
                     case "back":
                     case "b":
@@ -78,7 +85,7 @@ namespace MultiSEngine.Modules.Cmds
                     );
             }
         }
-        private static void SwitchServer(ClientData client, string serverName)
+        private async static Task SwitchServer(ClientData client, string serverName, CancellationToken cancel = default)
         {
             if (client.State > ClientData.ClientState.ReadyToSwitch && client.State < ClientData.ClientState.InGame)
             {
@@ -92,7 +99,7 @@ namespace MultiSEngine.Modules.Cmds
                 else
                 {
                     client.SendInfoMessage(string.Format(Localization.Get("Command_Switch"), server.Name));
-                    client.Join(server);
+                    await client.Join(server, cancel);
                 }
             }
             else

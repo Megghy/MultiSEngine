@@ -1,11 +1,8 @@
-﻿using MultiSEngine.DataStruct;
-using MultiSEngine.Modules;
-using System;
-using System.Collections.Concurrent;
+﻿using System;
 using System.IO;
 using System.Net.Sockets;
-using System.Threading;
-using System.Threading.Tasks;
+using MultiSEngine.DataStruct;
+using MultiSEngine.Modules;
 using TrProtocol;
 
 namespace MultiSEngine.Core.Adapter
@@ -17,10 +14,9 @@ namespace MultiSEngine.Core.Adapter
     }
     public abstract class BaseAdapter
     {
-        public BaseAdapter(ClientData client, Socket connection)
+        public BaseAdapter(ClientData client)
         {
             Client = client;
-            Connection = connection;
         }
         #region 变量
         public int ErrorCount { get; protected set; } = 0;
@@ -29,73 +25,33 @@ namespace MultiSEngine.Core.Adapter
         public virtual PacketSerializer InternalClientSerializer => Net.ClientSerializer.TryGetValue(VersionNum, out var result) ? result : Net.DefaultClientSerializer;
         public virtual PacketSerializer InternalServerSerializer => Net.ServerSerializer.TryGetValue(VersionNum, out var result) ? result : Net.DefaultServerSerializer;
         public ClientData Client { get; protected set; }
-        public Socket Connection { get; internal set; }
-        protected BinaryReader NetReader { get; set; }
-        public ConcurrentQueue<Packet> PacketPool { get; protected set; } = new();
-        public abstract bool ListenningClient { get; }
         #endregion
-        /// <summary>
-        /// 返回是否要继续传递给给定的socket
-        /// </summary>
-        /// <param name="client"></param>
-        /// <param name="buffer"></param>
-        /// <param name="start"></param>
-        /// <param name="length"></param>
-        /// <returns></returns>
-        public abstract bool GetPacket(Packet packet);
-        public abstract void SendPacket(Packet packet);
-        public virtual BaseAdapter Start()
-        {
-            NetReader = new BinaryReader(new NetworkStream(Connection));
-            Task.Run(RecieveLoop);
-            Task.Run(ProcessPacketLoop);
-            return this;
-        }
+        public abstract bool ListenningClient { get; }
+        public abstract bool GetData(ref Span<byte> data);
+        public abstract void SendData(ref Span<byte> data);
         public virtual void Stop(bool disposeConnection = false)
         {
-#if DEBUG
-            Logs.Warn($"[{GetType()}] <{Connection?.RemoteEndPoint}> Stopped");
-#endif
+            if (ShouldStop)
+                return;
             ShouldStop = true;
-            Client?.TimeOutTimer?.Stop();
+            System.Net.EndPoint ep = default;
             if (disposeConnection)
             {
-                try { Connection?.Shutdown(SocketShutdown.Both); } catch { }
-                NetReader?.Dispose();
-                NetReader = null;
-                Connection?.Dispose();
-                Connection = null;
-            }
-        }
-        protected void ProcessPacketLoop()
-        {
-            while (!ShouldStop)
-            {
-                if (PacketPool.TryDequeue(out var packet))
+                if (this is ClientAdapter client)
                 {
-                    try
-                    {
-                        if (packet is not null && !Hooks.OnGetPacket(Client, packet, ListenningClient, out _) && GetPacket(packet))
-                            SendPacket(packet);
-                    }
-#if DEBUG
-                    catch (IOException io)
-                    {
-                        Console.WriteLine(io);
-                    }
-#endif
-                    catch (OutOfBoundsException)
-                    {
-                    }
-                    catch (Exception ex)
-                    {
-                        Logs.Error($"An error occurred while processing packet {packet}.{Environment.NewLine}{ex}");
-                    }
+                    ep = client._clientConnection.Socket.RemoteEndPoint;
+                    client._clientConnection?.Disconnect();
                 }
-                else
-                    Thread.Sleep(1);
+                else if (this is ServerAdapter server)
+                {
+                    ep = server._serverConnection?.Endpoint;
+                    server._serverConnection?.Disconnect();
+                }
             }
-            PacketPool.Clear();
+
+#if DEBUG
+            Logs.Warn($"[{GetType()}] <{ep}> Stopped");
+#endif
         }
         protected virtual void OnRecieveLoopError(Exception ex)
         {
@@ -117,28 +73,105 @@ namespace MultiSEngine.Core.Adapter
             if (ErrorCount > 10)
                 Client.Back();
         }
-        protected void RecieveLoop()
+        internal void BufCheckedCallback(ref Span<byte> buf)
         {
-            while (!ShouldStop && NetReader is { BaseStream: not null })
+            try
             {
-                try
-                {
-                    PacketPool.Enqueue((ListenningClient ? InternalServerSerializer : Net.DefaultClientSerializer).Deserialize(NetReader));
-                }
-                catch (Exception ex)
-                {
-                    OnRecieveLoopError(ex);
-                }
-
+                if (buf.Length > 0)
+                    SendData(ref buf);
             }
+#if DEBUG
+            catch (IOException io)
+            {
+                Console.WriteLine(io);
+            }
+#endif
+            catch (Exception ex)
+            {
+                Logs.Error($"An error occurred while processing packet {BitConverter.ToUInt16(buf[..2])}.{Environment.NewLine}{ex}");
+            }
+        }
+        private readonly byte[] _fixdCheckedBuf = new byte[131070];
+
+        public delegate bool BufferCheckRefStructMutator(ref Span<byte> s);
+        public delegate void BufferCallbackRefStructMutator(ref Span<byte> s);
+
+        public bool CheckBuffer(Span<byte> buf, BufferCheckRefStructMutator check, BufferCallbackRefStructMutator callback)
+        {
+            if (buf.IsEmpty)
+            {
+                Logs.Warn($"Receive a packet of length 0");
+                return true;
+            }
+            var length = BitConverter.ToUInt16(buf);
+            if (buf.Length > length)
+            {
+                var checkedPos = 0;
+                Span<byte> _checkedBuf = new(_fixdCheckedBuf);
+                var tempPos = 0;
+                while (tempPos < buf.Length)
+                {
+                    var tempLen = BitConverter.ToUInt16(buf.Slice(tempPos, 2));
+                    if (tempLen == 0)
+                        break;
+                    var checkData = buf.Slice(tempPos, tempLen);
+                    if (!checkData.IsEmpty && !check(ref checkData))
+                    {
+                        buf.Slice(tempPos, tempLen).CopyTo(_checkedBuf.Slice(checkedPos, tempLen));
+                        checkedPos += tempLen;
+                    }
+                    tempPos += tempLen;
+                }
+                var data = _checkedBuf[..checkedPos];
+                if (checkedPos > 0)
+                {
+                    callback(ref data);
+                }
+                _checkedBuf.Clear();
+            }
+            else
+            {
+                if (!check(ref buf))
+                    callback(ref buf);
+            }
+            return default;
         }
         public virtual void InternalSendPacket(Packet packet, bool asClient = false)
         {
 #if DEBUG
             Console.WriteLine($"[Internal Send] {packet}");
 #endif
+            if (packet == null)
+                return;
             if (!ShouldStop)
-                Connection?.Send((ListenningClient ? (asClient ? InternalClientSerializer : InternalServerSerializer) : (asClient ? Net.DefaultClientSerializer : Net.DefaultServerSerializer)).Serialize(packet));
+            {
+                var data = (ListenningClient ? (asClient ? InternalClientSerializer : InternalServerSerializer) : (asClient ? Net.DefaultClientSerializer : Net.DefaultServerSerializer)).Serialize(packet);
+                if (this is ClientAdapter client)
+                {
+                    client._clientConnection?.SendAsync(data);
+                }
+                else if (this is ServerAdapter server)
+                {
+                    server._serverConnection?.SendAsync(data);
+                }
+            }
+        }
+        public virtual void InternalSendPacket(byte[] data, bool asClient = false)
+        {
+#if DEBUG
+            Console.WriteLine($"[Internal Send] {(MessageID)data[2]}");
+#endif
+            if (!ShouldStop)
+            {
+                if (this is ClientAdapter client)
+                {
+                    client._clientConnection?.SendAsync(data);
+                }
+                else if (this is ServerAdapter server)
+                {
+                    server._serverConnection?.SendAsync(data);
+                }
+            }
         }
     }
 }

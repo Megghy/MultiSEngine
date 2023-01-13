@@ -1,7 +1,7 @@
-﻿using MultiSEngine.DataStruct;
-using MultiSEngine.DataStruct.EventArgs;
-using System;
+﻿using System;
 using System.IO;
+using MultiSEngine.DataStruct;
+using MultiSEngine.DataStruct.EventArgs;
 using TrProtocol;
 
 namespace MultiSEngine.Core
@@ -22,9 +22,9 @@ namespace MultiSEngine.Core
 
             public delegate void ChatEvent(ChatEventArgs args);
 
-            public delegate void SendPacketEvent(SendPacketEventArgs args);
+            //public delegate void SendPacketEvent(SendPacketEventArgs args);
 
-            public delegate void RecievePacketEvent(GetPacketEventArgs args);
+            //public delegate void RecievePacketEvent(GetPacketEventArgs args);
         }
 
         public static event HookDelegates.PlayerJoinEvent PlayerJoin;
@@ -33,8 +33,8 @@ namespace MultiSEngine.Core
         public static event HookDelegates.PreSwitchEvent PreSwitch;
         public static event HookDelegates.PostSwitchEvent PostSwitch;
         public static event HookDelegates.ChatEvent Chat;
-        public static event HookDelegates.SendPacketEvent SendPacket;
-        public static event HookDelegates.RecievePacketEvent RecievePacket;
+        //public static event HookDelegates.SendPacketEvent SendPacket;
+        //public static event HookDelegates.RecievePacketEvent RecievePacket;
         internal static bool OnPlayerJoin(ClientData client, string ip, int port, string version, out PlayerJoinEventArgs args)
         {
             args = new(client, ip, port, version);
@@ -116,7 +116,7 @@ namespace MultiSEngine.Core
             }
             return args.Handled;
         }
-        internal static bool OnSendPacket(ClientData client, Packet packet, bool toClient, out SendPacketEventArgs args)
+        /*internal static bool OnSendData(ClientData client, Packet packet, bool toClient, out SendPacketEventArgs args)
         {
             args = new(client, packet, toClient);
             try
@@ -129,9 +129,9 @@ namespace MultiSEngine.Core
             }
             return args.Handled;
         }
-        internal static bool OnGetPacket(ClientData client, Packet packet, bool fromClient, out GetPacketEventArgs args)
+        internal static bool OnGetData(ClientData client, ref Span<byte> buf, bool fromClient, out GetPacketEventArgs args)
         {
-            args = new(client, packet, fromClient);
+            args = new(client, ref buf, fromClient);
             try
             {
                 RecievePacket?.Invoke(args);
@@ -141,6 +141,6 @@ namespace MultiSEngine.Core
                 Logs.Error($"<GetPacket> Hook handling failed.{Environment.NewLine}{ex}");
             }
             return args.Handled;
-        }
+        }*/
     }
 }

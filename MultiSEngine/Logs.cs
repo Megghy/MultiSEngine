@@ -1,9 +1,9 @@
-﻿using MultiSEngine.DataStruct;
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using MultiSEngine.DataStruct;
 
 namespace MultiSEngine
 {
@@ -55,7 +55,7 @@ namespace MultiSEngine
         public static void LogAndSave(object message, string prefix = "[Log]", ConsoleColor color = DefaultColor, bool save = true)
         {
             Console.ForegroundColor = color;
-            Console.WriteLine($"{prefix} {message}");
+            Console.WriteLine($"{DateTime.Now:HH:mm:ss} {prefix} {message}");
             Console.ForegroundColor = DefaultColor;
             if (save)
                 _queue.Enqueue($"{DateTime.Now:HH:mm:ss} - {prefix} {message}");

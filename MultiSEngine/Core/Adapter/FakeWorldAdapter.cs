@@ -1,8 +1,9 @@
-﻿using MultiSEngine.DataStruct;
-using MultiSEngine.Modules;
-using System;
+﻿using System;
+using System.IO;
 using System.Linq;
-using System.Net.Sockets;
+using System.Threading.Tasks;
+using MultiSEngine.DataStruct;
+using MultiSEngine.Modules;
 using TrProtocol;
 using TrProtocol.Models;
 using TrProtocol.Packets;
@@ -11,10 +12,10 @@ namespace MultiSEngine.Core.Adapter
 {
     public class FakeWorldAdapter : ClientAdapter, IStatusChangeable
     {
-        public FakeWorldAdapter(Socket connection) : this(null, connection)
+        public FakeWorldAdapter(Net.NetSession connection) : this(null, connection)
         {
         }
-        public FakeWorldAdapter(ClientData client, Socket connection) : base(client, connection)
+        public FakeWorldAdapter(ClientData client, Net.NetSession connection) : base(client, connection)
         {
         }
         public const int Width = 8400;
@@ -35,107 +36,87 @@ namespace MultiSEngine.Core.Adapter
             Client.Server = null;
             Client.SAdapter?.Stop(true);
             Client.Sync(null);
-            Client.TP(4200, 1200);
-            Client.SendDataToClient(new TileSection()
-            {
-                Data = new()
-                {
-                    ChestCount = 0,
-                    Chests = Array.Empty<ChestData>(),
-                    SignCount = 0,
-                    Signs = Array.Empty<SignData>(),
-                    TileEntities = Array.Empty<TileEntity>(),
-                    TileEntityCount = 0,
-                    Height = 180,
-                    Width = 180,
-                    StartX = 4200 - 90,
-                    StartY = 1200 - 90,
-                    Tiles = new ComplexTileData[1]
-                    {
-                        new ComplexTileData()
-                        {
-                            TileType = 541,
-                            Count = 180 * 180
-                        }
-                    }
-                }
-            });
-            var playerActive = new PlayerActive()
-            {
-                PlayerSlot = 1,
-                Active = false
-            };
-            for (int i = 1; i < 255; i++)
-            {
-                playerActive.PlayerSlot = (byte)i;
-                Client.SendDataToClient(playerActive);
-            }  //隐藏其他所有玩家
+            Client.TP(Width / 2, Height / 2);
+            Client.SendDataToClient(Data.StaticSpawnSquareData);
+            Client.SendDataToClient(Data.StaticDeactiveAllPlayer); //隐藏所有玩家
         }
-        public override bool GetPacket(Packet packet)
+        public override bool GetData(ref Span<byte> buf)
         {
+            var msgType = (MessageID)buf[2];
 #if DEBUG
-            Console.WriteLine($"[Recieve CLIENT] {packet}");
+            Console.WriteLine($"[Recieve CLIENT] {msgType}");
 #endif
-            if (RunningAsNormal)
-                return base.GetPacket(packet);
-            switch (packet)
+            if (msgType is MessageID.ClientHello
+                or MessageID.RequestWorldInfo
+                or MessageID.RequestTileData
+                or MessageID.SpawnPlayer
+                )
             {
-                case ClientHello hello:
-                    if (!Hooks.OnPlayerJoin(Client, Client.IP, Client.Port, hello.Version, out var joinEvent))
-                    {
-                        Client.ReadVersion(joinEvent.Version);
-                        if (Client.Player.VersionNum != Config.Instance.ServerVersion && !Config.Instance.EnableCrossplayFeature)
-                            Client.Disconnect(Localization.Instance["Prompt_VersionNotAllowed", Modules.Data.Convert(Client.Player.VersionNum)]);
-                        else
-                            InternalSendPacket(new LoadPlayer() { PlayerSlot = 0, ServerWantsToRunCheckBytesInClientLoopThread = true });
-                    }
-                    return false;
-                case RequestWorldInfo:
-                    var bb = new BitsByte();
-                    bb[6] = true;
-                    Client.Player.OriginData.WorldData = new WorldData()
-                    {
-                        EventInfo1 = bb,
-                        SpawnX = Width / 2,
-                        SpawnY = Height / 2,
-                        MaxTileX = Width,
-                        MaxTileY = Height,
-                        GameMode = 0,
-                        WorldName = Config.Instance.ServerName,
-                        WorldUniqueID = Guid.Empty
-                    };
-                    Client.SendDataToClient(Client.Player.OriginData.WorldData);
-                    return false;
-                case RequestTileData:
-                    Client.SendDataToClient(Modules.Data.StaticSpawnSquareData);
-                    Client.SendDataToClient(new StartPlaying());
-                    return false;
-                case SpawnPlayer spawn:
-                    if (spawn.Context == PlayerSpawnContext.SpawningIntoWorld)
-                    {
+                if (RunningAsNormal)
+                    return base.GetData(ref buf);
+                switch (msgType)
+                {
+                    case MessageID.ClientHello:
+                        {
+                            using var reader = new BinaryReader(new MemoryStream(buf.ToArray()));
+                            var hello = Net.DefaultServerSerializer.Deserialize(reader) as ClientHello;
+                            if (!Hooks.OnPlayerJoin(Client, Client.IP, Client.Port, hello.Version, out var joinEvent))
+                            {
+                                Client.ReadVersion(joinEvent.Version);
+                                if (Client.Player.VersionNum < 269 || (Client.Player.VersionNum != Config.Instance.ServerVersion && !Config.Instance.EnableCrossplayFeature))
+                                    Client.Disconnect(Localization.Instance["Prompt_VersionNotAllowed", $"{Data.Convert(Client.Player.VersionNum)} ({Client.Player.VersionNum})"]);
+                                else
+                                    InternalSendPacket(new LoadPlayer() { PlayerSlot = 0, ServerWantsToRunCheckBytesInClientLoopThread = true });
+                            }
+                            return true;
+                        }
+                    case MessageID.RequestWorldInfo:
+                        var bb = new BitsByte();
+                        bb[6] = true;
+                        Client.Player.OriginData.WorldData = new WorldData()
+                        {
+                            EventInfo1 = bb,
+                            SpawnX = Width / 2,
+                            SpawnY = Height / 2,
+                            MaxTileX = Width,
+                            MaxTileY = Height,
+                            GameMode = 0,
+                            WorldName = Config.Instance.ServerName,
+                            WorldUniqueID = Guid.Empty
+                        };
+                        Client.SendDataToClient(Client.Player.OriginData.WorldData);
+                        return true;
+                    case MessageID.RequestTileData:
+                        InternalSendPacket(Data.StaticSpawnSquareData);
+                        Client.SendDataToClient(new StartPlaying());
+                        return true;
+                    case MessageID.SpawnPlayer:
                         IsEnterWorld = true;
-                        Client.Player.SpawnX = spawn.Position.X;
-                        Client.Player.SpawnY = spawn.Position.Y;
+                        RunningAsNormal = true;
+                        Client.Player.SpawnX = BitConverter.ToInt16(buf.Slice(4, 2));
+                        Client.Player.SpawnY = BitConverter.ToInt16(buf.Slice(6, 2));
                         Client.SendDataToClient(new FinishedConnectingToServer());
-                        Client.SendMessage(Modules.Data.Motd, false);
+                        Client.SendMessage(Data.Motd, false);
                         Data.Clients.Where(c => c.Server is null && c != Client).ForEach(c => c.SendMessage($"{Client.Name} has join."));
                         if (Config.Instance.SwitchToDefaultServerOnJoin)
                         {
                             if (Config.Instance.DefaultServerInternal is { })
                             {
                                 Client.SendInfoMessage(Localization.Instance["Command_Switch", Config.Instance.DefaultServerInternal.Name]);
-                                Client.Join(Config.Instance.DefaultServerInternal);
+                                Task.Run(() =>
+                                {
+                                    Client.Join(Config.Instance.DefaultServerInternal);
+                                });
                             }
                             else
                                 Client.SendInfoMessage(Localization.Instance["Prompt_DefaultServerNotFound", new[] { Config.Instance.DefaultServer }]);
                         }
                         else
                             Logs.Text($"[{Client.Name}] is temporarily transported in FakeWorld");
-                    }
-                    return false;
-                default:
-                    return base.GetPacket(packet);
+                        return true;
+                }
             }
+            return base.GetData(ref buf);
         }
     }
 }

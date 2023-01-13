@@ -1,9 +1,10 @@
-﻿using MultiSEngine.DataStruct;
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
+using MultiSEngine.DataStruct;
 using TrProtocol;
 using TrProtocol.Models;
 using TrProtocol.Packets;
@@ -20,7 +21,7 @@ namespace MultiSEngine.Modules
         /// </summary>
         /// <param name="client"></param>
         /// <param name="server"></param>
-        public static async Task Join(this ClientData client, ServerInfo server)
+        public static async Task Join(this ClientData client, ServerInfo server, CancellationToken cancel = default)
         {
             if (Core.Hooks.OnPreSwitch(client, server, out _))
                 return;
@@ -39,26 +40,25 @@ namespace MultiSEngine.Modules
                     try
                     {
                         client.State = ClientData.ClientState.Switching;
-                        client.TimeOutTimer.Start();
 
                         client.TempAdapter = new(client, server);//新建与服务器的连接
 
-                        await client.TempAdapter.TryConnect(server, (client) =>
-                        {
-                            client.State = ClientData.ClientState.InGame;
-                            client.SAdapter?.Stop(true);
-                            client.SAdapter = client.TempAdapter;
-                            client.CAdapter.ChangeProcessState(true);  //切换至正常的客户端处理
-                            client.TempAdapter = null;
-                            client.TimeOutTimer.Stop();
-                            client.Sync(server);
-                        });
+                        cancel = cancel == default ? new CancellationTokenSource(Config.Instance.SwitchTimeOut).Token : cancel;
+                        await client.TempAdapter.TryConnect(server, cancel)
+                            .ContinueWith(task =>
+                            {
+                                client.Server = server;
+                                client.State = ClientData.ClientState.InGame;
+                                client.SAdapter?.Stop(true);
+                                client.SAdapter = client.TempAdapter;
+                                client.CAdapter.ChangeProcessState(true);  //切换至正常的客户端处理
+                                client.TempAdapter = null;
+                                client.Sync(server);
+                            }, cancel);
                     }
                     catch (Exception ex)
                     {
                         client.State = ClientData.ClientState.ReadyToSwitch;
-                        if (ex is SocketException se && se.SocketErrorCode == SocketError.OperationAborted)
-                            return;
                         client.TempAdapter?.Stop();
                         client.TempAdapter = null;
                         Logs.Error($"Unable to connect to server {server.IP}:{server.Port}{Environment.NewLine}{ex}");
@@ -117,10 +117,12 @@ namespace MultiSEngine.Modules
         }
         public static void Disconnect(this ClientData client, string reason = null)
         {
+            if (client.Disposed)
+                return;
             Logs.Text($"[{client.Name}] disconnected. {reason}");
             Core.Hooks.OnPlayerLeave(client, out _);
             Data.Clients.Where(c => c.Server is null && c != client).ForEach(c => c.SendMessage($"{client.Name} has leave."));
-            if (client.CAdapter?.Connection is { Connected: true })
+            if (client.CAdapter?._clientConnection?.IsConnected == true)
                 client.SendDataToClient(new Kick() { Reason = new(reason ?? "Unknown", NetworkText.Mode.Literal) });
             client.Dispose();
         }
@@ -128,23 +130,23 @@ namespace MultiSEngine.Modules
     public static partial class ClientManager
     {
         #region 消息函数
-        public static bool SendDataToClient(this ClientData client, byte[] buffer, int start = 0, int? length = null)
+        public static bool SendDataToClient(this ClientData client, ref Span<byte> buffer, int start = 0, int? length = null)
         {
             try
             {
 #if DEBUG
-                Console.WriteLine($"[Send to CLIENT] <{BitConverter.ToInt16(buffer, start)} byte> {(length is null ? "" : $"<Length: {length}>")} {(MessageID)buffer[start + 2]}");
+                Console.WriteLine($"[Send to CLIENT] <{BitConverter.ToInt16(buffer)} byte> {(length is null ? "" : $"<Length: {length}>")} {(MessageID)buffer[start + 2]}");
 #endif
-                if (buffer is { Length: < 3 } && buffer[start + 2] is < 1 or > 140)
+                if (buffer is { Length: < 3 })
                 {
 #if DEBUG
-                    Console.WriteLine($"[Send to CLIENT] <Invaild data> <{BitConverter.ToInt16(buffer, start)} byte> {(length is null ? "" : $"<Length: {length}>")} {(MessageID)buffer[start + 2]}");
+                    Console.WriteLine($"[Send to CLIENT] <Invaild data> <{BitConverter.ToInt16(buffer)} byte> {(length is null ? "" : $"<Length: {length}>")} {(MessageID)buffer[start + 2]}");
 #endif
                     return true;
                 }
                 //using var arg = new SocketAsyncEventArgs();
                 //arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer?.Length ?? 3);
-                client?.CAdapter?.Connection?.Send(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer?.Length ?? 3, SocketFlags.None);
+                client?.CAdapter?._clientConnection?.SendAsync(buffer.Slice(start, length ?? buffer.Length));
                 return true;
             }
             catch (Exception ex)
@@ -153,18 +155,31 @@ namespace MultiSEngine.Modules
                 return false;
             }
         }
-        public static void SendDataToServer(this ClientData client, byte[] buffer, int start = 0, int? length = null)
+        public static bool SendDataToClient(this ClientData client, byte[] buffer, int start = 0, int? length = null)
         {
-            if (client.SAdapter is not { Connection: not null })
+            var data = buffer.AsSpan().Slice(start, length ?? buffer.Length);
+            return client.SendDataToClient(ref data);
+        }
+        private static readonly byte[] _emptyPacket = new byte[3] { 3, 0, 0 };
+        public static void SendDataToServer(this ClientData client, ref Span<byte> buffer, int start = 0, int? length = null)
+        {
+            if (client.SAdapter is not { _serverConnection: not null })
                 return;
             try
             {
 #if DEBUG
                 Console.WriteLine($"[Send to SERVER] <{BitConverter.ToInt16(buffer)} byte> {(MessageID)buffer[start + 2]}");
 #endif
+                if (buffer is { Length: < 3 })
+                {
+#if DEBUG
+                    Console.WriteLine($"[Send to SERVER] <Invaild data> <{BitConverter.ToInt16(buffer)} byte> {(length is null ? "" : $"<Length: {length}>")} {(MessageID)buffer[start + 2]}");
+#endif
+                    return;
+                }
                 //using var arg = new SocketAsyncEventArgs();
                 //arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer?.Length ?? 3);
-                client.SAdapter?.Connection?.Send(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer?.Length ?? 3, SocketFlags.None);
+                client.SAdapter?._serverConnection?.SendAsync(buffer.Slice(start, length ?? buffer.Length));
             }
             catch
             {
@@ -177,13 +192,14 @@ namespace MultiSEngine.Modules
                 throw new ArgumentNullException(nameof(packet));
             if (client is null)
                 throw new ArgumentNullException(nameof(client));
-            if (Core.Hooks.OnSendPacket(client, packet, true, out _))
-                return true;
+            /*if (Core.Hooks.OnSendPacket(client, packet, true, out _))
+                return true;*/
             if (client.Disposed)
                 return false;
             if (packet is WorldData world && (client.Player.TileX >= world.MaxTileX || client.Player.TileY >= world.MaxTileY))
                 client.TP(client.SpawnY, client.SpawnY); //防止玩家超出地图游戏崩溃
-            return client.SendDataToClient((asClient ? client.CAdapter.InternalClientSerializer : client.CAdapter.InternalServerSerializer).Serialize(packet));
+            var data = (asClient ? client.CAdapter.InternalClientSerializer : client.CAdapter.InternalServerSerializer).Serialize(packet).AsSpan();
+            return client.SendDataToClient(ref data);
         }
         public static void SendDataToServer(this ClientData client, Packet packet, bool asClient = false)
         {
@@ -191,11 +207,12 @@ namespace MultiSEngine.Modules
                 throw new ArgumentNullException(nameof(packet));
             if (client is null)
                 throw new ArgumentNullException(nameof(client));
-            if (Core.Hooks.OnSendPacket(client, packet, false, out _))
-                return;
+            /*if (Core.Hooks.OnSendPacket(client, packet, false, out _))
+                return;*/
             if (client.Disposed)
                 return;
-            client.SendDataToServer((asClient ? Core.Net.DefaultClientSerializer : Core.Net.DefaultServerSerializer).Serialize(packet)); //发送给服务端则不需要区分版本
+            var data = (asClient ? Core.Net.DefaultClientSerializer : Core.Net.DefaultServerSerializer).Serialize(packet).AsSpan();
+            client.SendDataToServer(ref data); //发送给服务端则不需要区分版本
         }
         public static void SendMessage(this ClientData client, string text, Color color, bool withPrefix = true)
         {

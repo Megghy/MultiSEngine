@@ -1,8 +1,8 @@
-﻿using MultiSEngine.DataStruct;
-using MultiSEngine.DataStruct.CustomData;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using MultiSEngine.DataStruct;
+using MultiSEngine.DataStruct.CustomData;
 
 namespace MultiSEngine.Core
 {

@@ -1,7 +1,7 @@
-﻿using MultiSEngine.DataStruct;
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
+using MultiSEngine.DataStruct;
 
 namespace MultiSEngine.Modules.Cmds
 {
@@ -32,7 +32,8 @@ namespace MultiSEngine.Modules.Cmds
                 case "kick":
                     if (parma.Any())
                     {
-                        if (Data.Clients.FirstOrDefault(c => c.Name.StartsWith(parma[0]) || c.Name.Contains(parma[0])) is { } c)
+                        var name = parma[0].Trim().ToLower();
+                        if (Data.Clients.FirstOrDefault(c => c.Name.ToLower() == name || c.Name.ToLower().StartsWith(name)) is { } c)
                             c.Disconnect(Localization.Instance["Command_Kick", Config.Instance.ServerName, parma.Length > 1 ? parma[1] : "Unknown"]);
                         else
                             Logs.Error($"Specified player: [{parma[0]}] not found.");
@@ -42,7 +43,7 @@ namespace MultiSEngine.Modules.Cmds
                     break;
                 case "rl":
                 case "reload":
-                    Config._instance = null;
+                    Config.Reload();
                     Localization._instance = null;
                     Logs.Success("Successfully reloaded.");
                     break;
