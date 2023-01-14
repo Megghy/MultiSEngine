@@ -16,7 +16,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: 6.0.x
+        dotnet-version: 7.0.x
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
@@ -27,12 +27,12 @@ jobs:
     - uses: actions/upload-artifact@v2
       with:
         name: MultiSEngine-Win
-        path: ./MultiSEngine/bin/Release/net6.0/win-x64/publish/MultiSEngine.exe
+        path: ./MultiSEngine/bin/Release/net7.0/win-x64/publish/MultiSEngine.exe
     - uses: actions/upload-artifact@v2
       with:
         name: MultiSEngine-Linux
-        path: ./MultiSEngine/bin/Release/net6.0/linux-x64/publish/MultiSEngine
+        path: ./MultiSEngine/bin/Release/net7.0/linux-x64/publish/MultiSEngine
     - uses: actions/upload-artifact@v2
       with:
         name: MultiSEngine-Arm64
-        path: ./MultiSEngine/bin/Release/net6.0/linux-arm64/publish/MultiSEngine
+        path: ./MultiSEngine/bin/Release/net7.0/linux-arm64/publish/MultiSEngine
