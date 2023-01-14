@@ -13,8 +13,8 @@ namespace MultiSEngine.Core
         [AutoInit]
         private static void Init()
         {
-            Net.ServerSerializer.ForEach(s => s.Value.RegisterPacket<CustomPacketStuff.CustomDataPacket>());
-            Net.ClientSerializer.ForEach(c => c.Value.RegisterPacket<CustomPacketStuff.CustomDataPacket>());
+            Net.DefaultClientSerializer.RegisterPacket<CustomPacketStuff.CustomDataPacket>();
+            Net.DefaultServerSerializer.RegisterPacket<CustomPacketStuff.CustomDataPacket>();
             AppDomain.CurrentDomain.GetAssemblies().ForEach(assembly =>
             {
                 try
@@ -32,7 +32,7 @@ namespace MultiSEngine.Core
         }
         private static void RegisterCustomPacket(Type type)
         {
-            var name = (Activator.CreateInstance(type) as CustomData).Name;
+            var name = (Activator.CreateInstance(type) as CustomData)!.Name;
             if (CustomPackets.ContainsKey(name))
             {
                 Logs.Warn($"CustomPacket: [{name}] already exist.");

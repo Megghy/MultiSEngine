@@ -31,6 +31,8 @@ namespace MultiSEngine
     /_/  /_/\__,_/_/\__/_//____/_____/_/ /_/\__, /_/_/ /_/\___/ 
                                        /____/               
 ");
+            Console.WriteLine($"-> V{Assembly.GetExecutingAssembly().GetName().Version}");
+            Console.WriteLine();
             Updater.CheckUpdate(null, null);
         }
         private static void AutoInit()

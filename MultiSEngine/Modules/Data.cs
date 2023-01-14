@@ -45,11 +45,6 @@ namespace MultiSEngine.Modules
         [AutoInit(order: 0)]
         public static void Init()
         {
-            Versions.ForEach(v =>
-            {
-                Net.ClientSerializer.TryAdd(v, new(true, $"Terraria{v}"));
-                Net.ServerSerializer.TryAdd(v, new(false, $"Terraria{v}"));
-            });
             StaticSpawnSquareData = Utils.GetTileSection(4150, 1150, 100, 100);
             var deactivePlayers = new List<byte>();
             var playerActive = new PlayerActive()

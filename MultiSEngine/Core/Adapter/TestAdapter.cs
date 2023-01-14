@@ -1,22 +1,25 @@
 ﻿using System;
 using System.IO;
+using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
+using MultiSEngine.Core.Handler;
 using MultiSEngine.DataStruct;
 using TrProtocol;
 using TrProtocol.Packets;
 
 namespace MultiSEngine.Core.Adapter
 {
-    internal class TestAdapter : ServerAdapter, IDisposable
+    internal class TestAdapter : PreConnecAdapter
     {
-        public TestAdapter(ServerInfo server, bool showDetails) : base(null, server)
+        public TestAdapter(ServerInfo server, bool showDetails) : base(null, null, server)
         {
             ShowDetails = showDetails;
         }
-        private bool ShowDetails { get; init; }
-        public int State { get; private set; } = 0;
-        public bool? IsSuccess { get; private set; }
-        private void Log(string msg, bool isDetail = true, ConsoleColor color = ConsoleColor.Blue)
+        public bool ShowDetails { get; init; }
+        public int State { get; internal set; } = 0;
+        public bool? IsSuccess { get; internal set; }
+        internal void Log(string msg, bool isDetail = true, ConsoleColor color = ConsoleColor.Blue)
         {
             if (isDetail && !ShowDetails)
                 return;
@@ -26,93 +29,40 @@ namespace MultiSEngine.Core.Adapter
         {
             if (State != 0)
                 return;
+            var handler = new TestHandler(this);
+            handler.Initialize();
+            RegisteHander(handler);
             Log($"Start connecting to [{TargetServer.Name}]<{TargetServer.IP}:{TargetServer.Port}>");
-            await Connect()
-                .ContinueWith(task =>
-                {
-                    State = 1;
-                    Log($"Sending [ConnectRequest] packet");
-                    InternalSendPacket(new ClientHello()
-                    {
-                        Version = $"Terraria{TargetServer.VersionNum}"
-                    });  //发起连接请求   
-                });
-        }
-        protected override void OnRecieveLoopError(Exception ex)
-        {
-            throw ex;
-        }
-        public override bool GetData(ref Span<byte> buf)
-        {
-            var msgType = (MessageID)buf[2];
-#if DEBUG
-            Console.WriteLine($"[TEST RECIEVE] {msgType}");
-#endif
-            if (msgType is MessageID.Kick
-                or MessageID.LoadPlayer
-                or MessageID.WorldData
-                or MessageID.RequestPassword
-                or MessageID.StartPlaying
-                )
+            var cancel = new CancellationTokenSource(Config.Instance.SwitchTimeOut).Token;
+            await Task.Run(() =>
             {
-                using var reader = new BinaryReader(new MemoryStream(buf.ToArray()));
-                var packet = Net.DefaultServerSerializer.Deserialize(reader);
-                switch (packet)
+                if (Utils.TryParseAddress(TargetServer.IP, out var ip))
                 {
-                    case Kick kick:
-                        var reason = kick.Reason.GetText();
-                        Stop(true);
-                        IsSuccess = false;
-                        Log($"Kicked. Reason: {(string.IsNullOrEmpty(reason) ? "Unkown" : reason)}", false, ConsoleColor.Red);
-                        break;
-                    case LoadPlayer:
-                        State = 2;
-                        Log($"Sending [PlayerInfo] packet");
-                        InternalSendPacket(new SyncPlayer()
-                        {
-                            Name = "MultiSEngine"
-                        });
-                        Log($"Sending [UUID] packet");
-                        InternalSendPacket(new ClientUUID()
-                        {
-                            UUID = "114514"
-                        });
-                        Log($"Requesting world data");
-                        InternalSendPacket(new RequestWorldInfo() { });
-                        State = 3;
-                        break;
-                    case WorldData:
-                        if (!IsSuccess.HasValue)
-                        {
-                            State = 4;
-                            Log($"Requesting map data");
-                            InternalSendPacket(new RequestTileData()
-                            {
-                                Position = new(-1, -1)
-                            });//请求物块数据
-                            Log($"Requesting spawn player");
-                            InternalSendPacket(new SpawnPlayer()
-                            {
-                                Position = new(-1, -1)
-                            });
-                        }
-                        break;
-                    case RequestPassword:
-                        IsSuccess = false;
-                        Log($"Target server request password", false, ConsoleColor.Red);
-                        break;
-                    case StartPlaying:
-                        State = 10;
-                        IsSuccess = true;
-                        Log($"Server authentication completed, allow client to start playing", true, ConsoleColor.Green);
-                        break;
+                    ServerConnection = new(ip, TargetServer.Port, this)
+                    {
+                        OptionReceiveBufferSize = 131070,
+                        OptionSendBufferSize = 131070
+                    };
+                    ServerConnection.ConnectAsync();
                 }
-            }
-            return true;
-        }
-        public void Dispose()
-        {
-            base.Stop(true);
+                else
+                {
+                    throw new Exception($"Invalid server address: {TargetServer.IP}");
+                }
+            }, cancel).ContinueWith(task =>
+            {
+                while (!ServerConnection.IsConnected)
+                {
+                    cancel.ThrowIfCancellationRequested();
+                    Thread.Sleep(1);
+                }
+                State = 1;
+                Log($"Sending [ConnectRequest] packet"); 
+                SendToServerDirect(new ClientHello()
+                {
+                    Version = $"Terraria{(TargetServer.VersionNum is { } and > 0 and < 65535 ? TargetServer.VersionNum : Config.Instance.ServerVersion)}"
+                });  //发起连接请求 
+            }, cancel);
         }
     }
 }

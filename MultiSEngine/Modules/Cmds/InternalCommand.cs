@@ -32,10 +32,10 @@ namespace MultiSEngine.Modules.Cmds
                         break;
                     case "back":
                     case "b":
-                        if (client.State == ClientData.ClientState.NewConnection)
+                        if (client.State == ClientState.NewConnection)
                             client.SendInfoMessage($"{Localization.Get("Command_NotJoined")}");
-                        else if (client.Server == Config.Instance.DefaultServerInternal)
-                            client.SendErrorMessage(string.Format(Localization.Get("Command_AlreadyIn"), client.Server.Name));
+                        else if (client.CurrentServer == Config.Instance.DefaultServerInternal)
+                            client.SendErrorMessage(string.Format(Localization.Get("Command_AlreadyIn"), client.CurrentServer.Name));
                         else
                             client.Back();
                         break;
@@ -48,8 +48,8 @@ namespace MultiSEngine.Modules.Cmds
                     case "p":
                         if (parma.Length > 1)
                         {
-                            if (client.State == ClientData.ClientState.RequestPassword)
-                                client.TempAdapter.InternalSendPacket(new TrProtocol.Packets.SendPassword()
+                            if (client.State == ClientState.RequestPassword)
+                                client.TempAdapter.SendToServerDirect(new TrProtocol.Packets.SendPassword()
                                 {
                                     Password = parma[1]
                                 });
@@ -87,14 +87,14 @@ namespace MultiSEngine.Modules.Cmds
         }
         private async static Task SwitchServer(ClientData client, string serverName, CancellationToken cancel = default)
         {
-            if (client.State > ClientData.ClientState.ReadyToSwitch && client.State < ClientData.ClientState.InGame)
+            if (client.State > ClientState.ReadyToSwitch && client.State < ClientState.InGame)
             {
                 client.SendErrorMessage(Localization.Get("Command_IsSwitching"));
                 return;
             }
             if (Utils.GetServersInfoByName(serverName).FirstOrDefault() is { } server)
             {
-                if (client.Server == server)
+                if (client.CurrentServer == server)
                     client.SendErrorMessage(string.Format(Localization.Get("Command_AlreadyIn"), server.Name));
                 else
                 {

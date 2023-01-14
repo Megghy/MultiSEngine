@@ -6,6 +6,7 @@
     <AssemblyVersion>1.1.0.0</AssemblyVersion>
     <FileVersion>1.1.0.0</FileVersion>
 	<OutputType>Exe</OutputType>
+	<Nullable>disable</Nullable>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -17,7 +18,18 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NetCoreServer" Version="6.7.0" />
+    <Compile Remove="Core\Adapter\ClientAdapter.cs" />
+    <Compile Remove="Core\Adapter\FakeWorldAdapter.cs" />
+    <Compile Remove="Core\Adapter\ServerAdapter.cs" />
+    <Compile Remove="Core\Adapter\VisualPlayerAdapter.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\.editorconfig" Link=".editorconfig" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NetCoreServer" Version="7.0.0" />
   </ItemGroup>
 
   <ItemGroup>

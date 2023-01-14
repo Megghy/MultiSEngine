@@ -1,6 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Net.Sockets;
+using MultiSEngine.Core.Handler;
 using MultiSEngine.DataStruct;
 using MultiSEngine.Modules;
 using TrProtocol;
@@ -12,73 +13,81 @@ namespace MultiSEngine.Core.Adapter
         public bool RunningAsNormal { get; set; }
         public void ChangeProcessState(bool asNormal);
     }
-    public abstract class BaseAdapter
+    public class BaseAdapter
     {
-        public BaseAdapter(ClientData client)
+        public BaseAdapter(ClientData client, Net.NetSession clientConnection, Net.NetClient serverConnection = null)
         {
             Client = client;
+            ClientConnection = clientConnection;
+            ServerConnection = serverConnection;
+            RegisteHandlers();
         }
         #region 变量
         public int ErrorCount { get; protected set; } = 0;
-        protected bool ShouldStop { get; set; } = false;
-        public int VersionNum => Client?.Player?.VersionNum ?? -1;
-        public virtual PacketSerializer InternalClientSerializer => Net.ClientSerializer.TryGetValue(VersionNum, out var result) ? result : Net.DefaultClientSerializer;
-        public virtual PacketSerializer InternalServerSerializer => Net.ServerSerializer.TryGetValue(VersionNum, out var result) ? result : Net.DefaultServerSerializer;
-        public ClientData Client { get; protected set; }
+        public bool IsDisposed { get; private set; } = false;
+        public ClientData Client { get; init; }
+        protected List<BaseHandler> _handlers { get; set; } = new();
+
+        internal Net.NetSession ClientConnection { get; init; }
+        internal Net.NetClient ServerConnection { get; set; }
         #endregion
-        public abstract bool ListenningClient { get; }
-        public abstract bool GetData(ref Span<byte> data);
-        public abstract void SendData(ref Span<byte> data);
+        protected virtual void RegisteHandlers()
+        {
+            if (Client?.State <= ClientState.NewConnection)
+                RegisteHander<ConnectionRequestHandler>();
+            RegisteHander<CommonHandler>();
+            RegisteHander<CustomPacketHandler>();
+            RegisteHander<PlayerInfoHandler>();
+            RegisteHander<ChatHandler>();
+        }
         public virtual void Stop(bool disposeConnection = false)
         {
-            if (ShouldStop)
+            if (IsDisposed)
                 return;
-            ShouldStop = true;
-            System.Net.EndPoint ep = default;
+            IsDisposed = true;
+            foreach (var handler in _handlers)
+            {
+                handler.Dispose();
+            }
+            _handlers.Clear();
             if (disposeConnection)
             {
-                if (this is ClientAdapter client)
-                {
-                    ep = client._clientConnection.Socket.RemoteEndPoint;
-                    client._clientConnection?.Disconnect();
-                }
-                else if (this is ServerAdapter server)
-                {
-                    ep = server._serverConnection?.Endpoint;
-                    server._serverConnection?.Disconnect();
-                }
+                ClientConnection?.Disconnect();
+                ServerConnection?.Disconnect();
             }
 
 #if DEBUG
-            Logs.Warn($"[{GetType()}] <{ep}> Stopped");
+            Logs.Warn($"[{GetType()}] Stopped");
 #endif
         }
-        protected virtual void OnRecieveLoopError(Exception ex)
+        internal void ServerBufCheckedCallback(ref Span<byte> buf)
+        {
+            if (Client?.Adapter.ClientConnection is null)
+                SendToClientDirect(ref buf);
+            else
+                Client.SendDataToClient(ref buf);
+        }
+        internal void ClientBufCheckedCallback(ref Span<byte> buf)
+        {
+            if (Client?.Adapter.ServerConnection is null)
+                SendToServerDirect(ref buf);
+            else
+                Client.SendDataToServer(ref buf);
+        }
+
+        public bool RecieveClientData(ref Span<byte> buf)
         {
 #if DEBUG
-            Console.WriteLine($"[Recieve Loop Error] {ex}");
+            Console.WriteLine($"[Recieve CLIENT] {(MessageID)buf[2]}");
 #endif
-            ErrorCount++;
-            switch (ex)
-            {
-                case EndOfStreamException:
-                case IOException:
-                case OutOfBoundsException:
-                    //
-                    break;
-                default:
-                    Logs.Warn($"{(ListenningClient ? "Client" : "Server")} recieve loop abnormally terminated. [{ErrorCount}]\r\n{ex}");
-                    break;
-            }
-            if (ErrorCount > 10)
-                Client.Back();
-        }
-        internal void BufCheckedCallback(ref Span<byte> buf)
-        {
             try
             {
-                if (buf.Length > 0)
-                    SendData(ref buf);
+                for (int i = _handlers.Count - 1; i >= 0; i--)
+                {
+                    if (_handlers[i].RecieveClientData((MessageID)buf[2], ref buf))
+                        return true;
+                }
+                return false;
             }
 #if DEBUG
             catch (IOException io)
@@ -88,90 +97,144 @@ namespace MultiSEngine.Core.Adapter
 #endif
             catch (Exception ex)
             {
-                Logs.Error($"An error occurred while processing packet {BitConverter.ToUInt16(buf[..2])}.{Environment.NewLine}{ex}");
+                Logs.Error($"An error occurred while processing packet {(MessageID)buf[2]}.{Environment.NewLine}{ex}");
             }
+            return false;
+        }
+        public bool RecieveServerData(ref Span<byte> buf)
+        {
+#if DEBUG
+            Console.WriteLine($"[Recieve SERVER] {(MessageID)buf[2]}");
+#endif
+            try
+            {
+                for (int i = _handlers.Count - 1; i >= 0; i--)
+                {
+                    if (_handlers[i].RecieveServerData((MessageID)buf[2], ref buf))
+                        return true;
+                }
+                return false;
+            }
+#if DEBUG
+            catch (IOException io)
+            {
+                Console.WriteLine(io);
+            }
+#endif
+            catch (Exception ex)
+            {
+                Logs.Error($"An error occurred while processing packet {(MessageID)buf[2]}.{Environment.NewLine}{ex}");
+            }
+            return false;
         }
         private readonly byte[] _fixdCheckedBuf = new byte[131070];
 
         public delegate bool BufferCheckRefStructMutator(ref Span<byte> s);
         public delegate void BufferCallbackRefStructMutator(ref Span<byte> s);
 
-        public bool CheckBuffer(Span<byte> buf, BufferCheckRefStructMutator check, BufferCallbackRefStructMutator callback)
+        public void CheckBuffer(ref Span<byte> buf, BufferCheckRefStructMutator check, BufferCallbackRefStructMutator callback)
         {
             if (buf.IsEmpty)
             {
                 Logs.Warn($"Receive a packet of length 0");
-                return true;
-            }
-            var length = BitConverter.ToUInt16(buf);
-            if (buf.Length > length)
-            {
-                var checkedPos = 0;
-                Span<byte> _checkedBuf = new(_fixdCheckedBuf);
-                var tempPos = 0;
-                while (tempPos < buf.Length)
-                {
-                    var tempLen = BitConverter.ToUInt16(buf.Slice(tempPos, 2));
-                    if (tempLen == 0)
-                        break;
-                    var checkData = buf.Slice(tempPos, tempLen);
-                    if (!checkData.IsEmpty && !check(ref checkData))
-                    {
-                        buf.Slice(tempPos, tempLen).CopyTo(_checkedBuf.Slice(checkedPos, tempLen));
-                        checkedPos += tempLen;
-                    }
-                    tempPos += tempLen;
-                }
-                var data = _checkedBuf[..checkedPos];
-                if (checkedPos > 0)
-                {
-                    callback(ref data);
-                }
-                _checkedBuf.Clear();
-            }
-            else
-            {
-                if (!check(ref buf))
-                    callback(ref buf);
-            }
-            return default;
-        }
-        public virtual void InternalSendPacket(Packet packet, bool asClient = false)
-        {
-#if DEBUG
-            Console.WriteLine($"[Internal Send] {packet}");
-#endif
-            if (packet == null)
                 return;
-            if (!ShouldStop)
+            }
+            try
             {
-                var data = (ListenningClient ? (asClient ? InternalClientSerializer : InternalServerSerializer) : (asClient ? Net.DefaultClientSerializer : Net.DefaultServerSerializer)).Serialize(packet);
-                if (this is ClientAdapter client)
+                var length = BitConverter.ToUInt16(buf);
+                if (buf.Length > length)
                 {
-                    client._clientConnection?.SendAsync(data);
+                    var checkedPos = 0;
+                    Span<byte> _checkedBuf = new(_fixdCheckedBuf);
+                    var tempPos = 0;
+                    while (tempPos < buf.Length)
+                    {
+                        var tempLen = BitConverter.ToUInt16(buf.Slice(tempPos, 2));
+                        if (tempLen == 0)
+                            break;
+                        var checkData = buf.Slice(tempPos, tempLen);
+                        if (!checkData.IsEmpty && !check(ref checkData))
+                        {
+                            buf.Slice(tempPos, tempLen).CopyTo(_checkedBuf.Slice(checkedPos, tempLen));
+                            checkedPos += tempLen;
+                        }
+                        tempPos += tempLen;
+                    }
+                    var data = _checkedBuf[..checkedPos];
+                    if (checkedPos > 0)
+                    {
+                        callback(ref data);
+                    }
+                    _checkedBuf.Clear();
                 }
-                else if (this is ServerAdapter server)
+                else
                 {
-                    server._serverConnection?.SendAsync(data);
+                    if (!check(ref buf))
+                        callback(ref buf);
                 }
+            }
+            catch(Exception ex)
+            {
+                callback(ref buf);
+                Logs.Warn($"An error occurred while checking buffer. Length: {buf.Length}.{Environment.NewLine}{ex}");
             }
         }
-        public virtual void InternalSendPacket(byte[] data, bool asClient = false)
+
+        public void RegisteHander(BaseHandler handler)
+        {
+            handler.Initialize();
+            _handlers.Add(handler);
+        }
+        public void RegisteHander<T>() where T : BaseHandler
+        {
+            var handler = Activator.CreateInstance(typeof(T), new object[] { this }) as BaseHandler;
+            RegisteHander(handler);
+        }
+        public bool DeregisteHander<T>(T handler) where T : BaseHandler
+        {
+            handler?.Dispose();
+            return _handlers.Remove(handler);
+        }
+
+        public bool SendToClientDirect(ref Span<byte> buf)
         {
 #if DEBUG
-            Console.WriteLine($"[Internal Send] {(MessageID)data[2]}");
+            Console.WriteLine($"[Internal Send TO CLIENT] {(MessageID)buf[2]}");
 #endif
-            if (!ShouldStop)
+            try
             {
-                if (this is ClientAdapter client)
-                {
-                    client._clientConnection?.SendAsync(data);
-                }
-                else if (this is ServerAdapter server)
-                {
-                    server._serverConnection?.SendAsync(data);
-                }
+                return ClientConnection?.SendAsync(buf) ?? false;
             }
+            catch (Exception ex)
+            {
+                Logs.Error($"Failed to send data: {(MessageID)buf[2]}{Environment.NewLine}{ex}");
+                return false;
+            }
+        }
+        public bool SendToServerDirect(ref Span<byte> buf)
+        {
+#if DEBUG
+            Console.WriteLine($"[Internal Send TO SERVER] {(MessageID)buf[2]}");
+#endif
+            try
+            {
+                return ServerConnection?.SendAsync(buf) ?? false;
+            }
+            catch (Exception ex)
+            {
+                Logs.Error($"Failed to send data: {(MessageID)buf[2]}{Environment.NewLine}{ex}");
+                return false;
+            }
+        }
+        public bool SendToClientDirect(Packet packet)
+        {
+            var buf = packet.AsBytes().AsSpan();
+            return SendToClientDirect(ref buf);
+        }
+        public bool SendToServerDirect(Packet packet)
+        {
+            var buf = packet.AsBytes().AsSpan();
+            return SendToServerDirect(ref buf);
         }
     }
 }

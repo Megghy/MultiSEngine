@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using MultiSEngine.Core;
 using MultiSEngine.DataStruct;
 using TrProtocol;
 using TrProtocol.Models;
@@ -25,40 +26,41 @@ namespace MultiSEngine.Modules
         {
             if (Core.Hooks.OnPreSwitch(client, server, out _))
                 return;
-            if (client.Server?.Name == server?.Name || (client.State > ClientData.ClientState.ReadyToSwitch && client.State < ClientData.ClientState.InGame))
+            if (client.CurrentServer?.Name == server?.Name || (client.State > ClientState.ReadyToSwitch && client.State < ClientState.InGame))
             {
-                if (client.Server == server)
+                if (client.CurrentServer == server)
                     client.SendErrorMessage(string.Format(Localization.Get("Command_AlreadyIn"), server.Name));
                 Logs.Warn($"Unallowed transmission requests for [{client.Name}]");
             }
             else
             {
                 Logs.Info($"Switching [{client.Name}] to the server: [{server.Name}]");
-                client.State = ClientData.ClientState.ReadyToSwitch;
+                client.State = ClientState.ReadyToSwitch;
                 if (Utils.TryParseAddress(server.IP, out var ip))
                 {
                     try
                     {
-                        client.State = ClientData.ClientState.Switching;
+                        client.State = ClientState.Switching;
 
-                        client.TempAdapter = new(client, server);//新建与服务器的连接
+                        client.TempAdapter = new(client, client.Adapter.ClientConnection, server);//新建与服务器的连接
 
                         cancel = cancel == default ? new CancellationTokenSource(Config.Instance.SwitchTimeOut).Token : cancel;
-                        await client.TempAdapter.TryConnect(server, cancel)
+                        await client.TempAdapter.TryConnect(cancel)
                             .ContinueWith(task =>
                             {
-                                client.Server = server;
-                                client.State = ClientData.ClientState.InGame;
-                                client.SAdapter?.Stop(true);
-                                client.SAdapter = client.TempAdapter;
-                                client.CAdapter.ChangeProcessState(true);  //切换至正常的客户端处理
+                                client.CurrentServer = server;
+                                client.LastServer = server;
+                                client.State = ClientState.InGame;
+                                client.Adapter.ServerConnection?.Disconnect();
+                                client.Adapter = client.TempAdapter;
                                 client.TempAdapter = null;
                                 client.Sync(server);
                             }, cancel);
                     }
                     catch (Exception ex)
                     {
-                        client.State = ClientData.ClientState.ReadyToSwitch;
+                        client.State = ClientState.ReadyToSwitch;
+                        client.TempAdapter?.ServerConnection?.Disconnect();
                         client.TempAdapter?.Stop();
                         client.TempAdapter = null;
                         Logs.Error($"Unable to connect to server {server.IP}:{server.Port}{Environment.NewLine}{ex}");
@@ -69,39 +71,43 @@ namespace MultiSEngine.Modules
                     client.SendErrorMessage(Localization.Instance["Prompt_UnknownAddress"]);
             }
         }
-        /// <summary>
-        /// 返回到默认的初始服务器
-        /// </summary>
-        /// <param name="client"></param>
         public static void Back(this ClientData client)
         {
-            if (client.Server == Config.Instance.DefaultServerInternal)
+            if (client.CurrentServer == Config.Instance.DefaultServerInternal)
             {
                 client.SendErrorMessage(Localization.Instance["Prompt_NoAvailableServer"]);
                 Logs.Info($"No default server avilable, send [{client.Name}] to FakeWorld.");
-                client.CAdapter?.BackToThere();
+                Logs.Info($"[{client.Name}] now in FakeWorld");
+                client.State = ClientState.ReadyToSwitch;
+                client.Player.ServerCharacter = new();
+                client.CurrentServer = null;
+                client.Adapter.ServerConnection?.Disconnect();
+                client.Sync(null);
+                client.TP(4200, 1200);
+                client.SendDataToClient(Data.StaticSpawnSquareData);
+                client.SendDataToClient(Data.StaticDeactiveAllPlayer); //隐藏所有玩家
             }
-            else if (client.Server is null)
+            else if (client.CurrentServer is null)
                 client.SendErrorMessage(Localization.Instance["Prompt_CannotConnect", client.TempAdapter?.TargetServer?.Name]);
             else
-                Task.Run(() => client.Join(Config.Instance.DefaultServerInternal));
+                Task.Run(() => client.Join(client.LastServer ?? Config.Instance.DefaultServerInternal));
         }
         public static void Sync(this ClientData client, ServerInfo targetServer)
         {
             Logs.Text($"Syncing player: [{client.Name}]");
             client.Syncing = true;
 
-            var data = client.Player.ServerData?.WorldData ?? client.Player.OriginData.WorldData;
+            var data = client.Player.ServerCharacter?.WorldData ?? client.Player.OriginCharacter.WorldData;
             if (!client.Player.SSC && Config.Instance.RestoreDataWhenJoinNonSSC) //非ssc的话还原玩家最开始的背包
             {
                 var bb = data.EventInfo1;
                 bb[6] = true;
                 data.EventInfo1 = bb;
                 client.SendDataToClient(data); //没有ssc的话没法改背包
-                client.SendDataToClient(client.Player.OriginData.Info);
-                client.SendDataToClient(new PlayerHealth() { PlayerSlot = client.Player.Index, StatLife = client.Player.OriginData.Health, StatLifeMax = client.Player.OriginData.HealthMax });
-                client.SendDataToClient(new PlayerMana() { PlayerSlot = client.Player.Index, StatMana = client.Player.OriginData.Mana, StatManaMax = client.Player.OriginData.ManaMax });
-                client.Player.OriginData.Inventory.Where(i => i != null).ForEach(i => client.SendDataToClient(i));
+                client.SendDataToClient(client.Player.OriginCharacter.Info);
+                client.SendDataToClient(new PlayerHealth() { PlayerSlot = client.Player.Index, StatLife = client.Player.OriginCharacter.Health, StatLifeMax = client.Player.OriginCharacter.HealthMax });
+                client.SendDataToClient(new PlayerMana() { PlayerSlot = client.Player.Index, StatMana = client.Player.OriginCharacter.Mana, StatManaMax = client.Player.OriginCharacter.ManaMax });
+                client.Player.OriginCharacter.Inventory.Where(i => i != null).ForEach(i => client.SendDataToClient(i));
                 bb[6] = false;//改回去
                 data.EventInfo1 = bb;
                 client.SendDataToClient(data);
@@ -110,7 +116,7 @@ namespace MultiSEngine.Modules
                 client.SendDataToClient(data);
 
             client.TP(client.SpawnX, client.SpawnY - 3);
-            client.SAdapter?.ResetAlmostEverything();
+            //client.Adapter?.ResetAlmostEverything();
             client.SendDataToClient(new LoadPlayer() { PlayerSlot = client.Player.Index, ServerWantsToRunCheckBytesInClientLoopThread = true });
 
             client.Syncing = false;
@@ -120,10 +126,10 @@ namespace MultiSEngine.Modules
             if (client.Disposed)
                 return;
             Logs.Text($"[{client.Name}] disconnected. {reason}");
-            Core.Hooks.OnPlayerLeave(client, out _);
-            Data.Clients.Where(c => c.Server is null && c != client).ForEach(c => c.SendMessage($"{client.Name} has leave."));
-            if (client.CAdapter?._clientConnection?.IsConnected == true)
-                client.SendDataToClient(new Kick() { Reason = new(reason ?? "Unknown", NetworkText.Mode.Literal) });
+            Hooks.OnPlayerLeave(client, out _);
+            Data.Clients.Where(c => c.CurrentServer is null && c != client).ForEach(c => c.SendMessage($"{client.Name} has leave."));
+            if (client.Adapter.ClientConnection.IsConnected)
+                client.SendDataToClient(new Kick() { Reason = new(reason ?? "You have been kicked. Reason: unknown", NetworkText.Mode.Literal) });
             client.Dispose();
         }
     }
@@ -146,7 +152,7 @@ namespace MultiSEngine.Modules
                 }
                 //using var arg = new SocketAsyncEventArgs();
                 //arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer?.Length ?? 3);
-                client?.CAdapter?._clientConnection?.SendAsync(buffer.Slice(start, length ?? buffer.Length));
+                client?.Adapter.ClientConnection.SendAsync(buffer.Slice(start, length ?? buffer.Length));
                 return true;
             }
             catch (Exception ex)
@@ -163,7 +169,7 @@ namespace MultiSEngine.Modules
         private static readonly byte[] _emptyPacket = new byte[3] { 3, 0, 0 };
         public static void SendDataToServer(this ClientData client, ref Span<byte> buffer, int start = 0, int? length = null)
         {
-            if (client.SAdapter is not { _serverConnection: not null })
+            if (client.Adapter is not { ServerConnection: not null })
                 return;
             try
             {
@@ -179,7 +185,7 @@ namespace MultiSEngine.Modules
                 }
                 //using var arg = new SocketAsyncEventArgs();
                 //arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer?.Length ?? 3);
-                client.SAdapter?._serverConnection?.SendAsync(buffer.Slice(start, length ?? buffer.Length));
+                client.Adapter.ServerConnection.SendAsync(buffer.Slice(start, length ?? buffer.Length));
             }
             catch
             {
@@ -198,7 +204,7 @@ namespace MultiSEngine.Modules
                 return false;
             if (packet is WorldData world && (client.Player.TileX >= world.MaxTileX || client.Player.TileY >= world.MaxTileY))
                 client.TP(client.SpawnY, client.SpawnY); //防止玩家超出地图游戏崩溃
-            var data = (asClient ? client.CAdapter.InternalClientSerializer : client.CAdapter.InternalServerSerializer).Serialize(packet).AsSpan();
+            var data = (asClient ? Net.DefaultClientSerializer : Net.DefaultServerSerializer).Serialize(packet).AsSpan();
             return client.SendDataToClient(ref data);
         }
         public static void SendDataToServer(this ClientData client, Packet packet, bool asClient = false)

@@ -32,12 +32,16 @@ namespace MultiSEngine.Core
             public NetSession(TcpServer server) : base(server)
             {
                 _client = new ClientData();
-                _client.CAdapter = new FakeWorldAdapter(_client, this);
+                _client.Adapter = new BaseAdapter(_client, this, null);
 
                 Data.Clients.Add(_client);
+
+#if DEBUG
+                Console.WriteLine($"Session created.");
+#endif
             }
             private ClientData _client { get; set; }
-            protected override void OnConnected()
+            protected override void OnConnecting()
             {
                 Logs.Text($"{Socket.RemoteEndPoint} trying to connect...");
             }
@@ -49,8 +53,11 @@ namespace MultiSEngine.Core
 
             protected override void OnReceived(byte[] buffer, long offset, long size)
             {
-                if (_client != null && _client.CAdapter != null)
-                    _client.CAdapter.CheckBuffer(buffer.AsSpan().Slice((int)offset, (int)size), _client.CAdapter.GetData, _client.CAdapter.BufCheckedCallback);
+                if (_client != null && _client.Adapter != null)
+                {
+                    var data = buffer.AsSpan().Slice((int)offset, (int)size);
+                    _client.Adapter.CheckBuffer(ref data, _client.Adapter.RecieveClientData, _client.Adapter.ClientBufCheckedCallback);
+                }
             }
 
             protected override void OnError(SocketError error)
@@ -60,29 +67,24 @@ namespace MultiSEngine.Core
         }
         public class NetClient : TcpClient
         {
-            public NetClient(IPAddress address, int port, ServerAdapter adapter) : base(address, port)
+            public NetClient(IPAddress address, int port, BaseAdapter adapter) : base(address, port)
             {
-                _adapter = adapter;
+                _adpter = adapter;
             }
-            private ServerAdapter _adapter { get; init; }
+            private BaseAdapter _adpter { get; init; }
             protected override void OnReceived(byte[] buffer, long offset, long size)
             {
-                _adapter.CheckBuffer(buffer.AsSpan().Slice((int)offset, (int)size), _adapter.GetData, _adapter.BufCheckedCallback);
+                var data = buffer.AsSpan().Slice((int)offset, (int)size);
+                _adpter.CheckBuffer(ref data, _adpter.RecieveServerData, _adpter.ServerBufCheckedCallback);
             }
             protected override void OnError(SocketError error)
             {
                 Console.WriteLine($"TCP session caught an error with code {error}");
-            }
-            protected override void OnDisconnecting()
-            {
-                _adapter.Stop(true);
+                _adpter.Client?.Back();
             }
         }
-        public static Socket SocketServer { get; internal set; }
-        public static readonly Dictionary<int, PacketSerializer> ClientSerializer = new();
-        public static readonly Dictionary<int, PacketSerializer> ServerSerializer = new();
-        public static PacketSerializer DefaultClientSerializer => ClientSerializer[Config.Instance.ServerVersion > Data.Versions.Last() ? Data.Versions.Last() : Config.Instance.ServerVersion];
-        public static PacketSerializer DefaultServerSerializer => ServerSerializer[Config.Instance.ServerVersion > Data.Versions.Last() ? Data.Versions.Last() : Config.Instance.ServerVersion];
+        public static PacketSerializer DefaultClientSerializer = new(true);
+        public static PacketSerializer DefaultServerSerializer = new(false);
         [AutoInit(postMsg: "Opened socket server successfully.")]
         public static void Init()
         {
@@ -114,7 +116,7 @@ namespace MultiSEngine.Core
                     if (TestConnect(s, showDetails))
                         successCount++;
                 });
-                Logs.Info($"Test completed. Number of available servers:{successCount}/{Config.Instance.Servers.Count}");
+                Logs.Info($"Test completed. Available servers:{successCount}/{Config.Instance.Servers.Count}");
             });
         }
         internal static bool TestConnect(ServerInfo server, bool showDetails = false)
@@ -127,9 +129,9 @@ namespace MultiSEngine.Core
                     return false;
                 }
                 isTesting = true;
+                var tempConnection = new TestAdapter(server, showDetails);
                 try
                 {
-                    using var tempConnection = new TestAdapter(server, showDetails);
                     Logs.Info($"Start testing the connectivity of [{server.Name}]");
                     Task.Run(() =>
                     {
@@ -138,11 +140,19 @@ namespace MultiSEngine.Core
                     long waitTime = 0;
                     while (Config.Instance.SwitchTimeOut > waitTime)
                     {
-                        if (tempConnection?.IsSuccess ?? false)
+                        if (tempConnection.IsSuccess.HasValue)
                         {
-                            isTesting = false;
-                            Logs.Success($"Server [{server.Name}] is in good condition :)");
-                            return true;
+                            if (tempConnection.IsSuccess == true)
+                            {
+                                isTesting = false;
+                                Logs.Success($"Server [{server.Name}] is in good condition :)");
+                                return true;
+                            }
+                            else
+                            {
+                                isTesting = false;
+                                return false;
+                            }
                         }
                         else
                             waitTime += 50;
@@ -154,6 +164,10 @@ namespace MultiSEngine.Core
                 catch (Exception ex)
                 {
                     Logs.LogAndSave($"Test FAILED: Unable to connect to {server.IP}:{server.Port}{Environment.NewLine}{ex}", $"[TEST] <{server.Name}>", ConsoleColor.Red, false);
+                }
+                finally
+                {
+                    tempConnection.Stop(true);
                 }
                 isTesting = false;
                 return false;

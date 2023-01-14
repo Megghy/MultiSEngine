@@ -5,41 +5,30 @@ using MultiSEngine.Modules;
 
 namespace MultiSEngine.DataStruct
 {
-    public class ClientData : IClientAdapter<FakeWorldAdapter>, IServerAdapter<VisualPlayerAdapter>
+    public class ClientData
     {
-        public enum ClientState
-        {
-            Disconnect,
-            NewConnection,
-            ReadyToSwitch,
-            Switching,
-            RequestPassword,
-            FinishSendInventory,
-            SyncData,
-            InGame,
-        }
         public ClientData()
         {
         }
-        public FakeWorldAdapter CAdapter { get; set; }
-        public VisualPlayerAdapter SAdapter { get; set; }
-        internal VisualPlayerAdapter TempAdapter { get; set; }
+        public BaseAdapter Adapter { get; set; }
+        internal PreConnecAdapter TempAdapter { get; set; } = null;
 
         #region 客户端信息
         public ClientState State { get; set; } = ClientState.NewConnection;
-        public string IP => (CAdapter?._clientConnection?.Socket.RemoteEndPoint as IPEndPoint)?.Address?.ToString();
-        public int Port => (CAdapter?._clientConnection?.Socket.RemoteEndPoint as IPEndPoint)?.Port ?? -1;
+        public string IP => (Adapter?.ClientConnection.Socket.RemoteEndPoint as IPEndPoint)?.Address?.ToString();
+        public int Port => (Adapter?.ClientConnection?.Socket.RemoteEndPoint as IPEndPoint)?.Port ?? -1;
         public string Address => $"{IP}:{Port}"; public bool Syncing { get; internal set; } = false;
         public bool Disposed { get; private set; } = false;
         #endregion
 
         #region 常用的玩家信息
-        public short SpawnX => Server is { SpawnX: >= 0, SpawnY: >= 0 } ? Server.SpawnX : Player.WorldSpawnX;
-        public short SpawnY => Server is { SpawnY: >= 0, SpawnY: >= 0 } ? Server.SpawnY : Player.WorldSpawnY;
-        public ServerInfo Server { get; set; }
+        public short SpawnX => CurrentServer is { SpawnX: >= 0, SpawnY: >= 0 } ? CurrentServer.SpawnX : Player.WorldSpawnX;
+        public short SpawnY => CurrentServer is { SpawnY: >= 0, SpawnY: >= 0 } ? CurrentServer.SpawnY : Player.WorldSpawnY;
+        public ServerInfo CurrentServer { get; set; } = null;
         public string Name => Player?.Name ?? Address;
         public byte Index => Player?.Index ?? 0;
         public PlayerInfo Player { get; private set; } = new();
+        public ServerInfo LastServer { get; set; } = null;
         #endregion
 
         #region 方法
@@ -56,14 +45,8 @@ namespace MultiSEngine.DataStruct
                     Logs.Warn($"Abnormal remove of client data.");
             }
             State = ClientState.Disconnect;
-            SAdapter?.Stop(true);
-            CAdapter?.Stop(true);
+            Adapter?.Stop(true);
             TempAdapter?.Stop(true);
-            SAdapter = null;
-            CAdapter = null;
-            TempAdapter = null;
-            Player = null;
-            Server = null;
         }
         #endregion
     }

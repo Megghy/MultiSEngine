@@ -1,9 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using MultiSEngine.Core;
 using MultiSEngine.DataStruct;
+using MultiSEngine.Modules;
+using TrProtocol;
 using TrProtocol.Models;
 
 namespace MultiSEngine
@@ -15,7 +19,21 @@ namespace MultiSEngine
             using (var reader = new BinaryReader(new MemoryStream(buffer)))
                 return reader.Deserialize<T>();
         }*/
-        public static ClientData[] Online(this ServerInfo server) => Modules.Data.Clients.Where(c => c.Server == server).ToArray();
+        public static Packet AsPacket(this Span<byte> buf)
+        {
+            using var reader = new BinaryReader(new MemoryStream(buf.ToArray()));
+            return Net.DefaultServerSerializer.Deserialize(reader);
+        }
+        public static T AsPacket<T>(this Span<byte> buf) where T : Packet
+        {
+            using var reader = new BinaryReader(new MemoryStream(buf.ToArray()));
+            return Net.DefaultServerSerializer.Deserialize(reader) as T;
+        }
+        public static byte[] AsBytes(this Packet packet)
+        {
+            return Net.DefaultServerSerializer.Serialize(packet);
+        }
+        public static ClientData[] Online(this ServerInfo server) => Modules.Data.Clients.Where(c => c.CurrentServer == server).ToArray();
         public static bool TryParseAddress(string address, out IPAddress ip)
         {
             ip = default;

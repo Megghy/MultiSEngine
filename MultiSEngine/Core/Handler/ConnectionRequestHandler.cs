@@ -1,79 +1,57 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
+using MultiSEngine.Core.Adapter;
 using MultiSEngine.DataStruct;
 using MultiSEngine.Modules;
+using NetCoreServer;
 using TrProtocol;
 using TrProtocol.Models;
 using TrProtocol.Packets;
 
-namespace MultiSEngine.Core.Adapter
+namespace MultiSEngine.Core.Handler
 {
-    public class FakeWorldAdapter : ClientAdapter, IStatusChangeable
+    public class ConnectionRequestHandler : BaseHandler
     {
-        public FakeWorldAdapter(Net.NetSession connection) : this(null, connection)
+        public ConnectionRequestHandler(BaseAdapter parent) : base(parent)
         {
         }
-        public FakeWorldAdapter(ClientData client, Net.NetSession connection) : base(client, connection)
-        {
-        }
+
         public const int Width = 8400;
         public const int Height = 2400;
-        public bool RunningAsNormal { get; set; } = false;
-        public bool IsEnterWorld = false;
-        public void ChangeProcessState(bool asNormal)
+
+        public bool IsEntered { get; private set; }
+
+        public override bool RecieveClientData(MessageID msgType, ref Span<byte> data)
         {
-            if (asNormal)
-                IsEnterWorld = false;
-            RunningAsNormal = true;
-        }
-        public void BackToThere()
-        {
-            Logs.Info($"[{Client.Name}] now in FakeWorld");
-            Client.State = ClientData.ClientState.ReadyToSwitch;
-            Client.Player.ServerData = new();
-            Client.Server = null;
-            Client.SAdapter?.Stop(true);
-            Client.Sync(null);
-            Client.TP(Width / 2, Height / 2);
-            Client.SendDataToClient(Data.StaticSpawnSquareData);
-            Client.SendDataToClient(Data.StaticDeactiveAllPlayer); //隐藏所有玩家
-        }
-        public override bool GetData(ref Span<byte> buf)
-        {
-            var msgType = (MessageID)buf[2];
-#if DEBUG
-            Console.WriteLine($"[Recieve CLIENT] {msgType}");
-#endif
             if (msgType is MessageID.ClientHello
                 or MessageID.RequestWorldInfo
                 or MessageID.RequestTileData
                 or MessageID.SpawnPlayer
                 )
             {
-                if (RunningAsNormal)
-                    return base.GetData(ref buf);
                 switch (msgType)
                 {
                     case MessageID.ClientHello:
                         {
-                            using var reader = new BinaryReader(new MemoryStream(buf.ToArray()));
-                            var hello = Net.DefaultServerSerializer.Deserialize(reader) as ClientHello;
+                            var hello = data.AsPacket<ClientHello>();
                             if (!Hooks.OnPlayerJoin(Client, Client.IP, Client.Port, hello.Version, out var joinEvent))
                             {
                                 Client.ReadVersion(joinEvent.Version);
                                 if (Client.Player.VersionNum < 269 || (Client.Player.VersionNum != Config.Instance.ServerVersion && !Config.Instance.EnableCrossplayFeature))
                                     Client.Disconnect(Localization.Instance["Prompt_VersionNotAllowed", $"{Data.Convert(Client.Player.VersionNum)} ({Client.Player.VersionNum})"]);
                                 else
-                                    InternalSendPacket(new LoadPlayer() { PlayerSlot = 0, ServerWantsToRunCheckBytesInClientLoopThread = true });
+                                    Client.SendDataToClient(new LoadPlayer() { PlayerSlot = 0, ServerWantsToRunCheckBytesInClientLoopThread = true });
                             }
                             return true;
                         }
                     case MessageID.RequestWorldInfo:
                         var bb = new BitsByte();
                         bb[6] = true;
-                        Client.Player.OriginData.WorldData = new WorldData()
+                        Client.Player.OriginCharacter.WorldData = new WorldData()
                         {
                             EventInfo1 = bb,
                             SpawnX = Width / 2,
@@ -84,20 +62,20 @@ namespace MultiSEngine.Core.Adapter
                             WorldName = Config.Instance.ServerName,
                             WorldUniqueID = Guid.Empty
                         };
-                        Client.SendDataToClient(Client.Player.OriginData.WorldData);
+                        Client.SendDataToClient(Client.Player.OriginCharacter.WorldData);
                         return true;
                     case MessageID.RequestTileData:
-                        InternalSendPacket(Data.StaticSpawnSquareData);
+                        Client.SendDataToClient(Data.StaticSpawnSquareData);
                         Client.SendDataToClient(new StartPlaying());
                         return true;
                     case MessageID.SpawnPlayer:
-                        IsEnterWorld = true;
-                        RunningAsNormal = true;
-                        Client.Player.SpawnX = BitConverter.ToInt16(buf.Slice(4, 2));
-                        Client.Player.SpawnY = BitConverter.ToInt16(buf.Slice(6, 2));
+                        Parent.DeregisteHander(this); //移除假世界处理器
+                        Client.Player.SpawnX = BitConverter.ToInt16(data.Slice(4, 2));
+                        Client.Player.SpawnY = BitConverter.ToInt16(data.Slice(6, 2));
                         Client.SendDataToClient(new FinishedConnectingToServer());
                         Client.SendMessage(Data.Motd, false);
-                        Data.Clients.Where(c => c.Server is null && c != Client).ForEach(c => c.SendMessage($"{Client.Name} has join."));
+                        Data.Clients.Where(c => c.CurrentServer is null && c != Client)
+                            .ForEach(c => c.SendMessage($"{Client.Name} has join."));
                         if (Config.Instance.SwitchToDefaultServerOnJoin)
                         {
                             if (Config.Instance.DefaultServerInternal is { })
@@ -116,7 +94,7 @@ namespace MultiSEngine.Core.Adapter
                         return true;
                 }
             }
-            return base.GetData(ref buf);
+            return false;
         }
     }
 }

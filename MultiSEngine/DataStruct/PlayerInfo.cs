@@ -5,25 +5,15 @@ namespace MultiSEngine.DataStruct
 {
     public class PlayerInfo
     {
-        public class PlayerData
-        {
-            public short Health;
-            public short Mana;
-            public short HealthMax;
-            public short ManaMax;
-            public SyncPlayer Info { get; set; }
-            public WorldData WorldData { get; set; }
-            public SyncEquipment[] Inventory { get; set; } = new SyncEquipment[350];
-        }
-        public bool SSC => ServerData?.WorldData?.EventInfo1[6] ?? false;
+        public bool SSC => ServerCharacter?.WorldData?.EventInfo1[6] ?? false;
         public int VersionNum { get; set; } = -1;
         public byte Index { get; set; } = 0;
-        public string Name => (ServerData?.Info ?? OriginData.Info)?.Name;
+        public string Name => (ServerCharacter?.Info ?? OriginCharacter.Info)?.Name;
         public string UUID { get; set; } = "";
         public int SpawnX { get; set; } = -1;
         public int SpawnY { get; set; } = -1;
-        public short WorldSpawnX => (ServerData?.WorldData ?? OriginData.WorldData).SpawnX;
-        public short WorldSpawnY => (ServerData?.WorldData ?? OriginData.WorldData).SpawnY;
+        public short WorldSpawnX => (ServerCharacter?.WorldData ?? OriginCharacter.WorldData).SpawnX;
+        public short WorldSpawnY => (ServerCharacter?.WorldData ?? OriginCharacter.WorldData).SpawnY;
         public float X { get; set; } = -1;
         public float Y { get; set; } = -1;
         public int TileX => (int)(X / 16);
@@ -33,14 +23,14 @@ namespace MultiSEngine.DataStruct
         {
             if (packet is null)
                 return;
-            var data = SSC ? ServerData : OriginData;
+            var data = SSC ? ServerCharacter : OriginCharacter;
             switch (packet)
             {
                 case SyncEquipment item:
                     if (!SSC)
-                        OriginData.Inventory[item.ItemSlot] = item;
+                        OriginCharacter.Inventory[item.ItemSlot] = item;
                     else
-                        ServerData.Inventory[item.ItemSlot] = item;
+                        ServerCharacter.Inventory[item.ItemSlot] = item;
                     break;
                 case PlayerHealth health:
                     data.Health = health.StatLife;
@@ -55,7 +45,7 @@ namespace MultiSEngine.DataStruct
                     break;
                 case WorldData world:
                     world.WorldName = string.IsNullOrEmpty(Config.Instance.ServerName) ? world.WorldName : Config.Instance.ServerName; //设置了服务器名称的话则替换
-                    ServerData.WorldData = world;
+                    ServerCharacter.WorldData = world;
                     break;
                 case PlayerControls control:
                     X = control.Position.X;
@@ -65,8 +55,8 @@ namespace MultiSEngine.DataStruct
         }
 
         #region 用于临时储存玩家的原始信息
-        public PlayerData OriginData { get; set; } = new();
-        public PlayerData ServerData { get; set; } = new();
+        public CharacterData OriginCharacter { get; set; } = new();
+        public CharacterData ServerCharacter { get; set; } = new();
         #endregion
     }
 }

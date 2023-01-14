@@ -23,7 +23,7 @@ namespace MultiSEngine.Modules.Cmds
                 case "ol":
                 case "online":
                 case "playing":
-                    Logs.Info($"{Data.Clients.Count} Player(s) Online:{Environment.NewLine}{string.Join(", ", from c in Data.Clients let text = $"{c.Name} <{c.Server?.Name ?? "FakeWorld"}>" select text)}", false);
+                    Logs.Info($"{Data.Clients.Count} Player(s) Online:{Environment.NewLine}{string.Join(", ", from c in Data.Clients let text = $"{c.Name} <{c.CurrentServer?.Name ?? "FakeWorld"}>" select text)}", false);
                     break;
                 case "stop":
                 case "exit":
@@ -56,7 +56,7 @@ namespace MultiSEngine.Modules.Cmds
                     if (parma.Length > 1)
                     {
                         if (Utils.GetServersInfoByName(parma[1]).FirstOrDefault() is { } server)
-                            Data.Clients.Where(c => c.Server == server).ForEach(c => c.SendMessage($"[Broadcast] {parma[0]}", false));
+                            Data.Clients.Where(c => c.CurrentServer == server).ForEach(c => c.SendMessage($"[Broadcast] {parma[0]}", false));
                         else
                             Logs.Error(string.Format(Localization.Get("Command_ServerNotFound"), parma[1]));
                     }

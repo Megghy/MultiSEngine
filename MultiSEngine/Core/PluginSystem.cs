@@ -25,7 +25,7 @@ namespace MultiSEngine.Core
         public static readonly string PluginPath = Path.Combine(Environment.CurrentDirectory, "Plugins");
         public static readonly List<IMSEPlugin> PluginList = new();
         private static PluginHost<IMSEPlugin> _pluginHost;
-        [AutoInit("Loading all plugins.")]
+        [AutoInit("Loading all plugin.")]
         internal static void Load()
         {
             if (!Directory.Exists(PluginPath))

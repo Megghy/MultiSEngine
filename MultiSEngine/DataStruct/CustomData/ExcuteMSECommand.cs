@@ -31,7 +31,7 @@ namespace MultiSEngine.DataStruct.CustomData
             {
                 client.HandleCommand($"/{Command}");
             }
-            Logs.Info($"Receive command calls from the server [{client.Server.Name}] inside the tshock plugin: {Command}");
+            Logs.Info($"Receive command calls from the server [{client.CurrentServer.Name}] inside the tshock plugin: {Command}");
         }
     }
 }

@@ -30,7 +30,7 @@ namespace MultiSEngine.DataStruct.CustomData
                         return null;
                     }
                     var packet = Activator.CreateInstance(type) as CustomData;
-                    packet.InternalRead(br);
+                    packet?.InternalRead(br);
                     return packet;
                 }
                 else
