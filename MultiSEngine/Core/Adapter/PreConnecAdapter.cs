@@ -29,11 +29,7 @@ namespace MultiSEngine.Core.Adapter
             {
                 if (Utils.TryParseAddress(TargetServer.IP, out var ip))
                 {
-                    ServerConnection = new(ip, TargetServer.Port, this)
-                    {
-                        OptionReceiveBufferSize = 131070,
-                        OptionSendBufferSize = 131070
-                    };
+                    ServerConnection = new(ip, TargetServer.Port, this);
                     ServerConnection.ConnectAsync();
                 }
                 else

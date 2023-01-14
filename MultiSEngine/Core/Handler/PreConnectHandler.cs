@@ -80,6 +80,15 @@ namespace MultiSEngine.Core.Handler
                     Parent.DeregisteHander(this); //转换处理模式为普通
                     Client.State = ClientState.InGame;
                     Client.SendSuccessMessage(Localization.Instance["Prompt_ConnectSuccess", TargetServer.Name]);
+                    Client.SendDataToClient(new SpawnPlayer()
+                    {
+                        PlayerSlot = Client.Index,
+                        Context = TrProtocol.Models.PlayerSpawnContext.SpawningIntoWorld,
+                        Timer = 0,
+                        Position = new(Client.SpawnX, Client.SpawnY),
+                        DeathsPVE = 0,
+                        DeathsPVP = 0,
+                    });
                     Logs.Success($"[{Client.Name}] successfully joined the server: {TargetServer.Name}");
                     return false;
             }

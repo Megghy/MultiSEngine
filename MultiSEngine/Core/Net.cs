@@ -55,8 +55,7 @@ namespace MultiSEngine.Core
             {
                 if (_client != null && _client.Adapter != null)
                 {
-                    var data = buffer.AsSpan().Slice((int)offset, (int)size);
-                    _client.Adapter.CheckBuffer(ref data, _client.Adapter.RecieveClientData, _client.Adapter.ClientBufCheckedCallback);
+                    _client.Adapter.CheckBuffer(buffer.AsSpan().Slice((int)offset, (int)size).ToArray(), _client.Adapter.RecieveClientData, _client.Adapter.ClientBufCheckedCallback);
                 }
             }
 
@@ -74,13 +73,16 @@ namespace MultiSEngine.Core
             private BaseAdapter _adpter { get; init; }
             protected override void OnReceived(byte[] buffer, long offset, long size)
             {
-                var data = buffer.AsSpan().Slice((int)offset, (int)size);
-                _adpter.CheckBuffer(ref data, _adpter.RecieveServerData, _adpter.ServerBufCheckedCallback);
+                _adpter.CheckBuffer(buffer.AsSpan().Slice((int)offset, (int)size).ToArray(), _adpter.RecieveServerData, _adpter.ServerBufCheckedCallback);
             }
             protected override void OnError(SocketError error)
             {
                 Console.WriteLine($"TCP session caught an error with code {error}");
                 _adpter.Client?.Back();
+            }
+            protected override void OnDisconnecting()
+            {
+                _adpter.Stop();
             }
         }
         public static PacketSerializer DefaultClientSerializer = new(true);
@@ -90,11 +92,7 @@ namespace MultiSEngine.Core
         {
             try
             {
-                var server = new NetServer(Config.Instance.ListenIP is null or "0.0.0.0" or "localhost" ? IPAddress.Any : IPAddress.Parse(Config.Instance.ListenIP), Config.Instance.ListenPort)
-                {
-                    OptionReceiveBufferSize = 131070,
-                    OptionSendBufferSize = 131070
-                };
+                var server = new NetServer(Config.Instance.ListenIP is null or "0.0.0.0" or "localhost" ? IPAddress.Any : IPAddress.Parse(Config.Instance.ListenIP), Config.Instance.ListenPort);
                 server.Start();
             }
             catch (Exception ex)

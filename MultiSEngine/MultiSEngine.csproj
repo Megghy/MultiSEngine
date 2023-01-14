@@ -3,8 +3,8 @@
   <PropertyGroup>
 	<LangVersion>preview</LangVersion>
     <TargetFramework>net7.0</TargetFramework>
-    <AssemblyVersion>1.1.0.0</AssemblyVersion>
-    <FileVersion>1.1.0.0</FileVersion>
+    <AssemblyVersion>1.1.0.1</AssemblyVersion>
+    <FileVersion>1.1.0.1</FileVersion>
 	<OutputType>Exe</OutputType>
 	<Nullable>disable</Nullable>
   </PropertyGroup>
@@ -16,13 +16,6 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <WarningLevel>7</WarningLevel>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Remove="Core\Adapter\ClientAdapter.cs" />
-    <Compile Remove="Core\Adapter\FakeWorldAdapter.cs" />
-    <Compile Remove="Core\Adapter\ServerAdapter.cs" />
-    <Compile Remove="Core\Adapter\VisualPlayerAdapter.cs" />
-  </ItemGroup>
 
   <ItemGroup>
     <None Include="..\.editorconfig" Link=".editorconfig" />

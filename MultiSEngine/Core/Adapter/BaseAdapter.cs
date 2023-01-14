@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using MultiSEngine.Core.Handler;
 using MultiSEngine.DataStruct;
 using MultiSEngine.Modules;
@@ -21,12 +24,14 @@ namespace MultiSEngine.Core.Adapter
             ClientConnection = clientConnection;
             ServerConnection = serverConnection;
             RegisteHandlers();
+            Task.Run(CheckBufferLoop);
         }
         #region 变量
         public int ErrorCount { get; protected set; } = 0;
         public bool IsDisposed { get; private set; } = false;
         public ClientData Client { get; init; }
         protected List<BaseHandler> _handlers { get; set; } = new();
+        private ConcurrentQueue<(byte[] data, BufferCheckRefStructMutator check, BufferCallbackRefStructMutator callback)> _dataQueue = new();
 
         internal Net.NetSession ClientConnection { get; init; }
         internal Net.NetClient ServerConnection { get; set; }
@@ -50,6 +55,7 @@ namespace MultiSEngine.Core.Adapter
                 handler.Dispose();
             }
             _handlers.Clear();
+            _dataQueue.Clear();
             if (disposeConnection)
             {
                 ClientConnection?.Disconnect();
@@ -127,56 +133,109 @@ namespace MultiSEngine.Core.Adapter
             }
             return false;
         }
-        private readonly byte[] _fixdCheckedBuf = new byte[131070];
+        private readonly byte[] _fixedCheckedBuf = new byte[1024 * 1024];
+        private readonly byte[] _fixedUncheckedBuf = new byte[10 * 1024 * 1024];
+        private int _uncheckedLength = 0;
+        private int _uncheckedOffset = 0;
 
         public delegate bool BufferCheckRefStructMutator(ref Span<byte> s);
         public delegate void BufferCallbackRefStructMutator(ref Span<byte> s);
 
-        public void CheckBuffer(ref Span<byte> buf, BufferCheckRefStructMutator check, BufferCallbackRefStructMutator callback)
+        public void CheckBuffer(byte[] buf, BufferCheckRefStructMutator check, BufferCallbackRefStructMutator callback)
         {
-            if (buf.IsEmpty)
+            if (buf.Length == 0)
             {
                 Logs.Warn($"Receive a packet of length 0");
                 return;
             }
-            try
+            _dataQueue.Enqueue((buf, check, callback));
+        }
+        private void CheckBufferLoop()
+        {
+            while (!IsDisposed)
             {
-                var length = BitConverter.ToUInt16(buf);
-                if (buf.Length > length)
+                if (_dataQueue.TryDequeue(out var result))
                 {
-                    var checkedPos = 0;
-                    Span<byte> _checkedBuf = new(_fixdCheckedBuf);
-                    var tempPos = 0;
-                    while (tempPos < buf.Length)
+                    var buf = result.data.AsSpan();
+                    try
                     {
-                        var tempLen = BitConverter.ToUInt16(buf.Slice(tempPos, 2));
-                        if (tempLen == 0)
-                            break;
-                        var checkData = buf.Slice(tempPos, tempLen);
-                        if (!checkData.IsEmpty && !check(ref checkData))
+                        if (BitConverter.ToInt16(buf) == buf.Length)
                         {
-                            buf.Slice(tempPos, tempLen).CopyTo(_checkedBuf.Slice(checkedPos, tempLen));
-                            checkedPos += tempLen;
+                            try
+                            {
+                                if (!result.check(ref buf))
+                                    result.callback(ref buf);
+                            }
+                            catch(Exception ex)
+                            {
+                                result.callback(ref buf);
+                                Logs.Warn($"An error occurred while checking buffer. Packet: {(MessageID)buf[2]} [Header Length: {BitConverter.ToInt16(buf)}, Absolute Length: {buf.Length}]{Environment.NewLine}{ex}");
+                            }
                         }
-                        tempPos += tempLen;
+                        else
+                        {
+                            result.data.CopyTo(_fixedUncheckedBuf, _uncheckedLength);
+                            _uncheckedLength += buf.Length;
+                            var uncheckedBuf = _fixedUncheckedBuf.AsSpan()[_uncheckedOffset.._uncheckedLength];
+                            var checkedBuf = _fixedCheckedBuf.AsSpan();
+                            var tempPos = 0;
+                            var checkedPos = 0;
+                            var tempLen = 0;
+
+                            bool isFullPacket = true;
+                            try
+                            {
+                                while (tempPos < uncheckedBuf.Length - 1)
+                                {
+                                    tempLen = BitConverter.ToInt16(uncheckedBuf.Slice(tempPos, 2));
+                                    if (tempLen + tempPos > uncheckedBuf.Length)
+                                    {
+                                        isFullPacket = false;
+                                        break;//包长度不够, 等待下个包
+                                    }
+                                    var checkData = uncheckedBuf.Slice(tempPos, tempLen);
+                                    if (!result.check(ref checkData))
+                                    {
+                                        checkData.CopyTo(checkedBuf.Slice(checkedPos, tempLen));
+                                        checkedPos += tempLen;
+                                    }
+                                    tempPos += tempLen;
+                                }
+                                var data = checkedBuf[..checkedPos];
+                                if (checkedPos > 0)
+                                {
+                                    result.callback(ref data);
+                                }
+                                if (isFullPacket)
+                                {
+                                    uncheckedBuf.Clear();
+                                    checkedBuf.Clear();
+                                    _uncheckedLength = 0;
+                                    _uncheckedOffset = 0;
+                                }
+                                else
+                                {
+                                    _uncheckedOffset = _uncheckedOffset += tempPos;
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine(string.Join(' ', uncheckedBuf[(tempPos + _uncheckedOffset)..].ToArray().Select(b => b.ToString())));
+                                Logs.Warn($"An error occurred while checking Multiple Packet buffer. Buffer length: {_uncheckedLength}, Offset: {tempPos}, Packet: {(MessageID)buf[tempPos + 2]} [Header Length: {BitConverter.ToInt16(buf[tempPos..])}, Absolute Length: {buf.Length}]{Environment.NewLine}{ex}");
+                            }
+                        }
                     }
-                    var data = _checkedBuf[..checkedPos];
-                    if (checkedPos > 0)
+                    catch (Exception ex)
                     {
-                        callback(ref data);
+                        result.callback(ref buf);
+                        var pos = BitConverter.ToInt16(_fixedUncheckedBuf);
+                        Console.WriteLine(string.Join(' ', buf[pos..].ToArray().Select(b => b.ToString())));
+                        Console.WriteLine(BitConverter.ToInt16(buf[pos..]));
+                        Logs.Warn($"An error occurred while checking buffer. Buffer length: {_uncheckedLength}, Packet: {(MessageID)buf[pos + 2]} [Header Length: {BitConverter.ToInt16(buf[pos..])}, Absolute Length: {buf.Length}]{Environment.NewLine}{ex}");
                     }
-                    _checkedBuf.Clear();
                 }
                 else
-                {
-                    if (!check(ref buf))
-                        callback(ref buf);
-                }
-            }
-            catch(Exception ex)
-            {
-                callback(ref buf);
-                Logs.Warn($"An error occurred while checking buffer. Length: {buf.Length}.{Environment.NewLine}{ex}");
+                    Task.Delay(1).Wait();
             }
         }
 

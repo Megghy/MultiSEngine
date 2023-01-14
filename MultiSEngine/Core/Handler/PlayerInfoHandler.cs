@@ -23,7 +23,7 @@ namespace MultiSEngine.Core.Handler
             {
                 case MessageID.SyncPlayer:
                     var syncPlayer = data.AsPacket<SyncPlayer>();
-                    if (Client.State > ClientState.NewConnection && syncPlayer?.Name != Client.Name)
+                    if (Client.State >= ClientState.SyncData && syncPlayer?.Name != Client.Name)
                     {
                         Client.Disconnect("You cannot change your name.");
                         return true;
@@ -42,7 +42,7 @@ namespace MultiSEngine.Core.Handler
                     break;
                 case MessageID.ClientUUID:
                     var uuid = data.AsPacket<ClientUUID>();
-                    if (Client.State > ClientState.NewConnection && uuid?.UUID != Client.Player.UUID)
+                    if (Client.State >= ClientState.SyncData && uuid?.UUID != Client.Player.UUID)
                     {
                         Client.Disconnect("You cannot change your UUID.");
                     }
