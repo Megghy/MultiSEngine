@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Net.Sockets;
 using MultiSEngine.Core.Adapter;
 using TrProtocol;
 
@@ -20,22 +19,22 @@ namespace MultiSEngine.DataStruct
 
         public virtual void Dispose() { IsDisposed = true; }
 
-        public virtual bool RecieveData(MessageID msgType, Span<byte> data)
+        public virtual bool RecieveData(MessageID msgType, byte[] data)
         {
             return false;
         }
 
-        public virtual bool RecieveClientData(MessageID msgType, ref Span<byte> data) { return false; }
-        public virtual bool RecieveServerData(MessageID msgType, ref Span<byte> data) { return false; }
+        public virtual bool RecieveClientData(MessageID msgType, byte[] data) { return false; }
+        public virtual bool RecieveServerData(MessageID msgType, byte[] data) { return false; }
 
         protected bool SendToClientDirect(ref Span<byte> data)
-        {
-            return Parent.SendToClientDirect(ref data);
-        }
+            => Parent.SendToClientDirect(ref data);
         protected bool SendToServerDirect(ref Span<byte> data)
-        {
-            return Parent.SendToServerDirect(ref data);
-        }
+            => Parent.SendToServerDirect(ref data);
+        protected bool SendToClientDirect(byte[] data)
+            => Parent.SendToClientDirect(data);
+        protected bool SendToServerDirect(byte[] data)
+            => Parent.SendToServerDirect(data);
         protected bool SendToClientDirect(Packet packet)
         {
             var data = packet.AsBytes().AsSpan();

@@ -6,7 +6,6 @@ using System.Net;
 using System.Net.Sockets;
 using MultiSEngine.Core;
 using MultiSEngine.DataStruct;
-using MultiSEngine.Modules;
 using TrProtocol;
 using TrProtocol.Models;
 
@@ -21,12 +20,20 @@ namespace MultiSEngine
         }*/
         public static Packet AsPacket(this Span<byte> buf)
         {
-            using var reader = new BinaryReader(new MemoryStream(buf.ToArray()));
-            return Net.DefaultServerSerializer.Deserialize(reader);
+            return buf.ToArray().AsPacket();
         }
         public static T AsPacket<T>(this Span<byte> buf) where T : Packet
         {
-            using var reader = new BinaryReader(new MemoryStream(buf.ToArray()));
+            return buf.ToArray().AsPacket<T>();
+        }
+        public static Packet AsPacket(this byte[] buf)
+        {
+            using var reader = new BinaryReader(new MemoryStream(buf));
+            return Net.DefaultServerSerializer.Deserialize(reader);
+        }
+        public static T AsPacket<T>(this byte[] buf) where T : Packet
+        {
+            using var reader = new BinaryReader(new MemoryStream(buf));
             return Net.DefaultServerSerializer.Deserialize(reader) as T;
         }
         public static byte[] AsBytes(this Packet packet)

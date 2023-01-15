@@ -1,5 +1,4 @@
 ﻿using System.Net;
-using System.Timers;
 using MultiSEngine.Core.Adapter;
 using MultiSEngine.Modules;
 
@@ -15,8 +14,8 @@ namespace MultiSEngine.DataStruct
 
         #region 客户端信息
         public ClientState State { get; set; } = ClientState.NewConnection;
-        public string IP => (Adapter?.ClientConnection.Socket.RemoteEndPoint as IPEndPoint)?.Address?.ToString();
-        public int Port => (Adapter?.ClientConnection?.Socket.RemoteEndPoint as IPEndPoint)?.Port ?? -1;
+        public string IP => (Adapter?.ClientConnection?.RemoteEndPoint as IPEndPoint)?.Address?.ToString();
+        public int Port => (Adapter?.ClientConnection?.RemoteEndPoint as IPEndPoint)?.Port ?? -1;
         public string Address => $"{IP}:{Port}"; public bool Syncing { get; internal set; } = false;
         public bool Disposed { get; private set; } = false;
         #endregion
@@ -45,8 +44,8 @@ namespace MultiSEngine.DataStruct
                     Logs.Warn($"Abnormal remove of client data.");
             }
             State = ClientState.Disconnect;
-            Adapter?.Stop(true);
-            TempAdapter?.Stop(true);
+            Adapter?.Dispose(true);
+            TempAdapter?.Dispose(true);
         }
         #endregion
     }

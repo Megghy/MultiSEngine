@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using MultiSEngine.Core.Adapter;
+﻿using MultiSEngine.Core.Adapter;
 using MultiSEngine.DataStruct;
 using MultiSEngine.Modules;
 using TrProtocol;
@@ -16,7 +11,7 @@ namespace MultiSEngine.Core.Handler
         public CommonHandler(BaseAdapter parent) : base(parent)
         {
         }
-        public override bool RecieveServerData(MessageID msgType, ref Span<byte> data)
+        public override bool RecieveServerData(MessageID msgType, byte[] data)
         {
             switch (msgType)
             {

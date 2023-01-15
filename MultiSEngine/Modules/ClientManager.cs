@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
-using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using MultiSEngine.Core;
@@ -24,7 +23,7 @@ namespace MultiSEngine.Modules
         /// <param name="server"></param>
         public static async Task Join(this ClientData client, ServerInfo server, CancellationToken cancel = default)
         {
-            if (Core.Hooks.OnPreSwitch(client, server, out _))
+            if (Hooks.OnPreSwitch(client, server, out _))
                 return;
             if (client.CurrentServer?.Name == server?.Name || (client.State > ClientState.ReadyToSwitch && client.State < ClientState.InGame))
             {
@@ -48,11 +47,11 @@ namespace MultiSEngine.Modules
                         await client.TempAdapter.TryConnect(cancel)
                             .ContinueWith(task =>
                             {
+                                client.LastServer = client.CurrentServer;
                                 client.CurrentServer = server;
-                                client.LastServer = server;
                                 client.State = ClientState.InGame;
-                                client.Adapter.ServerConnection?.Disconnect();
-                                client.Adapter = client.TempAdapter;
+                                client.Adapter.SetServerConnection(client.TempAdapter.ServerConnection, true);
+                                client.TempAdapter.Dispose();
                                 client.TempAdapter = null;
                                 client.Sync(server);
                             }, cancel);
@@ -60,8 +59,8 @@ namespace MultiSEngine.Modules
                     catch (Exception ex)
                     {
                         client.State = ClientState.ReadyToSwitch;
-                        client.TempAdapter?.ServerConnection?.Disconnect();
-                        client.TempAdapter?.Stop();
+                        client.TempAdapter?.ServerConnection?.Dispose(true);
+                        client.TempAdapter?.Dispose();
                         client.TempAdapter = null;
                         Logs.Error($"Unable to connect to server {server.IP}:{server.Port}{Environment.NewLine}{ex}");
                         client.SendErrorMessage(Localization.Instance["Prompt_CannotConnect", server.Name]);
@@ -81,7 +80,7 @@ namespace MultiSEngine.Modules
                 client.State = ClientState.ReadyToSwitch;
                 client.Player.ServerCharacter = new();
                 client.CurrentServer = null;
-                client.Adapter.ServerConnection?.Disconnect();
+                client.Adapter.ServerConnection?.Dispose(true);
                 client.Sync(null);
                 client.TP(4200, 1200);
                 client.SendDataToClient(Data.StaticSpawnSquareData);
@@ -127,33 +126,30 @@ namespace MultiSEngine.Modules
                 return;
             Logs.Text($"[{client.Name}] disconnected. {reason}");
             Hooks.OnPlayerLeave(client, out _);
-            Data.Clients.Where(c => c.CurrentServer is null && c != client).ForEach(c => c.SendMessage($"{client.Name} has leave."));
-            if (client.Adapter.ClientConnection.IsConnected)
-                client.SendDataToClient(new Kick() { Reason = new(reason ?? "You have been kicked. Reason: unknown", NetworkText.Mode.Literal) });
+            Data.Clients.Where(c => c.CurrentServer is null && c != client)
+                .ForEach(c => c.SendMessage($"{client.Name} has leave."));
+            client.SendDataToClient(new Kick() { Reason = new(reason ?? "You have been kicked. Reason: unknown", NetworkText.Mode.Literal) });
             client.Dispose();
         }
     }
     public static partial class ClientManager
     {
         #region 消息函数
-        public static bool SendDataToClient(this ClientData client, ref Span<byte> buffer, int start = 0, int? length = null)
+        public static bool SendDataToClient(this ClientData client, ref Span<byte> buf)
         {
             try
             {
 #if DEBUG
-                Console.WriteLine($"[Send to CLIENT] <{BitConverter.ToInt16(buffer)} byte> {(length is null ? "" : $"<Length: {length}>")} {(MessageID)buffer[start + 2]}");
+                Console.WriteLine($"[Send to CLIENT] <{BitConverter.ToInt16(buf)} byte>, Length: {buf.Length} - {(MessageID)buf[2]}");
 #endif
-                if (buffer is { Length: < 3 })
+                if (buf is { Length: < 3 })
                 {
 #if DEBUG
-                    Console.WriteLine($"[Send to CLIENT] <Invaild data> <{BitConverter.ToInt16(buffer)} byte> {(length is null ? "" : $"<Length: {length}>")} {(MessageID)buffer[start + 2]}");
+                    Console.WriteLine($"[Send to CLIENT] <Invaild data> <{BitConverter.ToInt16(buf)} byte> Length: {buf.Length}");
 #endif
                     return true;
                 }
-                //using var arg = new SocketAsyncEventArgs();
-                //arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer?.Length ?? 3);
-                client?.Adapter.ClientConnection.SendAsync(buffer.Slice(start, length ?? buffer.Length));
-                return true;
+                return client?.Adapter?.ClientConnection?.Send(ref buf) ?? false;
             }
             catch (Exception ex)
             {
@@ -166,30 +162,35 @@ namespace MultiSEngine.Modules
             var data = buffer.AsSpan().Slice(start, length ?? buffer.Length);
             return client.SendDataToClient(ref data);
         }
-        private static readonly byte[] _emptyPacket = new byte[3] { 3, 0, 0 };
-        public static void SendDataToServer(this ClientData client, ref Span<byte> buffer, int start = 0, int? length = null)
+        public static bool SendDataToServer(this ClientData client, byte[] buffer, int start = 0, int? length = null)
+        {
+            var data = buffer.AsSpan().Slice(start, length ?? buffer.Length);
+            return client.SendDataToServer(ref data);
+        }
+        public static bool SendDataToServer(this ClientData client, ref Span<byte> buf)
         {
             if (client.Adapter is not { ServerConnection: not null })
-                return;
+                return false;
             try
             {
 #if DEBUG
-                Console.WriteLine($"[Send to SERVER] <{BitConverter.ToInt16(buffer)} byte> {(MessageID)buffer[start + 2]}");
+                Console.WriteLine($"[Send to SERVER] <{BitConverter.ToInt16(buf)} byte>, Length: {buf.Length} - {(MessageID)buf[2]}");
 #endif
-                if (buffer is { Length: < 3 })
+                if (buf is { Length: < 3 })
                 {
 #if DEBUG
-                    Console.WriteLine($"[Send to SERVER] <Invaild data> <{BitConverter.ToInt16(buffer)} byte> {(length is null ? "" : $"<Length: {length}>")} {(MessageID)buffer[start + 2]}");
+                    Console.WriteLine($"[Send to SERVER] <Invaild data> <{BitConverter.ToInt16(buf)} byte>, Length: {buf.Length} - {(MessageID)buf[2]}");
 #endif
-                    return;
+                    return false;
                 }
                 //using var arg = new SocketAsyncEventArgs();
                 //arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer?.Length ?? 3);
-                client.Adapter.ServerConnection.SendAsync(buffer.Slice(start, length ?? buffer.Length));
+                return client.Adapter?.ServerConnection?.Send(ref buf) ?? false;
             }
             catch
             {
                 Logs.Info($"Failed to send data to server: {client.Name}");
+                return false;
             }
         }
         public static bool SendDataToClient(this ClientData client, Packet packet, bool asClient = false)

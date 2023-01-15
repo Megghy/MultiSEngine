@@ -1,105 +1,53 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
 using System.Threading.Tasks;
 using MultiSEngine.Core.Adapter;
 using MultiSEngine.DataStruct;
 using MultiSEngine.Modules;
-using NetCoreServer;
 using TrProtocol;
-using TcpClient = NetCoreServer.TcpClient;
 
 namespace MultiSEngine.Core
 {
     public class Net
     {
-        public class NetServer : TcpServer
-        {
-            public NetServer(IPAddress address, int port) : base(address, port) { }
-
-            protected override TcpSession CreateSession() { return new NetSession(this); }
-
-            protected override void OnError(SocketError error)
-            {
-                Console.WriteLine($"Chat TCP server caught an error with code {error}");
-            }
-        }
-        public class NetSession : TcpSession
-        {
-            public NetSession(TcpServer server) : base(server)
-            {
-                _client = new ClientData();
-                _client.Adapter = new BaseAdapter(_client, this, null);
-
-                Data.Clients.Add(_client);
-
-#if DEBUG
-                Console.WriteLine($"Session created.");
-#endif
-            }
-            private ClientData _client { get; set; }
-            protected override void OnConnecting()
-            {
-                Logs.Text($"{Socket.RemoteEndPoint} trying to connect...");
-            }
-
-            protected override void OnDisconnecting()
-            {
-                _client?.Disconnect();
-            }
-
-            protected override void OnReceived(byte[] buffer, long offset, long size)
-            {
-                if (_client != null && _client.Adapter != null)
-                {
-                    _client.Adapter.CheckBuffer(buffer.AsSpan().Slice((int)offset, (int)size).ToArray(), _client.Adapter.RecieveClientData, _client.Adapter.ClientBufCheckedCallback);
-                }
-            }
-
-            protected override void OnError(SocketError error)
-            {
-                Console.WriteLine($"TCP session caught an error with code {error}");
-            }
-        }
-        public class NetClient : TcpClient
-        {
-            public NetClient(IPAddress address, int port, BaseAdapter adapter) : base(address, port)
-            {
-                _adpter = adapter;
-            }
-            private BaseAdapter _adpter { get; init; }
-            protected override void OnReceived(byte[] buffer, long offset, long size)
-            {
-                _adpter.CheckBuffer(buffer.AsSpan().Slice((int)offset, (int)size).ToArray(), _adpter.RecieveServerData, _adpter.ServerBufCheckedCallback);
-            }
-            protected override void OnError(SocketError error)
-            {
-                Console.WriteLine($"TCP session caught an error with code {error}");
-                _adpter.Client?.Back();
-            }
-            protected override void OnDisconnecting()
-            {
-                _adpter.Stop();
-            }
-        }
-        public static PacketSerializer DefaultClientSerializer = new(true);
-        public static PacketSerializer DefaultServerSerializer = new(false);
+        public static TcpListener Server { get; private set; }
+        public static readonly PacketSerializer DefaultClientSerializer = new(true);
+        public static readonly PacketSerializer DefaultServerSerializer = new(false);
         [AutoInit(postMsg: "Opened socket server successfully.")]
         public static void Init()
         {
             try
             {
-                var server = new NetServer(Config.Instance.ListenIP is null or "0.0.0.0" or "localhost" ? IPAddress.Any : IPAddress.Parse(Config.Instance.ListenIP), Config.Instance.ListenPort);
-                server.Start();
+                IPAddress address = Config.Instance.ListenIP is null or "0.0.0.0" or "localhost" ? IPAddress.Any : IPAddress.Parse(Config.Instance.ListenIP);
+                Server = new(new IPEndPoint(address, Config.Instance.ListenPort));
+                Server.Start();
+                Task.Run(WatchConnection);
             }
             catch (Exception ex)
             {
                 Logs.Error(ex);
                 Console.ReadLine();
                 Environment.Exit(0);
+            }
+        }
+        public static void WatchConnection()
+        {
+            while (true)
+            {
+                try
+                {
+                    var client = new ClientData();
+                    client.Adapter = new(client, Server.AcceptTcpClient());
+
+                    Logs.Text($"{client.Adapter.ClientConnection.RemoteEndPoint} trying to connect...");
+
+                    Data.Clients.Add(client);
+                }
+                catch (Exception ex)
+                {
+                    Logs.Error(ex);
+                }
             }
         }
         static bool isTesting = false;
@@ -165,7 +113,7 @@ namespace MultiSEngine.Core
                 }
                 finally
                 {
-                    tempConnection.Stop(true);
+                    tempConnection.Dispose(true);
                 }
                 isTesting = false;
                 return false;

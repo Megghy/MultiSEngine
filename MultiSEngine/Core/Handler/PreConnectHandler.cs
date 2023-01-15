@@ -1,5 +1,4 @@
-﻿using System;
-using MultiSEngine.Core.Adapter;
+﻿using MultiSEngine.Core.Adapter;
 using MultiSEngine.DataStruct;
 using MultiSEngine.DataStruct.CustomData;
 using MultiSEngine.Modules;
@@ -16,17 +15,17 @@ namespace MultiSEngine.Core.Handler
         }
         public ServerInfo TargetServer { get; init; }
         public bool IsConnecting { get; private set; } = true;
-        public override bool RecieveClientData(MessageID msgType, ref Span<byte> data)
+        public override bool RecieveClientData(MessageID msgType, byte[] data)
         {
             return true;
         }
-        public override bool RecieveServerData(MessageID msgType, ref Span<byte> data)
+        public override bool RecieveServerData(MessageID msgType, byte[] data)
         {
             switch (msgType)
             {
                 case MessageID.Kick:
                     var kick = data.AsPacket<Kick>();
-                    Parent.Stop(true);
+                    Parent.Dispose(true);
                     Client.SendErrorMessage(Localization.Instance["Prompt_Disconnect", TargetServer.Name, kick.Reason.GetText()]);
                     Logs.Info($"[{Client.Name}] kicked by [{TargetServer.Name}]: {kick.Reason.GetText()}");
                     Client.State = ClientState.Disconnect;
@@ -80,15 +79,6 @@ namespace MultiSEngine.Core.Handler
                     Parent.DeregisteHander(this); //转换处理模式为普通
                     Client.State = ClientState.InGame;
                     Client.SendSuccessMessage(Localization.Instance["Prompt_ConnectSuccess", TargetServer.Name]);
-                    Client.SendDataToClient(new SpawnPlayer()
-                    {
-                        PlayerSlot = Client.Index,
-                        Context = TrProtocol.Models.PlayerSpawnContext.SpawningIntoWorld,
-                        Timer = 0,
-                        Position = new(Client.SpawnX, Client.SpawnY),
-                        DeathsPVE = 0,
-                        DeathsPVP = 0,
-                    });
                     Logs.Success($"[{Client.Name}] successfully joined the server: {TargetServer.Name}");
                     return false;
             }

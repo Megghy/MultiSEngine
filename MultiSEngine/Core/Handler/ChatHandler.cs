@@ -1,5 +1,4 @@
-﻿using System;
-using System.Linq;
+﻿using System.Linq;
 using MultiSEngine.Core.Adapter;
 using MultiSEngine.DataStruct;
 using MultiSEngine.Modules;
@@ -15,7 +14,7 @@ namespace MultiSEngine.Core.Handler
         {
         }
 
-        public override bool RecieveClientData(MessageID msgType, ref Span<byte> data)
+        public override bool RecieveClientData(MessageID msgType, byte[] data)
         {
             if (msgType is MessageID.NetModules && data.AsPacket() is NetTextModuleC2S chat && !Hooks.OnChat(Client, chat, out _))
             {
@@ -48,10 +47,7 @@ namespace MultiSEngine.Core.Handler
                             PlayerSlot = Client.Index,
                             Color = Color.White,
                         });
-                    Client.SendDataToServer(chat, true);
-                    
                 }
-                return true;
             }
             return false;
         }

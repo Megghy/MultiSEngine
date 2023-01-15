@@ -17,7 +17,7 @@ namespace MultiSEngine.Core.Handler
         }
         private TestAdapter TestParent
             => (TestAdapter)Parent;
-        public override bool RecieveServerData(MessageID msgType, ref Span<byte> data)
+        public override bool RecieveServerData(MessageID msgType, byte[] data)
         {
             if (Parent.IsDisposed)
                 return true;
@@ -26,7 +26,7 @@ namespace MultiSEngine.Core.Handler
                 case MessageID.Kick:
                     var kick = data.AsPacket<Kick>();
                     var reason = kick.Reason.GetText();
-                    Parent.Stop(true);
+                    Parent.Dispose(true);
                     TestParent.IsSuccess = false;
                     TestParent.Log($"Kicked. Reason: {(string.IsNullOrEmpty(reason) ? "Unkown" : reason)}", false, ConsoleColor.Red);
                     TestParent.IsSuccess = false;

@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using MultiSEngine.Core.Adapter;
+﻿using MultiSEngine.Core.Adapter;
 using MultiSEngine.DataStruct;
 using TrProtocol;
 
@@ -14,9 +9,9 @@ namespace MultiSEngine.Core.Handler
         public CustomPacketHandler(BaseAdapter parent) : base(parent)
         {
         }
-        public override bool RecieveServerData(MessageID msgType, ref Span<byte> data)
+        public override bool RecieveServerData(MessageID msgType, byte[] data)
         {
-            if(msgType is MessageID.Unused15)
+            if (msgType is MessageID.Unused15)
             {
                 var custom = data.AsPacket<CustomPacketStuff.CustomDataPacket>();
                 custom?.Data.RecievedData(Client);

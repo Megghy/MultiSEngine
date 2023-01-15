@@ -38,7 +38,7 @@ namespace MultiSEngine
                         config.Save();
                     return config;
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     Logs.Warn($"Unable to load config. {Environment.NewLine}{ex}");
                     return _oldInstance;

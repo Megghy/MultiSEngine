@@ -1,11 +1,9 @@
 ﻿using System;
-using System.IO;
+using System.Net.Sockets;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using MultiSEngine.Core.Handler;
 using MultiSEngine.DataStruct;
-using TrProtocol;
 using TrProtocol.Packets;
 
 namespace MultiSEngine.Core.Adapter
@@ -34,12 +32,13 @@ namespace MultiSEngine.Core.Adapter
             RegisteHander(handler);
             Log($"Start connecting to [{TargetServer.Name}]<{TargetServer.IP}:{TargetServer.Port}>");
             var cancel = new CancellationTokenSource(Config.Instance.SwitchTimeOut).Token;
-            await Task.Run(() =>
+            await Task.Run(async () =>
             {
                 if (Utils.TryParseAddress(TargetServer.IP, out var ip))
                 {
-                    ServerConnection = new(ip, TargetServer.Port, this);
-                    ServerConnection.ConnectAsync();
+                    var client = new TcpClient();
+                    await client.ConnectAsync(ip, TargetServer.Port);
+                    SetServerConnection(new(client));
                 }
                 else
                 {
@@ -53,7 +52,7 @@ namespace MultiSEngine.Core.Adapter
                     Thread.Sleep(1);
                 }
                 State = 1;
-                Log($"Sending [ConnectRequest] packet"); 
+                Log($"Sending [ConnectRequest] packet");
                 SendToServerDirect(new ClientHello()
                 {
                     Version = $"Terraria{(TargetServer.VersionNum is { } and > 0 and < 65535 ? TargetServer.VersionNum : Config.Instance.ServerVersion)}"

@@ -1,22 +1,18 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using MultiSEngine.Core.Adapter;
 using MultiSEngine.DataStruct;
 using MultiSEngine.Modules;
-using NetCoreServer;
 using TrProtocol;
 using TrProtocol.Models;
 using TrProtocol.Packets;
 
 namespace MultiSEngine.Core.Handler
 {
-    public class ConnectionRequestHandler : BaseHandler
+    public class AcceptConnectionHandler : BaseHandler
     {
-        public ConnectionRequestHandler(BaseAdapter parent) : base(parent)
+        public AcceptConnectionHandler(BaseAdapter parent) : base(parent)
         {
         }
 
@@ -25,7 +21,7 @@ namespace MultiSEngine.Core.Handler
 
         public bool IsEntered { get; private set; }
 
-        public override bool RecieveClientData(MessageID msgType, ref Span<byte> data)
+        public override bool RecieveClientData(MessageID msgType, byte[] data)
         {
             if (msgType is MessageID.ClientHello
                 or MessageID.RequestWorldInfo
@@ -70,8 +66,8 @@ namespace MultiSEngine.Core.Handler
                         return true;
                     case MessageID.SpawnPlayer:
                         Parent.DeregisteHander(this); //移除假世界处理器
-                        Client.Player.SpawnX = BitConverter.ToInt16(data.Slice(4, 2));
-                        Client.Player.SpawnY = BitConverter.ToInt16(data.Slice(6, 2));
+                        Client.Player.SpawnX = BitConverter.ToInt16(data, 4);
+                        Client.Player.SpawnY = BitConverter.ToInt16(data, 6);
                         Client.SendDataToClient(new FinishedConnectingToServer());
                         Client.SendMessage(Data.Motd, false);
                         Data.Clients.Where(c => c.CurrentServer is null && c != Client)

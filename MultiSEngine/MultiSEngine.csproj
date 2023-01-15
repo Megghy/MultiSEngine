@@ -22,10 +22,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NetCoreServer" Version="7.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Reference Include="TrProtocol">
       <HintPath>lib\TrProtocol.dll</HintPath>
     </Reference>
