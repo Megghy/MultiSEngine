@@ -1,4 +1,4 @@
 [submodule "TrProtocol"]
 	path = TrProtocol
-	url = https://github.com/Megghy/TrProtocol.git
-	branch = dev
+	url = https://github.com/chi-rei-den/TrProtocol.git
+	branch = main
