@@ -10,7 +10,7 @@ namespace MultiSEngine.DataStruct
         {
         }
         public BaseAdapter Adapter { get; set; }
-        internal PreConnecAdapter TempAdapter { get; set; } = null;
+        internal PreConnectAdapter TempAdapter { get; set; } = null;
 
         #region 客户端信息
         public ClientState State { get; set; } = ClientState.NewConnection;

@@ -8,7 +8,7 @@ using TrProtocol.Packets;
 
 namespace MultiSEngine.Core.Adapter
 {
-    internal class TestAdapter : PreConnecAdapter
+    internal class TestAdapter : PreConnectAdapter
     {
         public TestAdapter(ServerInfo server, bool showDetails) : base(null, null, server)
         {

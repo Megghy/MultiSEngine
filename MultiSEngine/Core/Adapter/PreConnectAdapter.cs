@@ -8,9 +8,9 @@ using TrProtocol.Packets;
 
 namespace MultiSEngine.Core.Adapter
 {
-    public class PreConnecAdapter : BaseAdapter
+    public class PreConnectAdapter : BaseAdapter
     {
-        public PreConnecAdapter(ClientData client, TcpContainer clientConnection, ServerInfo targetServer) : base(client, clientConnection, null)
+        public PreConnectAdapter(ClientData client, TcpContainer clientConnection, ServerInfo targetServer) : base(client, clientConnection, null)
         {
             TargetServer = targetServer;
         }

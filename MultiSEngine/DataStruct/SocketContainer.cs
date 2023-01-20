@@ -5,7 +5,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using MultiSEngine.Core.Adapter;
 using TrProtocol;
 
 namespace MultiSEngine.DataStruct
@@ -23,7 +22,7 @@ namespace MultiSEngine.DataStruct
         public event Action<Exception> OnException;
         public TcpClient Connection { get; init; }
         public EndPoint RemoteEndPoint
-            => Connection?.Client.RemoteEndPoint;
+            => Connection?.Client?.RemoteEndPoint;
         public bool IsDisposed { get; private set; }
         private BinaryReader _reader;
         private BinaryWriter _writer;
