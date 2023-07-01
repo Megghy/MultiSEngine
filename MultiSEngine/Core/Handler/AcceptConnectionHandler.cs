@@ -54,6 +54,7 @@ namespace MultiSEngine.Core.Handler
                             SpawnY = Height / 2,
                             MaxTileX = Width,
                             MaxTileY = Height,
+                            WorldSurface = Height / 2,
                             GameMode = 0,
                             WorldName = Config.Instance.ServerName,
                             WorldUniqueID = Guid.Empty
