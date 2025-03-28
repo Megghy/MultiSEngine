@@ -1,17 +1,10 @@
-﻿using System;
-using MultiSEngine.Core.Adapter;
-using TrProtocol;
+﻿using MultiSEngine.Core.Adapter;
 
 namespace MultiSEngine.DataStruct
 {
-    public abstract class BaseHandler
+    public abstract class BaseHandler(BaseAdapter parent)
     {
-        public BaseHandler(BaseAdapter parent)
-        {
-            Parent = parent;
-        }
-
-        public BaseAdapter Parent { get; init; }
+        public BaseAdapter Parent { get; init; } = parent;
         public ClientData Client => Parent.Client;
         public bool IsDisposed { get; internal set; }
 
@@ -19,31 +12,29 @@ namespace MultiSEngine.DataStruct
 
         public virtual void Dispose() { IsDisposed = true; }
 
-        public virtual bool RecieveData(MessageID msgType, byte[] data)
+        public virtual bool RecieveData(MessageID msgType, ref Span<byte> data, ref bool modified)
         {
             return false;
         }
 
-        public virtual bool RecieveClientData(MessageID msgType, byte[] data) { return false; }
-        public virtual bool RecieveServerData(MessageID msgType, byte[] data) { return false; }
+        public virtual bool RecieveClientData(MessageID msgType, Span<byte> data) { return false; }
+        public virtual bool RecieveServerData(MessageID msgType, Span<byte> data) { return false; }
 
-        protected bool SendToClientDirect(ref Span<byte> data)
-            => Parent.SendToClientDirect(ref data);
-        protected bool SendToServerDirect(ref Span<byte> data)
-            => Parent.SendToServerDirect(ref data);
-        protected bool SendToClientDirect(byte[] data)
+        protected bool SendToClientDirect(Span<byte> data)
             => Parent.SendToClientDirect(data);
-        protected bool SendToServerDirect(byte[] data)
+        protected bool SendToServerDirect(Span<byte> data)
             => Parent.SendToServerDirect(data);
-        protected bool SendToClientDirect(Packet packet)
+        protected bool SendToServerDirect(CustomData.BaseCustomData data)
+            => Parent.SendToServerDirect(CustomData.BaseCustomData.Serialize(data));
+        protected bool SendToClientDirect(NetPacket packet)
         {
-            var data = packet.AsBytes().AsSpan();
-            return SendToClientDirect(ref data);
+            var data = packet.AsBytes();
+            return SendToClientDirect(data);
         }
-        protected bool SendToServerDirect(Packet packet)
+        protected bool SendToServerDirect(NetPacket packet)
         {
-            var data = packet.AsBytes().AsSpan();
-            return SendToServerDirect(ref data);
+            var data = packet.AsBytes();
+            return SendToServerDirect(data);
         }
     }
 }

@@ -1,8 +1,6 @@
 ﻿using MultiSEngine.Core.Adapter;
 using MultiSEngine.DataStruct;
 using MultiSEngine.Modules;
-using TrProtocol;
-using TrProtocol.Packets;
 
 namespace MultiSEngine.Core.Handler
 {
@@ -11,7 +9,7 @@ namespace MultiSEngine.Core.Handler
         public PlayerInfoHandler(BaseAdapter parent) : base(parent)
         {
         }
-        public override bool RecieveClientData(MessageID msgType, byte[] data)
+        public override bool RecieveClientData(MessageID msgType, Span<byte> data)
         {
             switch (msgType)
             {
@@ -48,7 +46,7 @@ namespace MultiSEngine.Core.Handler
             }
             return false;
         }
-        public override bool RecieveServerData(MessageID msgType, byte[] data)
+        public override bool RecieveServerData(MessageID msgType, Span<byte> data)
         {
             switch (msgType)
             {
@@ -66,6 +64,10 @@ namespace MultiSEngine.Core.Handler
                     var spawn = data.AsPacket<SpawnPlayer>();
                     Client.Player.SpawnX = spawn.Position.X;
                     Client.Player.SpawnY = spawn.Position.Y;
+                    Client.Player.DeathsPVE = spawn.DeathsPVE;
+                    Client.Player.DeathsPVP = spawn.DeathsPVP;
+                    Client.Player.Timer = spawn.Timer;
+                    Client.Player.Context = spawn.Context;
                     return false;
             }
             return false;

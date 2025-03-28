@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Text;
 using MultiSEngine.DataStruct;
 using MultiSEngine.Modules;
 
@@ -21,7 +18,7 @@ namespace MultiSEngine.Core
             /// <returns></returns>
             public abstract bool Execute(ClientData client, string cmdName, string[] parma);
         }
-        [AutoInit(postMsg: "Registered all commands.")]
+        [AutoInit(postMsg: "Registed all commands.")]
         public static void InitAllCommands()
         {
             AppDomain.CurrentDomain.GetAssemblies().ForEach(assembly =>
@@ -67,7 +64,7 @@ namespace MultiSEngine.Core
                     List<string> list;
                     if (num < 0)
                     {
-                        list = new List<string>();
+                        list = [];
                     }
                     else
                     {
@@ -103,7 +100,7 @@ namespace MultiSEngine.Core
         }
         static List<string> ParseParameters(string str)
         {
-            List<string> list = new();
+            List<string> list = [];
             StringBuilder stringBuilder = new();
             bool flag = false;
             for (int i = 0; i < str.Length; i++)

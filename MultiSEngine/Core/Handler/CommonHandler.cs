@@ -1,17 +1,12 @@
 ﻿using MultiSEngine.Core.Adapter;
 using MultiSEngine.DataStruct;
 using MultiSEngine.Modules;
-using TrProtocol;
-using TrProtocol.Packets;
 
 namespace MultiSEngine.Core.Handler
 {
-    public class CommonHandler : BaseHandler
+    public class CommonHandler(BaseAdapter parent) : BaseHandler(parent)
     {
-        public CommonHandler(BaseAdapter parent) : base(parent)
-        {
-        }
-        public override bool RecieveServerData(MessageID msgType, byte[] data)
+        public override bool RecieveServerData(MessageID msgType, Span<byte> data)
         {
             switch (msgType)
             {

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using MultiSEngine.DataStruct;
+﻿using MultiSEngine.DataStruct;
 
 namespace MultiSEngine.Modules.Cmds
 {
@@ -13,7 +9,7 @@ namespace MultiSEngine.Modules.Cmds
         {
             if (client is null)
                 client.SendErrorMessage("Unable to execute this command.");
-            else if (parma.Any())
+            else if (parma.Length != 0)
             {
                 switch (parma.First().ToLower())
                 {
@@ -47,10 +43,7 @@ namespace MultiSEngine.Modules.Cmds
                         if (parma.Length > 1)
                         {
                             if (client.State == ClientState.RequestPassword)
-                                client.TempAdapter.SendToServerDirect(new TrProtocol.Packets.SendPassword()
-                                {
-                                    Password = parma[1]
-                                });
+                                client.TempAdapter.SendToServerDirect(new SendPassword(parma[1]));
                             else
                                 client.SendErrorMessage(Localization.Get("Command_NotJoined"));
                         }

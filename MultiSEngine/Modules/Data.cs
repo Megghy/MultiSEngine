@@ -1,18 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using MultiSEngine.Core;
-using MultiSEngine.DataStruct;
-using TrProtocol.Packets;
+﻿using MultiSEngine.DataStruct;
 using static MultiSEngine.Core.Command;
 
 namespace MultiSEngine.Modules
 {
     public static class Data
     {
-        public static List<ClientData> Clients { get; } = new();
-        public static List<CmdBase> Commands { get; } = new();
+        public static List<ClientData> Clients { get; } = [];
+        public static List<CmdBase> Commands { get; } = [];
         internal static byte[] StaticSpawnSquareData { get; set; }
         internal static byte[] StaticDeactiveAllPlayer { get; set; }
         private static string _motd = string.Empty;
@@ -44,19 +38,15 @@ namespace MultiSEngine.Modules
         [AutoInit(order: 0)]
         public static void Init()
         {
-            StaticSpawnSquareData = Utils.GetTileSection(4150, 1150, 100, 100);
+            StaticSpawnSquareData = Utils.GetTileSection(4150, 1150, 100, 100).ToArray();
             var deactivePlayers = new List<byte>();
-            var playerActive = new PlayerActive()
-            {
-                PlayerSlot = 1,
-                Active = false
-            };
+            var playerActive = new PlayerActive(1, false);
             for (int i = 1; i < 255; i++)
             {
                 playerActive.PlayerSlot = (byte)i;
-                deactivePlayers.AddRange(Net.DefaultServerSerializer.Serialize(playerActive));
+                deactivePlayers.AddRange(playerActive.AsBytes());
             }  //隐藏其他所有玩家
-            StaticDeactiveAllPlayer = deactivePlayers.ToArray();
+            StaticDeactiveAllPlayer = [.. deactivePlayers];
             if (!File.Exists(MotdPath))
                 File.WriteAllText(MotdPath, Properties.Resources.DefaultMotd);
             _motd = File.ReadAllText(MotdPath);

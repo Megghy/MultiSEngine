@@ -1,13 +1,9 @@
-﻿using System;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using EnchCoreApi.TrProtocol.NetPackets.Modules;
+using Microsoft.Xna.Framework;
 using MultiSEngine.Core;
 using MultiSEngine.DataStruct;
-using TrProtocol;
-using TrProtocol.Models;
-using TrProtocol.Packets;
+using Terraria.GameContent.Drawing;
+using Terraria.Localization;
 
 namespace MultiSEngine.Modules
 {
@@ -104,8 +100,8 @@ namespace MultiSEngine.Modules
                 data.EventInfo1 = bb;
                 client.SendDataToClient(data); //没有ssc的话没法改背包
                 client.SendDataToClient(client.Player.OriginCharacter.Info);
-                client.SendDataToClient(new PlayerHealth() { PlayerSlot = client.Player.Index, StatLife = client.Player.OriginCharacter.Health, StatLifeMax = client.Player.OriginCharacter.HealthMax });
-                client.SendDataToClient(new PlayerMana() { PlayerSlot = client.Player.Index, StatMana = client.Player.OriginCharacter.Mana, StatManaMax = client.Player.OriginCharacter.ManaMax });
+                client.SendDataToClient(new PlayerHealth(client.Player.Index, client.Player.OriginCharacter.Health, client.Player.OriginCharacter.HealthMax));
+                client.SendDataToClient(new PlayerMana(client.Player.Index, client.Player.OriginCharacter.Mana, client.Player.OriginCharacter.ManaMax));
                 client.Player.OriginCharacter.Inventory.Where(i => i != null).ForEach(i => client.SendDataToClient(i));
                 bb[6] = false;//改回去
                 data.EventInfo1 = bb;
@@ -116,7 +112,7 @@ namespace MultiSEngine.Modules
 
             client.TP(client.SpawnX, client.SpawnY - 3);
             //client.Adapter?.ResetAlmostEverything();
-            client.SendDataToClient(new LoadPlayer() { PlayerSlot = client.Player.Index, ServerWantsToRunCheckBytesInClientLoopThread = true });
+            client.SendDataToClient(new LoadPlayer(client.Player.Index, true));
 
             client.Syncing = false;
         }
@@ -128,7 +124,7 @@ namespace MultiSEngine.Modules
             Hooks.OnPlayerLeave(client, out _);
             Data.Clients.Where(c => c.CurrentServer is null && c != client)
                 .ForEach(c => c.SendMessage($"{client.Name} has leave."));
-            client.SendDataToClient(new Kick() { Reason = new(reason ?? "You have been kicked. Reason: unknown", NetworkText.Mode.Literal) });
+            client.SendDataToClient(new Kick(new(reason ?? "You have been kicked. Reason: unknown", NetworkTextModel.Mode.Literal)));
             client.Dispose();
         }
     }
@@ -140,7 +136,9 @@ namespace MultiSEngine.Modules
             try
             {
 #if DEBUG
+                Console.ForegroundColor = ConsoleColor.Cyan;
                 Console.WriteLine($"[Send to CLIENT] <{BitConverter.ToInt16(buf)} byte>, Length: {buf.Length} - {(MessageID)buf[2]}");
+                Console.ResetColor();
 #endif
                 if (buf is { Length: < 3 })
                 {
@@ -149,7 +147,7 @@ namespace MultiSEngine.Modules
 #endif
                     return true;
                 }
-                return client?.Adapter?.ClientConnection?.Send(ref buf) ?? false;
+                return client?.Adapter?.ClientConnection?.Send(buf) ?? false;
             }
             catch (Exception ex)
             {
@@ -174,7 +172,9 @@ namespace MultiSEngine.Modules
             try
             {
 #if DEBUG
+                Console.ForegroundColor = ConsoleColor.Blue;
                 Console.WriteLine($"[Send to SERVER] <{BitConverter.ToInt16(buf)} byte>, Length: {buf.Length} - {(MessageID)buf[2]}");
+                Console.ResetColor();
 #endif
                 if (buf is { Length: < 3 })
                 {
@@ -185,7 +185,7 @@ namespace MultiSEngine.Modules
                 }
                 //using var arg = new SocketAsyncEventArgs();
                 //arg.SetBuffer(buffer ?? new byte[3] { 3, 0, 0 }, start, length ?? buffer?.Length ?? 3);
-                return client.Adapter?.ServerConnection?.Send(ref buf) ?? false;
+                return client.Adapter?.ServerConnection?.Send(buf) ?? false;
             }
             catch
             {
@@ -193,22 +193,20 @@ namespace MultiSEngine.Modules
                 return false;
             }
         }
-        public static bool SendDataToClient(this ClientData client, Packet packet, bool asClient = false)
+        public static bool SendDataToClient(this ClientData client, NetPacket packet, bool asClient = false)
         {
-            if (packet is null)
-                throw new ArgumentNullException(nameof(packet));
-            if (client is null)
-                throw new ArgumentNullException(nameof(client));
+            ArgumentNullException.ThrowIfNull(packet);
+            ArgumentNullException.ThrowIfNull(client);
             /*if (Core.Hooks.OnSendPacket(client, packet, true, out _))
                 return true;*/
             if (client.Disposed)
                 return false;
             if (packet is WorldData world && (client.Player.TileX >= world.MaxTileX || client.Player.TileY >= world.MaxTileY))
                 client.TP(client.SpawnY, client.SpawnY); //防止玩家超出地图游戏崩溃
-            var data = (asClient ? Net.DefaultClientSerializer : Net.DefaultServerSerializer).Serialize(packet).AsSpan();
+            var data = packet.AsBytes();
             return client.SendDataToClient(ref data);
         }
-        public static void SendDataToServer(this ClientData client, Packet packet, bool asClient = false)
+        public static void SendDataToServer(this ClientData client, NetPacket packet, bool asClient = false)
         {
             if (packet is null)
                 throw new ArgumentNullException(nameof(packet));
@@ -218,7 +216,7 @@ namespace MultiSEngine.Modules
                 return;*/
             if (client.Disposed)
                 return;
-            var data = (asClient ? Core.Net.DefaultClientSerializer : Core.Net.DefaultServerSerializer).Serialize(packet).AsSpan();
+            var data = packet.AsBytes();
             client.SendDataToServer(ref data); //发送给服务端则不需要区分版本
         }
         public static void SendMessage(this ClientData client, string text, Color color, bool withPrefix = true)
@@ -228,12 +226,12 @@ namespace MultiSEngine.Modules
             else
                 using (var writer = new BinaryWriter(new MemoryStream()))
                 {
-                    client.SendDataToClient(new TrProtocol.Packets.Modules.NetTextModuleS2C()
+                    client.SendDataToClient(new NetTextModule(null, new TextS2C()
                     {
-                        Text = new($"{(withPrefix ? $"{Localization.Instance["Prefix"]}" : "")}{text}", NetworkText.Mode.Literal),
+                        Text = new($"{(withPrefix ? $"{Localization.Instance["Prefix"]}" : "")}{text}", NetworkTextModel.Mode.Literal),
                         Color = color,
                         PlayerSlot = 255
-                    });
+                    }, true));
                 }
         }
         public static void SendMessage(this ClientData client, string text, bool withPrefix = true) => SendMessage(client, text, new(255, 255, 255), withPrefix);
@@ -259,25 +257,21 @@ namespace MultiSEngine.Modules
         }
         public static void TP(this ClientData client, int tileX, int tileY)
         {
-            client.SendDataToClient(new Teleport() { PlayerSlot = client.Player.Index, Position = new(tileX * 16, tileY * 16) });
+            client.SendDataToClient(new Teleport(new(), client.Player.Index, new(tileX * 16, tileY * 16), 0, 0));
         }
-        public static void AddBuff(this ClientData client, int buffID, int time = 60)
+        public static void AddBuff(this ClientData client, ushort buffID, int time = 60)
         {
-            client?.SendDataToClient(new AddPlayerBuff() { BuffTime = time, BuffType = (ushort)buffID, OtherPlayerSlot = client.Player.Index });
+            client?.SendDataToClient(new AddPlayerBuff(client.Player.Index, buffID, time));
         }
-        public static void CreatePartical(this ClientData client, ParticleOrchestraType type, ParticleOrchestraSettings setting = null)
+        public static void CreatePartical(this ClientData client, ParticleOrchestraType type, ParticleOrchestraSettings? setting = null)
         {
-            client.SendDataToClient(new TrProtocol.Packets.Modules.NetParticlesModule()
+            client.SendDataToClient(new NetParticlesModule(type, setting ?? new()
             {
-                ParticleType = type,
-                Setting = setting ?? new()
-                {
-                    MovementVector = new(0, 0),
-                    PositionInWorld = new(client.Player.X, client.Player.Y),
-                    PackedShaderIndex = 0,
-                    IndexOfPlayerWhoInvokedThis = client.Player.Index
-                }
-            });
+                MovementVector = new(0, 0),
+                PositionInWorld = new(client.Player.X, client.Player.Y),
+                UniqueInfoPiece = 0,
+                IndexOfPlayerWhoInvokedThis = client.Player.Index
+            }));
         }
         public static void CreatePartical(this ClientData client, ParticleOrchestraType type, Vector2 position, Vector2 movement = default)
         {
@@ -285,7 +279,7 @@ namespace MultiSEngine.Modules
             {
                 MovementVector = movement,
                 PositionInWorld = position,
-                PackedShaderIndex = 0,
+                UniqueInfoPiece = 0,
                 IndexOfPlayerWhoInvokedThis = client.Player.Index
             });
         }

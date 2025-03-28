@@ -1,25 +1,21 @@
-﻿using System.Linq;
+﻿using EnchCoreApi.TrProtocol.NetPackets.Modules;
+using Microsoft.Xna.Framework;
 using MultiSEngine.Core.Adapter;
 using MultiSEngine.DataStruct;
 using MultiSEngine.Modules;
-using TrProtocol;
-using TrProtocol.Models;
-using TrProtocol.Packets.Modules;
+using Terraria.Localization;
 
 namespace MultiSEngine.Core.Handler
 {
-    public class ChatHandler : BaseHandler
+    public class ChatHandler(BaseAdapter parent) : BaseHandler(parent)
     {
-        public ChatHandler(BaseAdapter parent) : base(parent)
+        public override bool RecieveClientData(MessageID msgType, Span<byte> data)
         {
-        }
-
-        public override bool RecieveClientData(MessageID msgType, byte[] data)
-        {
-            if (msgType is MessageID.NetModules && data.AsPacket() is NetTextModuleC2S chat && !Hooks.OnChat(Client, chat, out _))
+            if (msgType is MessageID.NetModules && data.AsPacket<NetTextModule>(true) is { TextC2S: not null } chat && !Hooks.OnChat(Client, chat.TextC2S, out _))
             {
-                Logs.LogAndSave($"{Client.Name} <{Client.CurrentServer?.Name}>: {chat.Text}", "[Chat]");
-                if (chat.Command == "Say" && (Command.HandleCommand(Client, chat.Text, out var c) && !c))
+                var text = chat.TextC2S;
+                Logs.LogAndSave($"{Client.Name} <{Client.CurrentServer?.Name}>: {text.Text}", "[Chat]");
+                if (text.Command == "Say" && (Command.HandleCommand(Client, text.Text, out var c) && !c))
                     return true;
                 else if (Client.State == ClientState.NewConnection)
                 {
@@ -33,20 +29,20 @@ namespace MultiSEngine.Core.Handler
                 }
                 else
                 {
-                    if (Config.Instance.EnableChatForward && !chat.Text.StartsWith("/"))
+                    if (Config.Instance.EnableChatForward && !text.Text.StartsWith('/'))
                     {
                         Data.Clients.Where(c => c.CurrentServer != Client.CurrentServer)
                             .ForEach(c => c.SendMessage(Config.Instance.ChatFormat.Replace("{servername}", Client.CurrentServer?.Name ?? "Not Join")
                             .Replace("username", Client.Name)
-                            .Replace("{message}", chat.Text)));
+                            .Replace("{message}", text.Text)));
                     }
                     if (Client.CurrentServer is null)
-                        Client.SendDataToClient(new NetTextModuleS2C()
+                        Client.SendDataToClient(new NetTextModule(null, new TextS2C()
                         {
-                            Text = NetworkText.FromLiteral(chat.Text),
+                            Text = NetworkTextModel.FromLiteral(text.Text),
                             PlayerSlot = Client.Index,
                             Color = Color.White,
-                        });
+                        }, true));
                 }
             }
             return false;

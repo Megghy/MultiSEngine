@@ -1,10 +1,8 @@
-﻿using System.IO;
-using MultiSEngine.Modules;
+﻿using MultiSEngine.Modules;
 
 namespace MultiSEngine.DataStruct.CustomData
 {
-    [CustomPacketStuff.TokenCheck]
-    internal class ExcuteMSECommand : CustomData
+    internal class ExcuteMSECommand : BaseCustomData
     {
         public override string Name => "MultiSEngine.ExcuteMSECommand";
         public string PlayerName { get; set; }
@@ -21,7 +19,7 @@ namespace MultiSEngine.DataStruct.CustomData
             writer.Write(PlayerName);
             writer.Write(Command);
         }
-        public override void RecievedData(ClientData client)
+        public override void OnRecievedData(ClientData client)
         {
             if (ClientManager.GetClientByName(PlayerName) is { } tempClient)
             {

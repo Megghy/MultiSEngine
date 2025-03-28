@@ -1,11 +1,7 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.IO;
+﻿using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
-using TrProtocol;
 
 namespace MultiSEngine.DataStruct
 {
@@ -62,7 +58,7 @@ namespace MultiSEngine.DataStruct
             }
         }
 
-        public bool Send(ref Span<byte> buf)
+        public bool Send(Span<byte> buf)
         {
             if (IsDisposed)
                 return false;
@@ -80,7 +76,7 @@ namespace MultiSEngine.DataStruct
         public bool Send(byte[] data)
         {
             var buf = data.AsSpan();
-            return Send(ref buf);
+            return Send(buf);
         }
         public byte[] Get()
         {
@@ -105,7 +101,7 @@ namespace MultiSEngine.DataStruct
                     var len = _reader.ReadUInt16();
                     var buf = new byte[len];
                     Buffer.BlockCopy(_reader.ReadBytes(len - 2), 0, buf, 2, len - 2);
-                    MemoryMarshal.Write(buf.AsSpan(0, 2), ref len);
+                    MemoryMarshal.Write(buf.AsSpan(0, 2), len);
                     _packetsBuf.Enqueue(buf);
                 }
                 catch (Exception ex)

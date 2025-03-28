@@ -1,13 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
-using MultiSEngine.Core;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using MultiSEngine.DataStruct;
-using TrProtocol;
-using TrProtocol.Models;
+using Terraria;
+using Terraria.Localization;
 
 namespace MultiSEngine
 {
@@ -18,27 +15,39 @@ namespace MultiSEngine
             using (var reader = new BinaryReader(new MemoryStream(buffer)))
                 return reader.Deserialize<T>();
         }*/
-        public static Packet AsPacket(this Span<byte> buf)
+        public unsafe static NetPacket AsPacket(this ref Span<byte> buf, bool asServer = true)
         {
-            return buf.ToArray().AsPacket();
+            fixed (void* ptr = buf)
+            {
+                var ptrBegin = Unsafe.Add<byte>(ptr, 2); // 从type开始读
+                return NetPacket.ReadNetPacket(ref ptrBegin, ptr_end: Unsafe.Add<byte>(ptrBegin, buf.Length), asServer);
+            }
         }
-        public static T AsPacket<T>(this Span<byte> buf) where T : Packet
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="buf"></param>
+        /// <param name="asServer">Read as server or not</param>
+        /// <returns></returns>
+        public unsafe static T AsPacket<T>(this ref Span<byte> buf, bool asServer = true) where T : NetPacket
         {
-            return buf.ToArray().AsPacket<T>();
+            return buf.AsPacket(asServer) as T;
         }
-        public static Packet AsPacket(this byte[] buf)
+        public unsafe static T AsPacket<T>(this byte[] buf, bool asServer = true) where T : NetPacket
         {
-            using var reader = new BinaryReader(new MemoryStream(buf));
-            return Net.DefaultServerSerializer.Deserialize(reader);
+            var b = buf.AsSpan();
+            return AsPacket<T>(ref b, asServer);
         }
-        public static T AsPacket<T>(this byte[] buf) where T : Packet
+        public unsafe static Span<byte> AsBytes(this NetPacket packet)
         {
-            using var reader = new BinaryReader(new MemoryStream(buf));
-            return Net.DefaultServerSerializer.Deserialize(reader) as T;
-        }
-        public static byte[] AsBytes(this Packet packet)
-        {
-            return Net.DefaultServerSerializer.Serialize(packet);
+            var ptr_begin = (void*)Marshal.AllocHGlobal(1024 * 16);
+
+            var ptr = Unsafe.Add<byte>(ptr_begin, 2);
+            packet.WriteContent(ref ptr);
+            var size = (short)((long)ptr - (long)ptr_begin);
+            Unsafe.Write(ptr_begin, size);
+            return new Span<byte>(ptr_begin, size);
         }
         public static ClientData[] Online(this ServerInfo server) => Modules.Data.Clients.Where(c => c.CurrentServer == server).ToArray();
         public static bool TryParseAddress(string address, out IPAddress ip)
@@ -92,7 +101,7 @@ namespace MultiSEngine
                 action(obj);
             }
         }
-        public static byte[] GetTileSection(int x, int y, int width, int heigh, int type = 541)
+        public static Span<byte> GetTileSection(int x, int y, short width, short height, int type = 541)
         {
             var bb = new BitsByte();
             bb[1] = true;
@@ -104,35 +113,18 @@ namespace MultiSEngine
                 WallColor = 0,
                 WallType = 0,
                 TileColor = 0,
-                Flags1 = bb,
+                Flags1 = bb.value,
                 Flags2 = 0,
                 Flags3 = 0,
             };
-            var list = new ComplexTileData[width * heigh];
-            for (int i = 0; i < width * heigh; i++)
+            var list = new ComplexTileData[width * height];
+            for (int i = 0; i < width * height; i++)
             {
                 list[i] = tile;
             }
-            return Core.Net.DefaultServerSerializer.Serialize(new TrProtocol.Packets.TileSection()
-            {
-                Data = new()
-                {
-                    //IsCompressed = true,
-                    StartX = x,
-                    StartY = y,
-                    Width = (short)width,
-                    Height = (short)heigh,
-                    ChestCount = 0,
-                    Chests = Array.Empty<ChestData>(),
-                    SignCount = 0,
-                    Signs = Array.Empty<SignData>(),
-                    TileEntityCount = 0,
-                    TileEntities = Array.Empty<TileEntity>(),
-                    Tiles = list
-                }
-            });
+            return new TileSection(new(x, y, width, height, list, 0, [], 0, [], 0, [])).AsBytes();
         }
-        public static string GetText(this NetworkText text)
+        public static string GetText(this NetworkTextModel text)
         {
             //return text._mode == NetworkText.Mode.LocalizationKey ? Language.GetTextValue(text._text) : text._text;
             return text._text;

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.Encodings.Web;
+﻿using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Unicode;
@@ -51,8 +47,8 @@ namespace MultiSEngine
                 {
                     SwitchToDefaultServerOnJoin = true,
                     DefaultServer = "boss",
-                    Servers = new()
-                    {
+                    Servers =
+                    [
                         new()
                         {
                             Visible = true,
@@ -61,7 +57,7 @@ namespace MultiSEngine
                             Name = "boss",
                             VersionNum = -1
                         }
-                    }
+                    ]
                 };
                 config.Save();
                 return config;
@@ -97,7 +93,6 @@ namespace MultiSEngine
         public int ListenPort { get; set; } = 7778;
         public string ServerName { get; set; } = "MultiSEngine";
         public int ServerVersion { get; set; } = 279;
-        public string Token { get; set; } = "114514";
         public int SwitchTimeOut { get; set; } = 10000;
         public bool EnableCrossplayFeature { get; set; } = false;
         public bool EnableChatForward { get; set; } = true;
@@ -107,6 +102,6 @@ namespace MultiSEngine
         [JsonIgnore]
         public DataStruct.ServerInfo DefaultServerInternal => Servers.FirstOrDefault(s => s.Name == DefaultServer);
         public string DefaultServer { get; set; } = string.Empty;
-        public List<DataStruct.ServerInfo> Servers { get; set; } = new();
+        public List<DataStruct.ServerInfo> Servers { get; set; } = [];
     }
 }

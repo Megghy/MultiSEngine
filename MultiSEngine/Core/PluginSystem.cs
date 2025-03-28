@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.Loader;
 using MultiSEngine.DataStruct;
-using TrProtocol;
 
 namespace MultiSEngine.Core
 {
@@ -18,7 +13,6 @@ namespace MultiSEngine.Core
         public Version Version { get; }
         public void Initialize();
         public void Dispose();
-        public PacketSerializer Serializer => Net.DefaultClientSerializer;
     }
     public class PluginSystem
     {
@@ -118,11 +112,10 @@ namespace MultiSEngine.Core
             }
             public static IReadOnlyCollection<Type> GetPluginTypes(Assembly assembly)
             {
-                return assembly.GetTypes()
+                return [.. assembly.GetTypes()
                                 .Where(type =>
                                 !type.IsAbstract &&
-                                typeof(TPlugin).IsAssignableFrom(type))
-                                .ToArray();
+                                typeof(TPlugin).IsAssignableFrom(type))];
             }
             public void Unload()
             {

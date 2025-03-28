@@ -1,10 +1,10 @@
-﻿using TrProtocol;
-using TrProtocol.Packets;
+﻿using Terraria;
 
 namespace MultiSEngine.DataStruct
 {
-    public class PlayerInfo
+    public class PlayerInfo(bool isOriginCharacter = false)
     {
+        public bool IsOriginCharacter => isOriginCharacter;
         public bool SSC => ServerCharacter?.WorldData?.EventInfo1[6] ?? false;
         public int VersionNum { get; set; } = -1;
         public byte Index { get; set; } = 0;
@@ -19,7 +19,18 @@ namespace MultiSEngine.DataStruct
         public int TileX => (int)(X / 16);
         public int TileY => (int)(Y / 16);
 
-        public void UpdateData(Packet packet, bool fromClient)
+
+        #region 首次登录时提供的信息
+        public int Timer = 0;
+
+        public short DeathsPVE = 0;
+
+        public short DeathsPVP = 0;
+
+        public PlayerSpawnContext Context = PlayerSpawnContext.SpawningIntoWorld;
+        #endregion
+
+        public void UpdateData(NetPacket packet, bool fromClient)
         {
             if (packet is null)
                 return;

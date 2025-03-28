@@ -1,8 +1,6 @@
-﻿using System.IO;
-
-namespace MultiSEngine.DataStruct.CustomData
+﻿namespace MultiSEngine.DataStruct.CustomData
 {
-    public class SyncIP : CustomData
+    public class SyncIP : BaseCustomData
     {
         public override string Name => "MultiSEngine.SyncIP";
         public string PlayerName { get; set; }

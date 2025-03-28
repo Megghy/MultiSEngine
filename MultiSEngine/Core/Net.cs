@@ -1,19 +1,14 @@
-﻿using System;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
-using System.Threading.Tasks;
 using MultiSEngine.Core.Adapter;
 using MultiSEngine.DataStruct;
 using MultiSEngine.Modules;
-using TrProtocol;
 
 namespace MultiSEngine.Core
 {
     public class Net
     {
         public static TcpListener Server { get; private set; }
-        public static readonly PacketSerializer DefaultClientSerializer = new(true);
-        public static readonly PacketSerializer DefaultServerSerializer = new(false);
         [AutoInit(postMsg: "Opened socket server successfully.")]
         public static void Init()
         {

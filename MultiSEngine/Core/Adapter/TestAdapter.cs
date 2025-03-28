@@ -1,20 +1,12 @@
-﻿using System;
-using System.Net.Sockets;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Net.Sockets;
 using MultiSEngine.Core.Handler;
 using MultiSEngine.DataStruct;
-using TrProtocol.Packets;
 
 namespace MultiSEngine.Core.Adapter
 {
-    internal class TestAdapter : PreConnectAdapter
+    internal class TestAdapter(ServerInfo server, bool showDetails) : PreConnectAdapter(null, null, server)
     {
-        public TestAdapter(ServerInfo server, bool showDetails) : base(null, null, server)
-        {
-            ShowDetails = showDetails;
-        }
-        public bool ShowDetails { get; init; }
+        public bool ShowDetails { get; init; } = showDetails;
         public int State { get; internal set; } = 0;
         public bool? IsSuccess { get; internal set; }
         internal void Log(string msg, bool isDetail = true, ConsoleColor color = ConsoleColor.Blue)
@@ -53,10 +45,7 @@ namespace MultiSEngine.Core.Adapter
                 }
                 State = 1;
                 Log($"Sending [ConnectRequest] packet");
-                SendToServerDirect(new ClientHello()
-                {
-                    Version = $"Terraria{(TargetServer.VersionNum is { } and > 0 and < 65535 ? TargetServer.VersionNum : Config.Instance.ServerVersion)}"
-                });  //发起连接请求 
+                SendToServerDirect(new ClientHello($"Terraria{(TargetServer.VersionNum is { } and > 0 and < 65535 ? TargetServer.VersionNum : Config.Instance.ServerVersion)}"));  //发起连接请求 
             }, cancel);
         }
     }

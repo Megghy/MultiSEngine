@@ -1,16 +1,11 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
-using MultiSEngine.Core.Adapter;
+﻿using MultiSEngine.Core.Adapter;
 using MultiSEngine.DataStruct;
 using MultiSEngine.Modules;
-using TrProtocol;
-using TrProtocol.Models;
-using TrProtocol.Packets;
+using Terraria;
 
 namespace MultiSEngine.Core.Handler
 {
-    public class AcceptConnectionHandler : BaseHandler
+    public sealed class AcceptConnectionHandler : BaseHandler
     {
         public AcceptConnectionHandler(BaseAdapter parent) : base(parent)
         {
@@ -21,7 +16,7 @@ namespace MultiSEngine.Core.Handler
 
         public bool IsEntered { get; private set; }
 
-        public override bool RecieveClientData(MessageID msgType, byte[] data)
+        public override bool RecieveClientData(MessageID msgType, Span<byte> data)
         {
             if (msgType is MessageID.ClientHello
                 or MessageID.RequestWorldInfo
@@ -40,25 +35,22 @@ namespace MultiSEngine.Core.Handler
                                 if (Client.Player.VersionNum < 269 || (Client.Player.VersionNum != Config.Instance.ServerVersion && !Config.Instance.EnableCrossplayFeature))
                                     Client.Disconnect(Localization.Instance["Prompt_VersionNotAllowed", $"{Data.Convert(Client.Player.VersionNum)} ({Client.Player.VersionNum})"]);
                                 else
-                                    Client.SendDataToClient(new LoadPlayer() { PlayerSlot = 0, ServerWantsToRunCheckBytesInClientLoopThread = true });
+                                    Client.SendDataToClient(new LoadPlayer(0, true));
                             }
                             return true;
                         }
                     case MessageID.RequestWorldInfo:
                         var bb = new BitsByte();
                         bb[6] = true;
-                        Client.Player.OriginCharacter.WorldData = new WorldData()
-                        {
-                            EventInfo1 = bb,
-                            SpawnX = Width / 2,
-                            SpawnY = Height / 2,
-                            MaxTileX = Width,
-                            MaxTileY = Height,
-                            WorldSurface = Height / 2,
-                            GameMode = 0,
-                            WorldName = Config.Instance.ServerName,
-                            WorldUniqueID = Guid.Empty
-                        };
+                        Client.Player.OriginCharacter.WorldData = new WorldData(
+                            Width,
+                            Height,
+                            Width / 2,
+                            Height / 2,
+                            Config.Instance.ServerName,
+                            Guid.Empty.ToByteArray(),
+                            _EventInfo1: bb,
+                            _WorldSurface: Height / 2, _GameMode: 0);
                         Client.SendDataToClient(Client.Player.OriginCharacter.WorldData);
                         return true;
                     case MessageID.RequestTileData:
@@ -67,12 +59,13 @@ namespace MultiSEngine.Core.Handler
                         return true;
                     case MessageID.SpawnPlayer:
                         Parent.DeregisteHander(this); //移除假世界处理器
-                        Client.Player.SpawnX = BitConverter.ToInt16(data, 4);
-                        Client.Player.SpawnY = BitConverter.ToInt16(data, 6);
+                        Client.Player.SpawnX = BitConverter.ToInt16(data[4..6]);
+                        Client.Player.SpawnY = BitConverter.ToInt16(data[6..8]);
                         Client.SendDataToClient(new FinishedConnectingToServer());
                         Client.SendMessage(Data.Motd, false);
                         Data.Clients.Where(c => c.CurrentServer is null && c != Client)
                             .ForEach(c => c.SendMessage($"{Client.Name} has join."));
+                        Logs.Info($"[{Client.Name}] has join.");
                         if (Config.Instance.SwitchToDefaultServerOnJoin)
                         {
                             if (Config.Instance.DefaultServerInternal is { })
@@ -84,7 +77,7 @@ namespace MultiSEngine.Core.Handler
                                 });
                             }
                             else
-                                Client.SendInfoMessage(Localization.Instance["Prompt_DefaultServerNotFound", new[] { Config.Instance.DefaultServer }]);
+                                Client.SendInfoMessage(Localization.Instance["Prompt_DefaultServerNotFound", [Config.Instance.DefaultServer]]);
                         }
                         else
                             Logs.Text($"[{Client.Name}] is temporarily transported in FakeWorld");

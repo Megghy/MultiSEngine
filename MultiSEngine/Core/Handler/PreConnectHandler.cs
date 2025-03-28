@@ -2,24 +2,19 @@
 using MultiSEngine.DataStruct;
 using MultiSEngine.DataStruct.CustomData;
 using MultiSEngine.Modules;
-using TrProtocol;
-using TrProtocol.Packets;
 
 namespace MultiSEngine.Core.Handler
 {
-    public class PreConnectHandler : BaseHandler
+    public class PreConnectHandler(BaseAdapter parent, ServerInfo server) : BaseHandler(parent)
     {
-        public PreConnectHandler(BaseAdapter parent, ServerInfo server) : base(parent)
-        {
-            TargetServer = server;
-        }
-        public ServerInfo TargetServer { get; init; }
+        public ServerInfo TargetServer { get; init; } = server;
         public bool IsConnecting { get; private set; } = true;
-        public override bool RecieveClientData(MessageID msgType, byte[] data)
+        byte index = 0;
+        public override bool RecieveClientData(MessageID msgType, Span<byte> data)
         {
             return true;
         }
-        public override bool RecieveServerData(MessageID msgType, byte[] data)
+        public override bool RecieveServerData(MessageID msgType, Span<byte> data)
         {
             switch (msgType)
             {
@@ -32,17 +27,15 @@ namespace MultiSEngine.Core.Handler
                     return true;
                 case MessageID.LoadPlayer:
                     var slot = data.AsPacket<LoadPlayer>();
+                    index = slot.PlayerSlot;
                     Client.AddBuff(149, 120);
                     SendToServerDirect(Client.Player.OriginCharacter.Info);
-                    SendToServerDirect(new ClientUUID() { UUID = Client.Player.UUID });
-                    SendToServerDirect(new RequestWorldInfo() { });//请求世界信息
-                    SendToServerDirect(new CustomPacketStuff.CustomDataPacket()
+                    SendToServerDirect(new ClientUUID(Client.Player.UUID));
+                    SendToServerDirect(new RequestWorldInfo());//请求世界信息
+                    SendToServerDirect(new SyncIP()
                     {
-                        Data = new SyncIP()
-                        {
-                            PlayerName = Client.Name,
-                            IP = Client.IP
-                        }
+                        PlayerName = Client.Name,
+                        IP = Client.IP
                     });  //尝试同步玩家IP
                     return false;
                 case MessageID.WorldData:
@@ -51,8 +44,8 @@ namespace MultiSEngine.Core.Handler
                     Client.SendInfoMessage($"SSC: {worldData.EventInfo1[6]}");
 #endif
                     //Client.Player.UpdateData(worldData, false);
-                    SendToServerDirect(new RequestTileData() { Position = new(Client.SpawnX, Client.SpawnY) });//请求物块数据
-                    SendToServerDirect(new SpawnPlayer() { Position = new(Client.SpawnX, Client.SpawnY) });//请求物块数据
+                    SendToServerDirect(new RequestTileData(new(Client.SpawnX, Client.SpawnY)));//请求物块数据
+                    SendToServerDirect(new SpawnPlayer(index, new(Client.SpawnX, Client.SpawnY), Client.Player.Timer, Client.Player.DeathsPVE, Client.Player.DeathsPVP, Terraria.PlayerSpawnContext.SpawningIntoWorld));//请求物块数据
                     return false;
                 case MessageID.RequestPassword:
                     if (Client.State == ClientState.InGame)
@@ -70,14 +63,14 @@ namespace MultiSEngine.Core.Handler
                 case MessageID.StatusText:
                     return true;
                 case MessageID.StartPlaying:
-                    Client.SendDataToClient(new SpawnPlayer() { PlayerSlot = Client.Index, Context = TrProtocol.Models.PlayerSpawnContext.RecallFromItem, Position = new(Client.SpawnX, (short)(Client.SpawnY - 3)), Timer = 0 });
+                    Client.SendDataToClient(new SpawnPlayer(Client.Index, new(Client.SpawnX, (short)(Client.SpawnY - 3)), Client.Player.Timer, Client.Player.DeathsPVE, Client.Player.DeathsPVP, Terraria.PlayerSpawnContext.SpawningIntoWorld));
                     return false;
                 case MessageID.FinishedConnectingToServer:
                     IsConnecting = false;
+                    Client.State = ClientState.InGame;
+                    Parent.DeregisteHander(this); //转换处理模式为普通
                     if (Hooks.OnPostSwitch(Client, TargetServer, out _))
                         return false;
-                    Parent.DeregisteHander(this); //转换处理模式为普通
-                    Client.State = ClientState.InGame;
                     Client.SendSuccessMessage(Localization.Instance["Prompt_ConnectSuccess", TargetServer.Name]);
                     Logs.Success($"[{Client.Name}] successfully joined the server: {TargetServer.Name}");
                     return false;

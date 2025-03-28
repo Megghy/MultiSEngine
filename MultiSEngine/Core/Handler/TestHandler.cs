@@ -1,8 +1,6 @@
-﻿using System;
+﻿using Microsoft.Xna.Framework;
 using MultiSEngine.Core.Adapter;
 using MultiSEngine.DataStruct;
-using TrProtocol;
-using TrProtocol.Packets;
 
 namespace MultiSEngine.Core.Handler
 {
@@ -17,7 +15,10 @@ namespace MultiSEngine.Core.Handler
         }
         private TestAdapter TestParent
             => (TestAdapter)Parent;
-        public override bool RecieveServerData(MessageID msgType, byte[] data)
+
+        byte index = 0;
+
+        public override bool RecieveServerData(MessageID msgType, Span<byte> data)
         {
             if (Parent.IsDisposed)
                 return true;
@@ -32,17 +33,14 @@ namespace MultiSEngine.Core.Handler
                     TestParent.IsSuccess = false;
                     break;
                 case MessageID.LoadPlayer:
+                    var slot = data.AsPacket<LoadPlayer>();
+                    index = slot.PlayerSlot; // 保存玩家索引
+                    TestParent.Log($"Player index: {index}");
                     TestParent.State = 2;
                     TestParent.Log($"Sending [PlayerInfo] packet");
-                    SendToServerDirect(new SyncPlayer()
-                    {
-                        Name = "MultiSEngine"
-                    });
+                    SendToServerDirect(new SyncPlayer(index, 0, 0, "MultiSEngine", 0, 0, 0, 0, Color.Blue, Color.Blue, Color.Blue, Color.Blue, Color.Blue, Color.Blue, Color.Blue, 0, 0, 0));
                     TestParent.Log($"Sending [UUID] packet");
-                    SendToServerDirect(new ClientUUID()
-                    {
-                        UUID = "114514"
-                    });
+                    SendToServerDirect(new ClientUUID("114514"));
                     TestParent.Log($"Requesting world data");
                     SendToServerDirect(new RequestWorldInfo() { });
                     TestParent.State = 3;
@@ -52,15 +50,9 @@ namespace MultiSEngine.Core.Handler
                     {
                         TestParent.State = 4;
                         TestParent.Log($"Requesting map data");
-                        SendToServerDirect(new RequestTileData()
-                        {
-                            Position = new(-1, -1)
-                        });//请求物块数据
+                        SendToServerDirect(new RequestTileData(new(-1, -1)));//请求物块数据
                         TestParent.Log($"Requesting spawn player");
-                        SendToServerDirect(new SpawnPlayer()
-                        {
-                            Position = new(-1, -1)
-                        });
+                        SendToServerDirect(new SpawnPlayer(index, new(-1, -1), 0, 0, 0, Terraria.PlayerSpawnContext.SpawningIntoWorld));
                     }
                     break;
                 case MessageID.RequestPassword:

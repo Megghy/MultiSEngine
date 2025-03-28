@@ -1,6 +1,4 @@
-﻿using TrProtocol.Packets;
-
-namespace MultiSEngine.DataStruct
+﻿namespace MultiSEngine.DataStruct
 {
     public class CharacterData
     {

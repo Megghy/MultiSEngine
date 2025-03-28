@@ -1,11 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net.Sockets;
-using System.Threading.Tasks;
+﻿using System.Net.Sockets;
 using MultiSEngine.Core.Handler;
 using MultiSEngine.DataStruct;
 using MultiSEngine.Modules;
-using TrProtocol;
 
 namespace MultiSEngine.Core.Adapter
 {
@@ -109,7 +105,10 @@ namespace MultiSEngine.Core.Adapter
                                 goto Ignore;
                         }
                         if (Client?.Adapter.ClientConnection is null)
-                            SendToClientDirect(buf);
+                        {
+                            var refBuf = buf.AsSpan();
+                            SendToClientDirect(refBuf);
+                        }
                         else
                             Client.SendDataToClient(buf);
                         Ignore:;
@@ -142,8 +141,11 @@ namespace MultiSEngine.Core.Adapter
                             if (_handlers[i].RecieveClientData((MessageID)buf[2], buf))
                                 goto Ignore;
                         }
-                        if (Client?.Adapter.ServerConnection is null)
-                            SendToServerDirect(buf);
+                        if (Client?.Adapter.ServerConnection is not null)
+                        {
+                            var refBuf = buf.AsSpan();
+                            SendToServerDirect(refBuf);
+                        }
                         else
                             Client.SendDataToServer(buf);
                         Ignore:;
@@ -158,7 +160,6 @@ namespace MultiSEngine.Core.Adapter
             }
         }
 
-        private int _errorCount = 0;
         public virtual void OnClientException(Exception ex)
         {
             Client?.Disconnect();
@@ -192,35 +193,26 @@ namespace MultiSEngine.Core.Adapter
 
         #region Packet Send
 
-        public bool SendToClientDirect(byte[] data)
-        {
-            var buf = data.AsSpan();
-            return SendToClientDirect(ref buf);
-        }
-        public bool SendToServerDirect(byte[] data)
-        {
-            var buf = data.AsSpan();
-            return SendToServerDirect(ref buf);
-        }
-        public bool SendToClientDirect(ref Span<byte> buf)
+        public bool SendToClientDirect(Span<byte> buf)
         {
 #if DEBUG
             Console.WriteLine($"[Internal Send TO CLIENT] {(MessageID)buf[2]}");
 #endif
-            return ClientConnection?.Send(ref buf) ?? false;
+            return ClientConnection?.Send(buf) ?? false;
         }
-        public bool SendToServerDirect(ref Span<byte> buf)
+        public bool SendToServerDirect(Span<byte> buf)
         {
 #if DEBUG
             Console.WriteLine($"[Internal Send TO SERVER] {(MessageID)buf[2]}");
 #endif
-            return ServerConnection?.Send(ref buf) ?? false;
+            return ServerConnection?.Send(buf) ?? false;
         }
-        public bool SendToClientDirect(Packet packet)
+        public bool SendToClientDirect(NetPacket packet)
         {
-            return SendToClientDirect(packet.AsBytes());
+            var buf = packet.AsBytes();
+            return SendToClientDirect(buf);
         }
-        public bool SendToServerDirect(Packet packet)
+        public bool SendToServerDirect(NetPacket packet)
         {
             return SendToServerDirect(packet.AsBytes());
         }

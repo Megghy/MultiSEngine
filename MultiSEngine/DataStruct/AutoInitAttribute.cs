@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace MultiSEngine.DataStruct
+﻿namespace MultiSEngine.DataStruct
 {
     [AttributeUsage(AttributeTargets.Method)]
     public class AutoInitAttribute : Attribute

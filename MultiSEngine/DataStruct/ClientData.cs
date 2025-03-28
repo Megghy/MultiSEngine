@@ -18,6 +18,8 @@ namespace MultiSEngine.DataStruct
         public int Port => (Adapter?.ClientConnection?.RemoteEndPoint as IPEndPoint)?.Port ?? -1;
         public string Address => $"{IP}:{Port}"; public bool Syncing { get; internal set; } = false;
         public bool Disposed { get; private set; } = false;
+
+
         #endregion
 
         #region 常用的玩家信息
@@ -26,7 +28,18 @@ namespace MultiSEngine.DataStruct
         public ServerInfo CurrentServer { get; set; } = null;
         public string Name => Player?.Name ?? Address;
         public byte Index => Player?.Index ?? 0;
-        public PlayerInfo Player { get; private set; } = new();
+        public PlayerInfo _originPlayer = new(true);
+        public PlayerInfo Player
+        {
+            get
+            {
+                return field ?? _originPlayer;
+            }
+            set
+            {
+                field = value;
+            }
+        }
         public ServerInfo LastServer { get; set; } = null;
         #endregion
 

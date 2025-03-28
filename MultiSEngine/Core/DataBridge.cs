@@ -1,38 +1,32 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using MultiSEngine.DataStruct;
+﻿using MultiSEngine.DataStruct;
 using MultiSEngine.DataStruct.CustomData;
 
 namespace MultiSEngine.Core
 {
     public class DataBridge
     {
-        internal static readonly Dictionary<string, Type> CustomPackets = new();
-        public static string Token => Config.Instance.Token;
+        internal static readonly Dictionary<string, Type> CustomPackets = [];
         [AutoInit]
         private static void Init()
         {
-            Net.DefaultClientSerializer.RegisterPacket<CustomPacketStuff.CustomDataPacket>();
-            Net.DefaultServerSerializer.RegisterPacket<CustomPacketStuff.CustomDataPacket>();
             AppDomain.CurrentDomain.GetAssemblies().ForEach(assembly =>
             {
                 try
                 {
                     assembly.GetTypes()
-                        .Where(t => t.BaseType == typeof(CustomData))
+                        .Where(t => t.BaseType == typeof(BaseCustomData))
                         .ForEach(t => RegisterCustomPacket(t));
                 }
                 catch (Exception ex) { Logs.Error(ex); }
             });
         }
-        public static void RegisterCustomPacket<T>() where T : CustomData
+        public static void RegisterCustomPacket<T>() where T : BaseCustomData
         {
             RegisterCustomPacket(typeof(T));
         }
         private static void RegisterCustomPacket(Type type)
         {
-            var name = (Activator.CreateInstance(type) as CustomData)!.Name;
+            var name = (Activator.CreateInstance(type) as BaseCustomData)!.Name;
             if (CustomPackets.ContainsKey(name))
             {
                 Logs.Warn($"CustomPacket: [{name}] already exist.");

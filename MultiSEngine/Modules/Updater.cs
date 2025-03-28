@@ -1,9 +1,7 @@
-﻿using System;
-using System.Net.Http;
-using System.Reflection;
-using System.Threading.Tasks;
+﻿using System.Reflection;
 using System.Timers;
 using MultiSEngine.DataStruct;
+using Timer = System.Timers.Timer;
 
 namespace MultiSEngine.Modules
 {
