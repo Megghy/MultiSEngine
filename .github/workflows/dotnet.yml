@@ -12,11 +12,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v6
     - name: Setup .NET
-      uses: actions/setup-dotnet@v1
+      uses: actions/setup-dotnet@v5
       with:
-        dotnet-version: 6.0.x
+        dotnet-version: 9.0.x
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
@@ -24,15 +24,15 @@ jobs:
         dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true --self-contained false
         dotnet publish -c Release -r linux-x64 -p:PublishSingleFile=true --self-contained false
         dotnet publish -c Release -r linux-arm64 -p:PublishSingleFile=true --self-contained false
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v6
       with:
         name: MultiSEngine-Win
-        path: ./MultiSEngine/bin/Release/net6.0/win-x64/publish/MultiSEngine.exe
-    - uses: actions/upload-artifact@v2
+        path: ./MultiSEngine/bin/Release/net9.0/win-x64/publish/MultiSEngine.exe
+    - uses: actions/upload-artifact@v6
       with:
         name: MultiSEngine-Linux
-        path: ./MultiSEngine/bin/Release/net6.0/linux-x64/publish/MultiSEngine
-    - uses: actions/upload-artifact@v2
+        path: ./MultiSEngine/bin/Release/net9.0/linux-x64/publish/MultiSEngine
+    - uses: actions/upload-artifact@v6
       with:
         name: MultiSEngine-Arm64
-        path: ./MultiSEngine/bin/Release/net6.0/linux-arm64/publish/MultiSEngine
+        path: ./MultiSEngine/bin/Release/net9.0/linux-arm64/publish/MultiSEngine
