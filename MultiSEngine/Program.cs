@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using MultiSEngine.DataStruct;
 using MultiSEngine.Modules;
 
@@ -6,15 +6,20 @@ namespace MultiSEngine
 {
     internal class Program
     {
-        static void Main(string[] args)
+        // 使用异步 Main 以避免阻塞主线程，提升整体响应性
+        static async Task Main(string[] args)
         {
             ShowLogo();
             AutoInit();
-            while (!(Core.Command.HandleCommand(null, Console.ReadLine(), out var c, true) && !c))
-                Thread.Sleep(1);
-            Close();
+            while (true)
+            {
+                var line = await Console.In.ReadLineAsync();
+                var (handled, continueSend) = await Core.Command.HandleCommand(null, line, true).ConfigureAwait(false);
+                if (handled && !continueSend)
+                    break;
+            }
+            await CloseAsync().ConfigureAwait(false);
             Console.WriteLine("Bye!");
-            Task.Delay(1000).Wait();
         }
         private static void ShowLogo()
         {
@@ -28,7 +33,6 @@ namespace MultiSEngine
 ");
             Console.WriteLine($"-> V{Assembly.GetExecutingAssembly().GetName().Version}");
             Console.WriteLine();
-            Updater.CheckUpdate(null, null);
         }
         private static void AutoInit()
         {
@@ -72,10 +76,13 @@ namespace MultiSEngine
         {
             Logs.Error(e.ExceptionObject as Exception is { } error ? string.Format("Application UnhandledException:{0};\nStackTrace:{1}", error.Message, error.StackTrace) : string.Format("Application UnhandledError:{0}", e));
         }
-        public static void Close()
+        public static async Task CloseAsync()
         {
             Core.PluginSystem.Unload();
-            Data.Clients.ToArray().ForEach(c => c.Disconnect("Server closed."));
+            foreach (var c in Data.Clients.ToArray())
+            {
+                await c.DisconnectAsync("Server closed.").ConfigureAwait(false);
+            }
             Logs.Info("Server closed." + Environment.NewLine);
         }
     }

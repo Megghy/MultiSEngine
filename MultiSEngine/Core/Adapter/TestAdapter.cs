@@ -1,4 +1,4 @@
-﻿using System.Net.Sockets;
+using System.Net.Sockets;
 using MultiSEngine.Core.Handler;
 using MultiSEngine.DataStruct;
 
@@ -21,32 +21,33 @@ namespace MultiSEngine.Core.Adapter
                 return;
             var handler = new TestHandler(this);
             handler.Initialize();
-            RegisteHander(handler);
+            RegisterHandler(handler);
             Log($"Start connecting to [{TargetServer.Name}]<{TargetServer.IP}:{TargetServer.Port}>");
             var cancel = new CancellationTokenSource(Config.Instance.SwitchTimeOut).Token;
-            await Task.Run(async () =>
+            // 直接异步连接并接管 TcpClient 生命周期
+            if (Utils.TryParseAddress(TargetServer.IP, out var ip))
             {
-                if (Utils.TryParseAddress(TargetServer.IP, out var ip))
-                {
-                    var client = new TcpClient();
-                    await client.ConnectAsync(ip, TargetServer.Port);
-                    SetServerConnection(new(client));
-                }
-                else
-                {
-                    throw new Exception($"Invalid server address: {TargetServer.IP}");
-                }
-            }, cancel).ContinueWith(task =>
+                var client = new TcpClient();
+                await client.ConnectAsync(ip, TargetServer.Port, cancel).ConfigureAwait(false);
+                await SetServerConnectionAsync(new(client)).ConfigureAwait(false);
+                Start();
+            }
+            else
             {
-                while (!ServerConnection.IsConnected)
-                {
-                    cancel.ThrowIfCancellationRequested();
-                    Thread.Sleep(1);
-                }
-                State = 1;
-                Log($"Sending [ConnectRequest] packet");
-                SendToServerDirect(new ClientHello($"Terraria{(TargetServer.VersionNum is { } and > 0 and < 65535 ? TargetServer.VersionNum : Config.Instance.ServerVersion)}"));  //发起连接请求 
-            }, cancel);
+                throw new Exception($"Invalid server address: {TargetServer.IP}");
+            }
+
+            while (!ServerConnection.IsConnected)
+            {
+                cancel.ThrowIfCancellationRequested();
+                await Task.Delay(1, cancel).ConfigureAwait(false);
+            }
+            State = 1;
+            Log($"Sending [ConnectRequest] packet");
+            await SendToServerDirectAsync(new ClientHello
+            {
+                Version = $"Terraria{(TargetServer.VersionNum is { } and > 0 and < 65535 ? TargetServer.VersionNum : Config.Instance.ServerVersion)}"
+            }).ConfigureAwait(false);  //发起连接请求 
         }
     }
 }

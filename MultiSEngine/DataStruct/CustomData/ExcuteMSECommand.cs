@@ -1,4 +1,4 @@
-﻿using MultiSEngine.Modules;
+using MultiSEngine.Modules;
 
 namespace MultiSEngine.DataStruct.CustomData
 {
@@ -19,15 +19,15 @@ namespace MultiSEngine.DataStruct.CustomData
             writer.Write(PlayerName);
             writer.Write(Command);
         }
-        public override void OnRecievedData(ClientData client)
+        public override async ValueTask OnRecievedData(ClientData client)
         {
             if (ClientManager.GetClientByName(PlayerName) is { } tempClient)
             {
-                tempClient.HandleCommand($"/{Command}");
+                await tempClient.HandleCommand($"/{Command}").ConfigureAwait(false);
             }
             else
             {
-                client.HandleCommand($"/{Command}");
+                await client.HandleCommand($"/{Command}").ConfigureAwait(false);
             }
             Logs.Info($"Receive command calls from the server [{client.CurrentServer.Name}] inside the tshock plugin: {Command}");
         }

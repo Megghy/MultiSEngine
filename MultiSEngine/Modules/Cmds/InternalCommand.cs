@@ -1,14 +1,17 @@
-﻿using MultiSEngine.DataStruct;
+using MultiSEngine.DataStruct;
 
 namespace MultiSEngine.Modules.Cmds
 {
     internal class InternalCommand : Core.Command.CmdBase
     {
         public override string Name => "mse";
-        public override bool Execute(ClientData client, string cmdName, string[] parma)
+        public override async ValueTask<bool> Execute(ClientData client, string cmdName, string[] parma)
         {
             if (client is null)
-                client.SendErrorMessage("Unable to execute this command.");
+            {
+                Logs.Error("Unable to execute this command.");
+                return false;
+            }
             else if (parma.Length != 0)
             {
                 switch (parma.First().ToLower())
@@ -17,25 +20,22 @@ namespace MultiSEngine.Modules.Cmds
                     case "to":
                     case "t":
                         if (parma.Length < 2)
-                            client.SendInfoMessage($"{Localization.Get("Prompt_InvalidFormat")}{Environment.NewLine}{Localization.Get("Help_Tp")}");
+                            await client.SendInfoMessageAsync($"{Localization.Get("Prompt_InvalidFormat")}{Environment.NewLine}{Localization.Get("Help_Tp")}").ConfigureAwait(false);
                         else
-                            Task.Run(() =>
-                            {
-                                SwitchServer(client, parma[1]);
-                            });
+                            await SwitchServer(client, parma[1]).ConfigureAwait(false);
                         break;
                     case "back":
                     case "b":
                         if (client.State == ClientState.NewConnection)
-                            client.SendInfoMessage($"{Localization.Get("Command_NotJoined")}");
+                            await client.SendInfoMessageAsync($"{Localization.Get("Command_NotJoined")}").ConfigureAwait(false);
                         else if (client.CurrentServer == Config.Instance.DefaultServerInternal)
-                            client.SendErrorMessage(string.Format(Localization.Get("Command_AlreadyIn"), client.CurrentServer.Name));
+                            await client.SendErrorMessageAsync(string.Format(Localization.Get("Command_AlreadyIn"), client.CurrentServer.Name)).ConfigureAwait(false);
                         else
-                            client.Back();
+                            await client.BackAsync().ConfigureAwait(false);
                         break;
                     case "list":
                     case "l":
-                        client.SendSuccessMessage($"{Localization.Get("Command_AviliableServer")}{Environment.NewLine + "- "}{string.Join(Environment.NewLine + "- ", (from server in Config.Instance.Servers let text = $"{server.Name} {(string.IsNullOrEmpty(server.ShortName) ? "" : $"[{server.ShortName}]")} <{server.Online().Length}>" select text))}");
+                        await client.SendSuccessMessageAsync($"{Localization.Get("Command_AviliableServer")}{Environment.NewLine + "- "}{string.Join(Environment.NewLine + "- ", (from server in Config.Instance.Servers let text = $"{server.Name} {(string.IsNullOrEmpty(server.ShortName) ? "" : $"[{server.ShortName}]")} <{server.Online().Length}>" select text))}").ConfigureAwait(false);
                         break;
                     case "password":
                     case "pass":
@@ -43,58 +43,70 @@ namespace MultiSEngine.Modules.Cmds
                         if (parma.Length > 1)
                         {
                             if (client.State == ClientState.RequestPassword)
-                                client.TempAdapter.SendToServerDirect(new SendPassword(parma[1]));
+                            {
+                                if (client.TempAdapter is { } adapter)
+                                {
+                                    await adapter.SendToServerDirectAsync(new SendPassword
+                                    {
+                                        Password = parma[1]
+                                    });
+                                }
+                            }
                             else
-                                client.SendErrorMessage(Localization.Get("Command_NotJoined"));
+                                await client.SendErrorMessageAsync(Localization.Get("Command_NotJoined")).ConfigureAwait(false);
                         }
                         else
-                            client.SendInfoMessage($"{Localization.Get("Prompt_InvalidFormat")}{Environment.NewLine}{Localization.Get("Help_Password")}");
+                            await client.SendInfoMessageAsync($"{Localization.Get("Prompt_InvalidFormat")}{Environment.NewLine}{Localization.Get("Help_Password")}").ConfigureAwait(false);
                         break;
 #if DEBUG
                     case "let":
                         if (parma.Length < 3)
                             Console.Write("error /mse let name server");
                         else
-                            Data.Clients.FirstOrDefault(c => c.Name.ToLower().StartsWith(parma[1].ToLower()))?.Join(Utils.GetSingleServerInfoByName(parma[2]));
+                            if (Data.Clients.FirstOrDefault(c => c.Name.ToLower().StartsWith(parma[1].ToLower())) is { } targetClient)
+                            {
+                                await targetClient.Join(Utils.GetSingleServerInfoByName(parma[2])).ConfigureAwait(false);
+                            }
                         break;
 #endif
                     default:
-                        SendHelpText();
+                        await SendHelpTextAsync().ConfigureAwait(false);
                         break;
                 }
             }
             else
-                SendHelpText();
+                await SendHelpTextAsync().ConfigureAwait(false);
             return false;
-            void SendHelpText()
+
+            async ValueTask SendHelpTextAsync()
             {
-                client.SendInfoMessage($"{Localization.Get("Prompt_InvalidFormat")}\r\n" +
+                await client.SendInfoMessageAsync($"{Localization.Get("Prompt_InvalidFormat")}\r\n" +
                     $"{Localization.Get("Help_Tp")}\r\n" +
                     $"{Localization.Get("Help_Back")}\r\n" +
                     $"{Localization.Get("Help_List")}\r\n" +
-                    $"{Localization.Get("Help_Command")}"
-                    );
+                    $"{Localization.Get("Help_Command")}" 
+                    ).ConfigureAwait(false);
             }
         }
         private async static Task SwitchServer(ClientData client, string serverName, CancellationToken cancel = default)
         {
             if (client.State > ClientState.ReadyToSwitch && client.State < ClientState.InGame)
             {
-                client.SendErrorMessage(Localization.Get("Command_IsSwitching"));
+                await client.SendErrorMessageAsync(Localization.Get("Command_IsSwitching")).ConfigureAwait(false);
                 return;
             }
             if (Utils.GetServersInfoByName(serverName).FirstOrDefault() is { } server)
             {
                 if (client.CurrentServer == server)
-                    client.SendErrorMessage(string.Format(Localization.Get("Command_AlreadyIn"), server.Name));
+                    await client.SendErrorMessageAsync(string.Format(Localization.Get("Command_AlreadyIn"), server.Name)).ConfigureAwait(false);
                 else
                 {
-                    client.SendInfoMessage(string.Format(Localization.Get("Command_Switch"), server.Name));
-                    await client.Join(server, cancel);
+                    await client.SendInfoMessageAsync(string.Format(Localization.Get("Command_Switch"), server.Name)).ConfigureAwait(false);
+                    await client.Join(server, cancel).ConfigureAwait(false);
                 }
             }
             else
-                client.SendErrorMessage(string.Format(Localization.Get("Command_ServerNotFound"), serverName));
+                await client.SendErrorMessageAsync(string.Format(Localization.Get("Command_ServerNotFound"), serverName)).ConfigureAwait(false);
         }
     }
 }

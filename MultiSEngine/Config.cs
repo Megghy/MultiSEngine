@@ -1,4 +1,4 @@
-﻿using System.Text.Encodings.Web;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Unicode;
@@ -99,6 +99,7 @@ namespace MultiSEngine
         public string ChatFormat { get; set; } = "[{servername}] {username}: {message}";
         public bool SwitchToDefaultServerOnJoin { get; set; } = false;
         public bool RestoreDataWhenJoinNonSSC { get; set; } = true;
+        public bool DisableTcpDelayWhenPipeline { get; set; } = true;
         [JsonIgnore]
         public DataStruct.ServerInfo DefaultServerInternal => Servers.FirstOrDefault(s => s.Name == DefaultServer);
         public string DefaultServer { get; set; } = string.Empty;

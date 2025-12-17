@@ -1,4 +1,3 @@
-﻿using EnchCoreApi.TrProtocol.NetPackets.Modules;
 using MultiSEngine.DataStruct;
 using MultiSEngine.DataStruct.EventArgs;
 
@@ -59,7 +58,7 @@ namespace MultiSEngine.Core
             }
             return args.Handled;
         }
-        internal static bool OnRecieveCustomData(ClientData client, NetPacket packet, BinaryReader reader, out RecieveCustomPacketEventArgs args)
+        internal static bool OnRecieveCustomData(ClientData client, Packet packet, BinaryReader reader, out RecieveCustomPacketEventArgs args)
         {
             var position = reader.BaseStream.Position;
             args = new(client, packet, reader);
@@ -101,7 +100,7 @@ namespace MultiSEngine.Core
             }
             return args.Handled;
         }
-        internal static bool OnChat(ClientData client, TextC2S module, out ChatEventArgs args)
+        internal static bool OnChat(ClientData client, NetTextModuleC2S module, out ChatEventArgs args)
         {
             args = new(client, module.Text);
             try

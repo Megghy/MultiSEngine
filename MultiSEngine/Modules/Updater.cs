@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Timers;
 using MultiSEngine.DataStruct;
 using Timer = System.Timers.Timer;
@@ -15,20 +15,26 @@ namespace MultiSEngine.Modules
         [AutoInit]
         public static void Init()
         {
-            UpdateTimer.Elapsed += CheckUpdate;
-            UpdateTimer.Start();
-            CheckUpdate(null, null);
+            _updaterTask = RunUpdaterLoopAsync();
         }
-        private static readonly Timer UpdateTimer = new()
+        private static Task _updaterTask;
+        private static async Task RunUpdaterLoopAsync()
         {
-            Interval = 1000 * 60 * 5,
-            AutoReset = true
-        };
-        internal static async void CheckUpdate(object sender, ElapsedEventArgs e)
+            // 立即检查一次
+            await SafeCheckOnceAsync().ConfigureAwait(false);
+            // 周期性检查
+            while (true)
+            {
+                try { await Task.Delay(TimeSpan.FromMinutes(5)).ConfigureAwait(false); }
+                catch { }
+                await SafeCheckOnceAsync().ConfigureAwait(false);
+            }
+        }
+        private static async Task SafeCheckOnceAsync()
         {
             try
             {
-                var version = await GetNewestVersion();
+                var version = await GetNewestVersion().ConfigureAwait(false);
                 if (version > Assembly.GetExecutingAssembly().GetName().Version)
                     Logs.LogAndSave($"New version found: {version}, please download at [https://github.com/Megghy/MultiSEngine/releases] or [https://github.com/Megghy/MultiSEngine/actions].", "[Updater]", ConsoleColor.DarkYellow);
             }
@@ -36,7 +42,7 @@ namespace MultiSEngine.Modules
         }
         internal static async Task<Version> GetNewestVersion()
         {
-            return Version.TryParse(await httpClient.GetStringAsync(UpdateURL), out var version)
+            return Version.TryParse(await httpClient.GetStringAsync(UpdateURL).ConfigureAwait(false), out var version)
                 ? version
                 : new(0, 0);
         }

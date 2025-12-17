@@ -1,5 +1,3 @@
-﻿using Terraria;
-
 namespace MultiSEngine.DataStruct
 {
     public class PlayerInfo(bool isOriginCharacter = false)
@@ -30,7 +28,7 @@ namespace MultiSEngine.DataStruct
         public PlayerSpawnContext Context = PlayerSpawnContext.SpawningIntoWorld;
         #endregion
 
-        public void UpdateData(NetPacket packet, bool fromClient)
+        public void UpdateData(Packet packet, bool fromClient)
         {
             if (packet is null)
                 return;

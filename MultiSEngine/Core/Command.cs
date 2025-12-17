@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using MultiSEngine.DataStruct;
 using MultiSEngine.Modules;
 
@@ -16,7 +16,7 @@ namespace MultiSEngine.Core
             /// <param name="client"></param>
             /// <param name="parma"></param>
             /// <returns></returns>
-            public abstract bool Execute(ClientData client, string cmdName, string[] parma);
+            public abstract ValueTask<bool> Execute(ClientData client, string cmdName, string[] parma);
         }
         [AutoInit(postMsg: "Registed all commands.")]
         public static void InitAllCommands()
@@ -33,9 +33,9 @@ namespace MultiSEngine.Core
                 catch { }
             });
         }
-        public static bool HandleCommand(ClientData client, string text, out bool continueSend, bool fromConsole = false)
+        public static async ValueTask<(bool handled, bool continueSend)> HandleCommand(ClientData client, string text, bool fromConsole = false)
         {
-            continueSend = true;
+            var continueSend = true;
             if (fromConsole && (!text?.StartsWith("/") ?? false))
                 text = "/" + text;
             if (text?.StartsWith("/") ?? false)
@@ -79,20 +79,23 @@ namespace MultiSEngine.Core
                     {
                         try
                         {
-                            continueSend = command.Execute(client, cmdName, list.ToArray());
+                            continueSend = await command.Execute(client, cmdName, list.ToArray()).ConfigureAwait(false);
                         }
                         catch (Exception ex)
                         {
                             Logs.Info($"An exception occurred while executing the command: {command.Name}{Environment.NewLine}{ex}");
-                            client.SendErrorMessage(Localization.Get("Prompt_CommandFailed"));
+                            if (client is not null)
+                                await client.SendErrorMessageAsync(Localization.Get("Prompt_CommandFailed")).ConfigureAwait(false);
+                            else
+                                Logs.Error(Localization.Get("Prompt_CommandFailed"));
                         }
-                        return true;
+                        return (true, continueSend);
                     }
                 }
                 else
-                    return false;
+                    return (false, continueSend);
             }
-            return false;
+            return (false, continueSend);
         }
         static bool IsWhiteSpace(char c)
         {

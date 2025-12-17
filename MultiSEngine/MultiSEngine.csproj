@@ -1,10 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
 	<LangVersion>preview</LangVersion>
     <TargetFramework>net9.0</TargetFramework>
-    <AssemblyVersion>1.1.0.3</AssemblyVersion>
-    <FileVersion>1.1.0.3</FileVersion>
+    <AssemblyVersion>1.2.0.0</AssemblyVersion>
+    <FileVersion>1.2.0.0</FileVersion>
 	<OutputType>Exe</OutputType>
 	<Nullable>annotations</Nullable>
 	<ImplicitUsings>enable</ImplicitUsings>
@@ -30,7 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="EnchCoreApi.TrProtocol" Version="1.1.0" />
+    <!-- Removed external package reference; using local TrProtocol project instead -->
   </ItemGroup>
 
   <ItemGroup>
@@ -49,9 +49,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="EnchCoreApi.TrProtocol" />
-    <Using Include="EnchCoreApi.TrProtocol.Models" />
-    <Using Include="EnchCoreApi.TrProtocol.NetPackets" />
+    <Using Include="TrProtocol" />
+    <Using Include="TrProtocol.Models" />
+    <Using Include="TrProtocol.Packets" />
+    <Using Include="TrProtocol.Packets.Modules" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TrProtocol\TrProtocol\TrProtocol.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,11 +1,13 @@
-﻿using MultiSEngine.DataStruct;
+using System.Collections.Frozen;
+using MultiSEngine.DataStruct;
 using MultiSEngine.DataStruct.CustomData;
 
 namespace MultiSEngine.Core
 {
     public class DataBridge
     {
-        internal static readonly Dictionary<string, Type> CustomPackets = [];
+        private static readonly Dictionary<string, Type> CustomPacketsMutable = [];
+        internal static FrozenDictionary<string, Type> CustomPackets { get; private set; } = FrozenDictionary<string, Type>.Empty;
         [AutoInit]
         private static void Init()
         {
@@ -27,13 +29,21 @@ namespace MultiSEngine.Core
         private static void RegisterCustomPacket(Type type)
         {
             var name = (Activator.CreateInstance(type) as BaseCustomData)!.Name;
-            if (CustomPackets.ContainsKey(name))
+            if (!CustomPacketsMutable.TryAdd(name, type))
             {
                 Logs.Warn($"CustomPacket: [{name}] already exist.");
                 return;
             }
-            CustomPackets.Add(name, type);
         }
+
+        public static void RebuildCustomPacketIndex()
+        {
+            CustomPackets = CustomPacketsMutable.ToFrozenDictionary();
+        }
+
+        [AutoInit(order: 10000)]
+        private static void BuildIndex()
+            => RebuildCustomPacketIndex();
     }
 }
 

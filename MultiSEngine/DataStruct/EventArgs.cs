@@ -1,4 +1,4 @@
-﻿namespace MultiSEngine.DataStruct.EventArgs
+namespace MultiSEngine.DataStruct.EventArgs
 {
 
     public interface IEventArgs
@@ -32,14 +32,14 @@
     }
     public class RecieveCustomPacketEventArgs : IEventArgs
     {
-        public RecieveCustomPacketEventArgs(ClientData client, NetPacket p, BinaryReader reader)
+        public RecieveCustomPacketEventArgs(ClientData client, TrProtocol.Packet p, BinaryReader reader)
         {
             Client = client;
             Reader = reader;
             Packet = p;
         }
         public ClientData Client { get; private set; }
-        public NetPacket Packet { get; private set; }
+        public TrProtocol.Packet Packet { get; private set; }
         public BinaryReader Reader { get; private set; }
         public bool Handled { get; set; } = false;
     }

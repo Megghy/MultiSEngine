@@ -1,4 +1,3 @@
-﻿using Microsoft.Xna.Framework;
 using MultiSEngine.Core.Adapter;
 using MultiSEngine.DataStruct;
 
@@ -18,31 +17,56 @@ namespace MultiSEngine.Core.Handler
 
         byte index = 0;
 
-        public override bool RecieveServerData(MessageID msgType, Span<byte> data)
+        public override async ValueTask<bool> RecieveServerDataAsync(HandlerPacketContext context)
         {
             if (Parent.IsDisposed)
                 return true;
+            var msgType = context.MessageId;
+            var data = context.Data;
             switch (msgType)
             {
                 case MessageID.Kick:
-                    var kick = data.AsPacket<Kick>();
+                    var kick = context.Packet as Kick ?? throw new Exception("[TestHandler] Kick packet not found");
                     var reason = kick.Reason.GetText();
-                    Parent.Dispose(true);
+                    await Parent.DisposeAsync(true).ConfigureAwait(false);
                     TestParent.IsSuccess = false;
                     TestParent.Log($"Kicked. Reason: {(string.IsNullOrEmpty(reason) ? "Unkown" : reason)}", false, ConsoleColor.Red);
                     TestParent.IsSuccess = false;
                     break;
                 case MessageID.LoadPlayer:
-                    var slot = data.AsPacket<LoadPlayer>();
+                    var slot = context.Packet as LoadPlayer ?? throw new Exception("[TestHandler] LoadPlayer packet not found");
                     index = slot.PlayerSlot; // 保存玩家索引
                     TestParent.Log($"Player index: {index}");
                     TestParent.State = 2;
                     TestParent.Log($"Sending [PlayerInfo] packet");
-                    SendToServerDirect(new SyncPlayer(index, 0, 0, "MultiSEngine", 0, 0, 0, 0, Color.Blue, Color.Blue, Color.Blue, Color.Blue, Color.Blue, Color.Blue, Color.Blue, 0, 0, 0));
+                    await SendToServerDirectAsync(new SyncPlayer
+                    {
+                        PlayerSlot = index,
+                        SkinVariant = 0,
+                        Hair = 0,
+                        Name = "MultiSEngine",
+                        HairDye = 0,
+                        Bit1 = new BitsByte(),
+                        Bit2 = new BitsByte(),
+                        HideMisc = 0,
+                        HairColor = new Color(0x00, 0x00, 0xFF),
+                        SkinColor = new Color(0x00, 0x00, 0xFF),
+                        EyeColor = new Color(0x00, 0x00, 0xFF),
+                        ShirtColor = new Color(0x00, 0x00, 0xFF),
+                        UnderShirtColor = new Color(0x00, 0x00, 0xFF),
+                        PantsColor = new Color(0x00, 0x00, 0xFF),
+                        ShoeColor = new Color(0x00, 0x00, 0xFF),
+                        Bit3 = new BitsByte(),
+                        Bit4 = new BitsByte(),
+                        Bit5 = new BitsByte()
+                    }).ConfigureAwait(false);
                     TestParent.Log($"Sending [UUID] packet");
-                    SendToServerDirect(new ClientUUID("114514"));
+                    await SendToServerDirectAsync(new ClientUUID
+                    {
+                        UUID = "114514"
+                    }).ConfigureAwait(false);
                     TestParent.Log($"Requesting world data");
-                    SendToServerDirect(new RequestWorldInfo() { });
+                    await SendToServerDirectAsync(new RequestWorldInfo() { }).ConfigureAwait(false);
                     TestParent.State = 3;
                     break;
                 case MessageID.WorldData:
@@ -50,9 +74,20 @@ namespace MultiSEngine.Core.Handler
                     {
                         TestParent.State = 4;
                         TestParent.Log($"Requesting map data");
-                        SendToServerDirect(new RequestTileData(new(-1, -1)));//请求物块数据
+                        await SendToServerDirectAsync(new RequestTileData
+                        {
+                            Position = new(-1, -1)
+                        }).ConfigureAwait(false);//请求物块数据
                         TestParent.Log($"Requesting spawn player");
-                        SendToServerDirect(new SpawnPlayer(index, new(-1, -1), 0, 0, 0, Terraria.PlayerSpawnContext.SpawningIntoWorld));
+                        await SendToServerDirectAsync(new SpawnPlayer
+                        {
+                            PlayerSlot = index,
+                            Position = new ShortPosition(-1, -1),
+                            Timer = 0,
+                            DeathsPVE = 0,
+                            DeathsPVP = 0,
+                            Context = PlayerSpawnContext.SpawningIntoWorld
+                        }).ConfigureAwait(false);
                     }
                     break;
                 case MessageID.RequestPassword:

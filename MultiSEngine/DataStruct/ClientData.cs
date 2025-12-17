@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using MultiSEngine.Core.Adapter;
 using MultiSEngine.Modules;
 
@@ -44,6 +44,14 @@ namespace MultiSEngine.DataStruct
         #endregion
 
         #region 方法
+        /// <summary>
+        /// 设置玩家索引
+        /// </summary>
+        /// <param name="index"></param>
+        public void SetIndex(byte index)
+        {
+            Player.Index = index;
+        }
         public override string ToString()
             => $"{Address}:{Name}_{Player.UUID}";
         public void Dispose()

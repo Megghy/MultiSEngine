@@ -1,4 +1,4 @@
-﻿using MultiSEngine.DataStruct;
+using MultiSEngine.DataStruct;
 
 namespace MultiSEngine.Modules.Cmds
 {
@@ -6,7 +6,7 @@ namespace MultiSEngine.Modules.Cmds
     {
         public override string Name => "";
         public override bool ServerCommand => true;
-        public override bool Execute(ClientData client, string cmdName, string[] parma)
+        public override async ValueTask<bool> Execute(ClientData client, string cmdName, string[] parma)
         {
             if (string.IsNullOrEmpty(cmdName))
                 return true;
@@ -31,7 +31,7 @@ namespace MultiSEngine.Modules.Cmds
                     {
                         var name = parma[0].Trim().ToLower();
                         if (Data.Clients.FirstOrDefault(c => c.Name.ToLower() == name || c.Name.ToLower().StartsWith(name)) is { } c)
-                            c.Disconnect(Localization.Instance["Command_Kick", Config.Instance.ServerName, parma.Length > 1 ? parma[1] : "Unknown"]);
+                            await c.DisconnectAsync(Localization.Instance["Command_Kick", Config.Instance.ServerName, parma.Length > 1 ? parma[1] : "Unknown"]);
                         else
                             Logs.Error($"Specified player: [{parma[0]}] not found.");
                     }
@@ -53,12 +53,18 @@ namespace MultiSEngine.Modules.Cmds
                     if (parma.Length > 1)
                     {
                         if (Utils.GetServersInfoByName(parma[1]).FirstOrDefault() is { } server)
-                            Data.Clients.Where(c => c.CurrentServer == server).ForEach(c => c.SendMessage($"[Broadcast] {parma[0]}", false));
+                        {
+                            foreach (var c in Data.Clients.Where(c => c.CurrentServer == server))
+                                await c.SendMessageAsync($"[Broadcast] {parma[0]}", new Color(255, 255, 255), false).ConfigureAwait(false);
+                        }
                         else
                             Logs.Error(string.Format(Localization.Get("Command_ServerNotFound"), parma[1]));
                     }
                     else
-                        ClientManager.Broadcast(null, $"[Broadcast] {parma.FirstOrDefault()}");
+                    {
+                        foreach (var c in Data.Clients)
+                            await c.SendMessageAsync($"[Broadcast] {parma.FirstOrDefault()}", new Color(255, 255, 255), false).ConfigureAwait(false);
+                    }
                     Logs.Info($"Broadcast: {(parma.Length > 1 ? parma[1] : parma[0])}");
                     break;
                 case "t":
@@ -67,9 +73,9 @@ namespace MultiSEngine.Modules.Cmds
                     {
                         bool showDetail = parma.Length > 1 && parma[1].ToLower() == "-detail";
                         if (parma[0].ToLower() == "all")
-                            Core.Net.TestAll(showDetail);
+                            await Core.Net.TestAllAsync(showDetail).ConfigureAwait(false);
                         else if (Utils.GetSingleServerInfoByName(parma[0]) is { } testServer)
-                            Task.Run(() => Core.Net.TestConnect(testServer, showDetail));
+                            await Core.Net.TestConnectAsync(testServer, showDetail).ConfigureAwait(false);
                         else
                             Logs.Error($"The server named [{parma[0]}] was not found");
                     }

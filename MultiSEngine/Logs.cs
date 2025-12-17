@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using MultiSEngine.DataStruct;
 
 namespace MultiSEngine
@@ -33,20 +33,60 @@ namespace MultiSEngine
             if (!Directory.Exists(LogPath))
                 Directory.CreateDirectory(LogPath);
         }
-        private static readonly ConcurrentQueue<string> _queue = new();
+        private static readonly System.Threading.Channels.Channel<string> _channel = System.Threading.Channels.Channel.CreateUnbounded<string>(new System.Threading.Channels.UnboundedChannelOptions
+        {
+            SingleReader = true,
+            SingleWriter = false,
+            AllowSynchronousContinuations = false
+        });
+        private static Task _logLoopTask;
         [AutoInit]
         private static void SaveLogTask()
         {
-            Task.Run(() =>
+            _logLoopTask = SaveLogLoopAsync();
+        }
+        private static async Task SaveLogLoopAsync()
+        {
+            string currentDate = null;
+            FileStream fs = null;
+            StreamWriter writer = null;
+            try
             {
                 while (true)
                 {
-                    if (_queue.TryDequeue(out var text))
-                        File.AppendAllText(LogName, text + Environment.NewLine);
-                    else
-                        Thread.Sleep(1);
+                    var line = await _channel.Reader.ReadAsync().ConfigureAwait(false);
+                    var today = DateTime.Now.ToString("yyyy-MM-dd");
+                    if (!string.Equals(currentDate, today, StringComparison.Ordinal))
+                    {
+                        writer?.Flush();
+                        writer?.Dispose();
+                        fs?.Dispose();
+                        if (!Directory.Exists(LogPath))
+                            Directory.CreateDirectory(LogPath);
+                        fs = new FileStream(LogName, FileMode.Append, FileAccess.Write, FileShare.Read, 8192, FileOptions.Asynchronous);
+                        writer = new StreamWriter(fs);
+                        currentDate = today;
+                    }
+
+                    writer.WriteLine(line);
+                    int drained = 0;
+                    while (drained < 1024 && _channel.Reader.TryRead(out var extra))
+                    {
+                        writer.WriteLine(extra);
+                        drained++;
+                    }
+                    await writer.FlushAsync().ConfigureAwait(false);
                 }
-            });
+            }
+            catch
+            {
+            }
+            finally
+            {
+                try { writer?.Flush(); } catch { }
+                writer?.Dispose();
+                fs?.Dispose();
+            }
         }
         public static void LogAndSave(object message, string prefix = "[Log]", ConsoleColor color = DefaultColor, bool save = true)
         {
@@ -54,7 +94,7 @@ namespace MultiSEngine
             Console.WriteLine($"{DateTime.Now:HH:mm:ss} {prefix} {message}");
             Console.ForegroundColor = DefaultColor;
             if (save)
-                _queue.Enqueue($"{DateTime.Now:HH:mm:ss} - {prefix} {message}");
+                _channel.Writer.TryWrite($"{DateTime.Now:HH:mm:ss} - {prefix} {message}");
         }
     }
 }

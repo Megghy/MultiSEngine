@@ -1,4 +1,5 @@
-﻿using MultiSEngine.DataStruct;
+using System.Buffers;
+using MultiSEngine.DataStruct;
 using static MultiSEngine.Core.Command;
 
 namespace MultiSEngine.Modules
@@ -7,8 +8,10 @@ namespace MultiSEngine.Modules
     {
         public static List<ClientData> Clients { get; } = [];
         public static List<CmdBase> Commands { get; } = [];
-        internal static byte[] StaticSpawnSquareData { get; set; }
-        internal static byte[] StaticDeactiveAllPlayer { get; set; }
+        internal static Utils.PacketMemoryRental? StaticSpawnSquareData { get; private set; }
+        internal static Utils.PacketMemoryRental? StaticDeactiveAllPlayer { get; private set; }
+        internal static ReadOnlyMemory<byte> SpawnSquarePacket => StaticSpawnSquareData?.Memory ?? ReadOnlyMemory<byte>.Empty;
+        internal static ReadOnlyMemory<byte> DeactivateAllPlayerPacket => StaticDeactiveAllPlayer?.Memory ?? ReadOnlyMemory<byte>.Empty;
         private static string _motd = string.Empty;
         public static string Motd => _motd
             .Replace("{online}", Clients.Count.ToString())
@@ -38,15 +41,30 @@ namespace MultiSEngine.Modules
         [AutoInit(order: 0)]
         public static void Init()
         {
-            StaticSpawnSquareData = Utils.GetTileSection(4150, 1150, 100, 100).ToArray();
-            var deactivePlayers = new List<byte>();
-            var playerActive = new PlayerActive(1, false);
-            for (int i = 1; i < 255; i++)
+            StaticSpawnSquareData?.Dispose();
+            StaticDeactiveAllPlayer?.Dispose();
+
+            StaticSpawnSquareData = Utils.GetTileSection(4150, 1150, 100, 100);
+            var playerActive = new PlayerActive
+            {
+                PlayerSlot = 1,
+                Active = false
+            };
+            using var firstRental = playerActive.AsPacketRental();
+            var packetLength = firstRental.Memory.Length;
+            var totalPlayers = 254;
+            var owner = MemoryPool<byte>.Shared.Rent(packetLength * totalPlayers);
+            var destination = owner.Memory.Span;
+            firstRental.Memory.Span.CopyTo(destination);
+            var offset = packetLength;
+            for (int i = 2; i <= totalPlayers + 1; i++)
             {
                 playerActive.PlayerSlot = (byte)i;
-                deactivePlayers.AddRange(playerActive.AsBytes());
+                using var rental = playerActive.AsPacketRental();
+                rental.Memory.Span.CopyTo(destination[offset..]);
+                offset += rental.Memory.Length;
             }  //隐藏其他所有玩家
-            StaticDeactiveAllPlayer = [.. deactivePlayers];
+            StaticDeactiveAllPlayer = new Utils.PacketMemoryRental(owner, offset);
             if (!File.Exists(MotdPath))
                 File.WriteAllText(MotdPath, Properties.Resources.DefaultMotd);
             _motd = File.ReadAllText(MotdPath);

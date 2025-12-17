@@ -1,53 +1,109 @@
-﻿using System.Net;
+using System.Buffers;
+using System.Net;
 using System.Net.Sockets;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using MultiSEngine.DataStruct;
-using Terraria;
-using Terraria.Localization;
 
 namespace MultiSEngine
 {
     public static class Utils
     {
-        /*public static T Deserilize<T>(this byte[] buffer) where T : IPacket
+        private const int DefaultPacketBufferSize = 1024 * 16;
+
+        /// <summary>
+        /// 封装 NetPacket 序列化后的缓冲租借，确保使用完及时归还内存池。
+        /// </summary>
+        public sealed class PacketMemoryRental : IDisposable
         {
-            using (var reader = new BinaryReader(new MemoryStream(buffer)))
-                return reader.Deserialize<T>();
-        }*/
-        public unsafe static NetPacket AsPacket(this ref Span<byte> buf, bool asServer = true)
-        {
-            fixed (void* ptr = buf)
+            private IMemoryOwner<byte>? _owner;
+
+            public PacketMemoryRental(IMemoryOwner<byte> owner, int length)
             {
-                var ptrBegin = Unsafe.Add<byte>(ptr, 2); // 从type开始读
-                return NetPacket.ReadNetPacket(ref ptrBegin, ptr_end: Unsafe.Add<byte>(ptrBegin, buf.Length), asServer);
+                _owner = owner;
+                Memory = owner.Memory.Slice(0, length);
+            }
+
+            public ReadOnlyMemory<byte> Memory { get; }
+
+            public void Dispose()
+            {
+                _owner?.Dispose();
+                _owner = null;
             }
         }
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="buf"></param>
-        /// <param name="asServer">Read as server or not</param>
-        /// <returns></returns>
-        public unsafe static T AsPacket<T>(this ref Span<byte> buf, bool asServer = true) where T : NetPacket
-        {
-            return buf.AsPacket(asServer) as T;
-        }
-        public unsafe static T AsPacket<T>(this byte[] buf, bool asServer = true) where T : NetPacket
-        {
-            var b = buf.AsSpan();
-            return AsPacket<T>(ref b, asServer);
-        }
-        public unsafe static Span<byte> AsBytes(this NetPacket packet)
-        {
-            var ptr_begin = (void*)Marshal.AllocHGlobal(1024 * 16);
+        private static PacketSerializer? _s2cSerializer; // server -> client
+        private static PacketSerializer? _c2sSerializer; // client -> server
 
-            var ptr = Unsafe.Add<byte>(ptr_begin, 2);
-            packet.WriteContent(ref ptr);
-            var size = (short)((long)ptr - (long)ptr_begin);
-            Unsafe.Write(ptr_begin, size);
-            return new Span<byte>(ptr_begin, size);
+        private static PacketSerializer GetS2CSerializer()
+        {
+            return _s2cSerializer ??= new PacketSerializer(true, $"Terraria{Config.Instance.ServerVersion}");
+        }
+        private static PacketSerializer GetC2SSerializer()
+        {
+            return _c2sSerializer ??= new PacketSerializer(false, $"Terraria{Config.Instance.ServerVersion}");
+        }
+
+        private sealed class ReadOnlyMemoryStream : Stream
+        {
+            private readonly ReadOnlyMemory<byte> _buffer;
+            private int _position;
+            public ReadOnlyMemoryStream(ReadOnlyMemory<byte> buffer) => _buffer = buffer;
+            public override bool CanRead => true;
+            public override bool CanSeek => true;
+            public override bool CanWrite => false;
+            public override long Length => _buffer.Length;
+            public override long Position { get => _position; set => _position = (int)value; }
+            public override void Flush() { }
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                var remaining = _buffer.Length - _position;
+                if (remaining <= 0) return 0;
+                var n = Math.Min(remaining, count);
+                _buffer.Span.Slice(_position, n).CopyTo(buffer.AsSpan(offset, n));
+                _position += n;
+                return n;
+            }
+            public override long Seek(long offset, SeekOrigin origin)
+            {
+                long target = origin switch
+                {
+                    SeekOrigin.Begin => offset,
+                    SeekOrigin.Current => _position + offset,
+                    SeekOrigin.End => Length + offset,
+                    _ => throw new ArgumentOutOfRangeException(nameof(origin))
+                };
+                if (target < 0 || target > Length) throw new IOException("Attempted to seek outside the buffer");
+                _position = (int)target; return _position;
+            }
+            public override void SetLength(long value) => throw new NotSupportedException();
+            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        }
+
+        public static Packet? AsPacket(this ReadOnlySpan<byte> buf, bool fromServer = true)
+            => AsPacket((ReadOnlyMemory<byte>)buf.ToArray(), fromServer);
+
+        public static Packet? AsPacket(this ReadOnlyMemory<byte> buf, bool fromServer = true)
+        {
+            using var ms = new ReadOnlyMemoryStream(buf);
+            using var br = new BinaryReader(ms);
+            return (fromServer ? GetS2CSerializer() : GetC2SSerializer()).Deserialize(br);
+        }
+        public static T? AsPacket<T>(this ReadOnlyMemory<byte> buf, bool fromServer = true) where T : Packet
+            => AsPacket(buf, fromServer) as T;
+        public static T? AsPacket<T>(this ReadOnlySpan<byte> buf, bool fromServer = true) where T : Packet
+            => AsPacket(buf, fromServer) as T;
+
+        public static PacketMemoryRental AsPacketRental(this Packet packet, int bufferSizeHint = DefaultPacketBufferSize)
+        {
+            var bytes = GetC2SSerializer().Serialize(packet); // serialization identical for length header
+            var owner = MemoryPool<byte>.Shared.Rent(Math.Max(bytes.Length, bufferSizeHint));
+            var memory = owner.Memory;
+            bytes.CopyTo(memory);
+            return new PacketMemoryRental(owner, bytes.Length);
+        }
+        public static ReadOnlyMemory<byte> AsReadOnlyMemory(this Packet packet, out PacketMemoryRental rental, int bufferSizeHint = DefaultPacketBufferSize)
+        {
+            rental = packet.AsPacketRental(bufferSizeHint);
+            return rental.Memory;
         }
         public static ClientData[] Online(this ServerInfo server) => Modules.Data.Clients.Where(c => c.CurrentServer == server).ToArray();
         public static bool TryParseAddress(string address, out IPAddress ip)
@@ -71,6 +127,34 @@ namespace MultiSEngine
             }
             catch { }
             return false;
+        }
+
+        /// <summary>
+        /// 异步解析地址, 优先返回字面 IP, 否则进行 DNS 查询。
+        /// </summary>
+        public static async ValueTask<IPAddress?> ResolveAddressAsync(string address, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(address))
+                return null;
+
+            if (IPAddress.TryParse(address, out var ip))
+            {
+                return ip;
+            }
+
+            try
+            {
+                var hostInfo = await Dns.GetHostEntryAsync(address).WaitAsync(cancellationToken).ConfigureAwait(false);
+                return hostInfo.AddressList.FirstOrDefault();
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                return null;
+            }
         }
         public static ServerInfo[] GetServersInfoByName(string name)
         {
@@ -101,7 +185,7 @@ namespace MultiSEngine
                 action(obj);
             }
         }
-        public static Span<byte> GetTileSection(int x, int y, short width, short height, int type = 541)
+        public static PacketMemoryRental GetTileSection(int x, int y, short width, short height, int type = 541)
         {
             var bb = new BitsByte();
             bb[1] = true;
@@ -122,9 +206,9 @@ namespace MultiSEngine
             {
                 list[i] = tile;
             }
-            return new TileSection(new(x, y, width, height, list, 0, [], 0, [], 0, [])).AsBytes();
+            return new TileSection { Data = new SectionData { StartX = x, StartY = y, Width = width, Height = height, Tiles = list, ChestCount = 0, Chests = [], SignCount = 0, Signs = [], TileEntityCount = 0, TileEntities = [] } }.AsPacketRental();
         }
-        public static string GetText(this NetworkTextModel text)
+        public static string GetText(this NetworkText text)
         {
             //return text._mode == NetworkText.Mode.LocalizationKey ? Language.GetTextValue(text._text) : text._text;
             return text._text;
