@@ -3,8 +3,8 @@
   <PropertyGroup>
 	<LangVersion>preview</LangVersion>
     <TargetFramework>net9.0</TargetFramework>
-    <AssemblyVersion>1.2.0.0</AssemblyVersion>
-    <FileVersion>1.2.0.0</FileVersion>
+    <AssemblyVersion>1.2.0.1</AssemblyVersion>
+    <FileVersion>1.2.0.1</FileVersion>
 	<OutputType>Exe</OutputType>
 	<Nullable>annotations</Nullable>
 	<ImplicitUsings>enable</ImplicitUsings>

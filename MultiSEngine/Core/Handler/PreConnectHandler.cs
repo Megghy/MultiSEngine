@@ -73,7 +73,10 @@ namespace MultiSEngine.Core.Handler
 
                     index = slot.PlayerSlot;
                     Logs.Info($"[{Client.Name}] remote index: {slot.PlayerSlot}");
-                    await Client.AddBuffAsync(149, 60).ConfigureAwait(false);
+                    if (Config.Instance.UseCrowdControlled)
+                    {
+                        await Client.AddBuffAsync(149, 60).ConfigureAwait(false);
+                    }
 
                     var tempInfo = JsonSerializer.Deserialize<SyncPlayer>(JsonSerializer.Serialize(Client.Player.OriginCharacter.Info));
                     tempInfo.PlayerSlot = index;

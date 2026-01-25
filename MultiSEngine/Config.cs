@@ -100,6 +100,7 @@ namespace MultiSEngine
         public bool SwitchToDefaultServerOnJoin { get; set; } = false;
         public bool RestoreDataWhenJoinNonSSC { get; set; } = true;
         public bool DisableTcpDelayWhenPipeline { get; set; } = true;
+        public bool UseCrowdControlled { get; set; } = false;
         [JsonIgnore]
         public DataStruct.ServerInfo DefaultServerInternal => Servers.FirstOrDefault(s => s.Name == DefaultServer);
         public string DefaultServer { get; set; } = string.Empty;
