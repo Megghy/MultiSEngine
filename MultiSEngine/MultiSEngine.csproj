@@ -20,17 +20,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="lib\**" />
-    <EmbeddedResource Remove="lib\**" />
-    <None Remove="lib\**" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Include="..\.editorconfig" Link=".editorconfig" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Removed external package reference; using local TrProtocol project instead -->
+    <ProjectReference Include="..\external\TrProtocol\src\TrProtocol\TrProtocol.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -51,12 +45,12 @@
   <ItemGroup>
     <Using Include="TrProtocol" />
     <Using Include="TrProtocol.Models" />
-    <Using Include="TrProtocol.Packets" />
-    <Using Include="TrProtocol.Packets.Modules" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\TrProtocol\TrProtocol\TrProtocol.csproj" />
+    <Using Include="TrProtocol.NetPackets" />
+    <Using Include="TrProtocol.NetPackets.Modules" />
+    <Using Include="Terraria" />
+    <Using Include="Terraria.Localization" />
+    <Using Include="Microsoft.Xna.Framework" />
+    <Using Include="Terraria.GameContent.Drawing" />
   </ItemGroup>
 
 </Project>

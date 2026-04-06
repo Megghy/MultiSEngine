@@ -81,7 +81,7 @@ namespace MultiSEngine
                 emptyNames.ForEach(s => config.Servers.Remove(s));
                 Logs.Warn($"Found [{emptyNames.Length}] servers with empty names in the configuration file, removed");
             }
-            config.Servers.Where(s => Modules.Data.Convert(config.ServerVersion) == "Unknown")
+            config.Servers.Where(s => Runtime.RuntimeState.Convert(config.ServerVersion) == "Unknown")
                 .ForEach(s => Logs.Warn($"The server [{s.Name}] specifies an unknown ServerVersion, which may cause some problems."));
             return config;
         }
@@ -102,8 +102,10 @@ namespace MultiSEngine
         public bool DisableTcpDelayWhenPipeline { get; set; } = true;
         public bool UseCrowdControlled { get; set; } = false;
         [JsonIgnore]
-        public DataStruct.ServerInfo DefaultServerInternal => Servers.FirstOrDefault(s => s.Name == DefaultServer);
+        public Models.ServerInfo DefaultServerInternal => Servers.FirstOrDefault(s => s.Name == DefaultServer);
         public string DefaultServer { get; set; } = string.Empty;
-        public List<DataStruct.ServerInfo> Servers { get; set; } = [];
+        public List<Models.ServerInfo> Servers { get; set; } = [];
     }
 }
+
+

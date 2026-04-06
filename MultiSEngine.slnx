@@ -1,0 +1,15 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MultiSEngine.IntegrationTests/MultiSEngine.IntegrationTests.csproj" />
+    <Project Path="tests/MultiSEngine.Tests/MultiSEngine.Tests.csproj" />
+  </Folder>
+  <Project Path="MultiSEngine/MultiSEngine.csproj" />
+</Solution>

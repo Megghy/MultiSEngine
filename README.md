@@ -12,7 +12,7 @@ A Terraria server-independent proxy service for cross-server transfers, based on
 
 ---
 
-* Reference to Dolphin's protocol library
+* Reference to CedaryCat's protocol library
 * Self-contained plug-in system, with protocol library for easy and fast modification of player packets and expansion and development
 * Customizable language files
 * Out-of-the-box deployment and useful configuration items
@@ -44,4 +44,4 @@ Slightly more specific deployment methods and configuration file instructions:ht
 [Github Action](https://github.com/Megghy/MultiSEngine/actions)
 
 ## 引用项目 Reference project
-[TrProtocol](https://github.com/chi-rei-den/TrProtocol/tree/dev)
+[TrProtocol](https://github.com/CedaryCat/TrProtocol)

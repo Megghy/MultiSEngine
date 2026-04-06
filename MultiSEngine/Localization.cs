@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 
 namespace MultiSEngine
 {
@@ -34,3 +34,5 @@ namespace MultiSEngine
         }
     }
 }
+
+

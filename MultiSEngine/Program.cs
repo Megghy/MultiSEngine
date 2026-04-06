@@ -1,6 +1,4 @@
 using System.Reflection;
-using MultiSEngine.DataStruct;
-using MultiSEngine.Modules;
 
 namespace MultiSEngine
 {
@@ -14,7 +12,7 @@ namespace MultiSEngine
             while (true)
             {
                 var line = await Console.In.ReadLineAsync();
-                var (handled, continueSend) = await Core.Command.HandleCommand(null, line, true).ConfigureAwait(false);
+                var (handled, continueSend) = await Commands.CommandDispatcher.HandleCommand(null, line, true).ConfigureAwait(false);
                 if (handled && !continueSend)
                     break;
             }
@@ -78,8 +76,8 @@ namespace MultiSEngine
         }
         public static async Task CloseAsync()
         {
-            Core.PluginSystem.Unload();
-            foreach (var c in Data.Clients.ToArray())
+            Plugins.PluginManager.Unload();
+            foreach (var c in RuntimeState.Clients.ToArray())
             {
                 await c.DisconnectAsync("Server closed.").ConfigureAwait(false);
             }
@@ -87,3 +85,5 @@ namespace MultiSEngine
         }
     }
 }
+
+

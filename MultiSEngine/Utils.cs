@@ -1,7 +1,6 @@
 using System.Buffers;
 using System.Net;
 using System.Net.Sockets;
-using MultiSEngine.DataStruct;
 
 namespace MultiSEngine
 {
@@ -35,11 +34,11 @@ namespace MultiSEngine
 
         private static PacketSerializer GetS2CSerializer()
         {
-            return _s2cSerializer ??= new PacketSerializer(true, $"Terraria{Config.Instance.ServerVersion}");
+            return _s2cSerializer ??= new PacketSerializer(true);
         }
         private static PacketSerializer GetC2SSerializer()
         {
-            return _c2sSerializer ??= new PacketSerializer(false, $"Terraria{Config.Instance.ServerVersion}");
+            return _c2sSerializer ??= new PacketSerializer(false);
         }
 
         private sealed class ReadOnlyMemoryStream : Stream
@@ -78,34 +77,40 @@ namespace MultiSEngine
             public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
         }
 
-        public static Packet? AsPacket(this ReadOnlySpan<byte> buf, bool fromServer = true)
+        public static INetPacket AsPacket(this ReadOnlySpan<byte> buf, bool fromServer = true)
             => AsPacket((ReadOnlyMemory<byte>)buf.ToArray(), fromServer);
 
-        public static Packet? AsPacket(this ReadOnlyMemory<byte> buf, bool fromServer = true)
+        public static INetPacket AsPacket(this ReadOnlyMemory<byte> buf, bool fromServer = true)
         {
             using var ms = new ReadOnlyMemoryStream(buf);
             using var br = new BinaryReader(ms);
             return (fromServer ? GetS2CSerializer() : GetC2SSerializer()).Deserialize(br);
         }
-        public static T? AsPacket<T>(this ReadOnlyMemory<byte> buf, bool fromServer = true) where T : Packet
-            => AsPacket(buf, fromServer) as T;
-        public static T? AsPacket<T>(this ReadOnlySpan<byte> buf, bool fromServer = true) where T : Packet
-            => AsPacket(buf, fromServer) as T;
 
-        public static PacketMemoryRental AsPacketRental(this Packet packet, int bufferSizeHint = DefaultPacketBufferSize)
+        public static PacketMemoryRental AsPacketRental(this INetPacket packet, int bufferSizeHint = DefaultPacketBufferSize)
         {
-            var bytes = GetC2SSerializer().Serialize(packet); // serialization identical for length header
+            var bytes = GetC2SSerializer().Serialize(packet);
             var owner = MemoryPool<byte>.Shared.Rent(Math.Max(bytes.Length, bufferSizeHint));
             var memory = owner.Memory;
             bytes.CopyTo(memory);
             return new PacketMemoryRental(owner, bytes.Length);
         }
-        public static ReadOnlyMemory<byte> AsReadOnlyMemory(this Packet packet, out PacketMemoryRental rental, int bufferSizeHint = DefaultPacketBufferSize)
+        public static ReadOnlyMemory<byte> AsReadOnlyMemory(this INetPacket packet, out PacketMemoryRental rental, int bufferSizeHint = DefaultPacketBufferSize)
         {
             rental = packet.AsPacketRental(bufferSizeHint);
             return rental.Memory;
         }
-        public static ClientData[] Online(this ServerInfo server) => Modules.Data.Clients.Where(c => c.CurrentServer == server).ToArray();
+        public static Color Rgb(byte r, byte g, byte b, byte a = byte.MaxValue)
+            => new()
+            {
+                R = r,
+                G = g,
+                B = b,
+                A = a,
+            };
+        public static NetworkText LiteralText(string text)
+            => new(text, NetworkText.Mode.Literal);
+        public static ClientData[] Online(this ServerInfo server) => Runtime.RuntimeState.Clients.Where(c => c.CurrentServer == server).ToArray();
         public static bool TryParseAddress(string address, out IPAddress ip)
         {
             ip = default;
@@ -210,8 +215,9 @@ namespace MultiSEngine
         }
         public static string GetText(this NetworkText text)
         {
-            //return text._mode == NetworkText.Mode.LocalizationKey ? Language.GetTextValue(text._text) : text._text;
-            return text._text;
+            return text.ToString();
         }
     }
 }
+
+
