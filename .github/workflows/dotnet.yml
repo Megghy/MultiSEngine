@@ -1,4 +1,4 @@
-name: Nighty
+name: CI
 
 on:
   push:
@@ -6,36 +6,47 @@ on:
   pull_request:
     branches: [ master ]
 
-jobs:
-  build:
+permissions:
+  contents: read
 
+jobs:
+  build-test-publish:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime:
+          - win-x64
+          - linux-x64
+          - linux-arm64
 
     steps:
-    - uses: actions/checkout@v6
-      with:
-        submodules: recursive    # 关键：递归拉取子模块
-        fetch-depth: 0
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v5
-      with:
-        dotnet-version: 9.0.x
-    - name: Restore dependencies
-      run: dotnet restore
-    - name: Build
-      run: |
-        dotnet publish ./MultiSEngine/MultiSEngine.csproj -c Release -r win-x64 -p:PublishSingleFile=true --self-contained false
-        dotnet publish ./MultiSEngine/MultiSEngine.csproj -c Release -r linux-x64 -p:PublishSingleFile=true --self-contained false
-        dotnet publish ./MultiSEngine/MultiSEngine.csproj -c Release -r linux-arm64 -p:PublishSingleFile=true --self-contained false
-    - uses: actions/upload-artifact@v6
-      with:
-        name: MultiSEngine-Win
-        path: ./MultiSEngine/bin/Release/net9.0/win-x64/publish/MultiSEngine.exe
-    - uses: actions/upload-artifact@v6
-      with:
-        name: MultiSEngine-Linux
-        path: ./MultiSEngine/bin/Release/net9.0/linux-x64/publish/MultiSEngine
-    - uses: actions/upload-artifact@v6
-      with:
-        name: MultiSEngine-Arm64
-        path: ./MultiSEngine/bin/Release/net9.0/linux-arm64/publish/MultiSEngine
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 9.0.x
+          cache: true
+
+      - name: Restore
+        run: dotnet restore ./MultiSEngine.slnx
+
+      - name: Build
+        run: dotnet build ./MultiSEngine.slnx -c Release --no-restore
+
+      - name: Test
+        run: dotnet test ./MultiSEngine.slnx -c Release --no-build
+
+      - name: Publish
+        run: dotnet publish ./src/MultiSEngine.csproj -c Release -r ${{ matrix.runtime }} -p:PublishSingleFile=true --self-contained false --no-restore
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: MultiSEngine-${{ matrix.runtime }}
+          path: ./src/bin/Release/net9.0/${{ matrix.runtime }}/publish/MultiSEngine*
+          if-no-files-found: error

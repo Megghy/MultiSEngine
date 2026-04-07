@@ -21,7 +21,7 @@ namespace MultiSEngine.Protocol.Handlers
                         {
                             Client.ReadVersion(joinEvent.Version);
                             if (Client.Player.VersionNum < 269 || (Client.Player.VersionNum != Config.Instance.ServerVersion && !Config.Instance.EnableCrossplayFeature))
-                                await Client.DisconnectAsync(Localization.Instance["Prompt_VersionNotAllowed", $"{RuntimeState.Convert(Client.Player.VersionNum)} ({Client.Player.VersionNum})"]); 
+                                await Client.DisconnectAsync(Localization.Instance["Prompt_VersionNotAllowed", $"{RuntimeState.Convert(Client.Player.VersionNum)} ({Client.Player.VersionNum})"]);
                             else
                                 await SendToClientDirectAsync(new LoadPlayer { PlayerSlot = 0, ServerWantsToRunCheckBytesInClientLoopThread = true }).ConfigureAwait(false);
                         }

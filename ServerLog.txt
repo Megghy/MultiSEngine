@@ -1,7 +1,0 @@
-[04/05/26 20:47:30] [Server API] Verbose: TerrariaApi - Server v2.1.0.0 started.
-[04/05/26 20:47:30] [Server API] Verbose: 	Command line: G:\Temp\TShock\TShockLauncher\bin\Debug\net9.0\TShock.Server.dll -port 7877 -maxplayers 8 -world G:\Temp\TShockRuntime\worlds\codex.wld -autocreate 1 -worldname CodexLiveTest -noupnp
-[04/05/26 20:47:30] [Server API] Verbose: 	OS: Microsoft Windows NT 10.0.26200.0 (64bit: True)
-[04/05/26 20:47:30] [Server API] Verbose: 	Mono: False
-[04/05/26 20:47:30] [TShock] Verbose: 监听端口在7877。
-[04/05/26 20:47:30] [TShock] Verbose: 世界名称将被重命名为:CodexLiveTest
-[04/05/26 20:47:30] [Server API] Info: Plugin TShock v6.1.0.0 (by The TShock Team) initiated.

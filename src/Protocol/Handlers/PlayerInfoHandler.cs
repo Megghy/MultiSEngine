@@ -25,6 +25,7 @@ namespace MultiSEngine.Protocol.Handlers
                     }
                     break;
                 case MessageID.SyncEquipment:
+                case MessageID.SyncLoadout:
                 case MessageID.PlayerHealth:
                 case MessageID.PlayerMana:
                 case MessageID.PlayerBuffs:
@@ -63,6 +64,16 @@ namespace MultiSEngine.Protocol.Handlers
                     if (context.Packet is not WorldData worldData)
                         throw new Exception("[PlayerInfoHandler] WorldData packet not found");
                     Client.Player.UpdateData(worldData, false);
+                    return ValueTask.FromResult(false);
+                case MessageID.SyncPlayer:
+                case MessageID.SyncEquipment:
+                case MessageID.SyncLoadout:
+                case MessageID.PlayerHealth:
+                case MessageID.PlayerMana:
+                case MessageID.PlayerBuffs:
+                case MessageID.PlayerControls:
+                    if (context.Packet is INetPacket packet)
+                        Client.Player.UpdateData(packet, false);
                     return ValueTask.FromResult(false);
                 case MessageID.SpawnPlayer:
                     if (context.Packet is not SpawnPlayer spawn)

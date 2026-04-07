@@ -83,7 +83,7 @@ namespace MultiSEngine.Commands.BuiltIn
                     $"{Localization.Get("Help_Tp")}\r\n" +
                     $"{Localization.Get("Help_Back")}\r\n" +
                     $"{Localization.Get("Help_List")}\r\n" +
-                    $"{Localization.Get("Help_Command")}" 
+                    $"{Localization.Get("Help_Command")}"
                     ).ConfigureAwait(false);
             }
         }

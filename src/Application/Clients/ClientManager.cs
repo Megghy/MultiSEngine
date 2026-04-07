@@ -1,8 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace MultiSEngine.Application.Clients
 {
     /// <summary>
@@ -55,10 +50,10 @@ namespace MultiSEngine.Application.Clients
                     client.Player.ServerCharacter.WorldData = client.TempAdapter.ConnectHandler.World ?? throw new Exception("[ClientManager] World data missing after pre-connect");
                     client.Player.SpawnX = client.TempAdapter.ConnectHandler.SpawnX;
                     client.Player.SpawnY = client.TempAdapter.ConnectHandler.SpawnY;
-                    client.Adapter?.PauseRouting(false, false);
 
                     client.TempAdapter = null;
                     await client.SyncAsync(server, cancel).ConfigureAwait(false);
+                    client.Adapter?.PauseRouting(false, false);
                 }
                 catch (InvalidOperationException ex)
                 {
@@ -105,10 +100,10 @@ namespace MultiSEngine.Application.Clients
                 if (client.Adapter?.ServerConnection is { } serverConnection)
                     await serverConnection.DisposeAsync(true).ConfigureAwait(false);
                 await client.SyncAsync(null, cancellationToken).ConfigureAwait(false);
-                await client.Teleport(4200, 1200).ConfigureAwait(false);
                 if (client.Adapter is { } adapter)
                 {
                     await adapter.SendToClientDirectAsync(RuntimeState.SpawnSquarePacket, cancellationToken).ConfigureAwait(false);
+                    await client.Teleport(4200, 1200).ConfigureAwait(false);
                     await adapter.SendToClientDirectAsync(RuntimeState.DeactivateAllPlayerPacket, cancellationToken).ConfigureAwait(false); //隐藏所有玩家
                 }
             }
@@ -155,7 +150,10 @@ namespace MultiSEngine.Application.Clients
                     StatMana = client.Player.OriginCharacter.Mana,
                     StatManaMax = client.Player.OriginCharacter.ManaMax,
                 });
-                client.Player.OriginCharacter.Inventory.Where(i => i.HasValue).Select(i => i!.Value).ForEach(item => EnqueuePacket(item));
+                EnqueuePacket(client.Player.OriginCharacter.CreateSyncLoadoutPacket(client.Player.Index));
+                client.Player.OriginCharacter
+                    .EnumerateSyncEquipment(client.Player.Index)
+                    .ForEach(packet => EnqueuePacket(packet));
                 bb[6] = false;//改回去
                 data.EventInfo1 = bb;
                 EnqueuePacket(data);

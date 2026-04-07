@@ -1,10 +1,9 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
-using System.Text.Json;
+using MultiSEngine.IntegrationTests.Support;
 using MultiSEngine.Models;
 using MultiSEngine.Networking;
-using MultiSEngine.IntegrationTests.Support;
 using TestSupport;
 using TrProtocol.NetPackets;
 
@@ -154,7 +153,7 @@ public sealed class ProxyConnectionTests
         await fakeServer.SendAsync(new RequestPassword());
     }
 
-    private static ServerInfo CreateTargetServer(string name, int port, int versionNum = 279)
+    private static ServerInfo CreateTargetServer(string name, int port, int versionNum = 318)
         => new()
         {
             Name = name,
@@ -166,7 +165,7 @@ public sealed class ProxyConnectionTests
     private static Config CreateConfig(ServerInfo defaultServer)
         => new()
         {
-            ServerVersion = 279,
+            ServerVersion = 318,
             SwitchTimeOut = (int)Timeout.TotalMilliseconds,
             DefaultServer = defaultServer.Name,
             Servers = [defaultServer],

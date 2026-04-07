@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\MultiSEngine\MultiSEngine.csproj" />
+    <ProjectReference Include="..\..\src\MultiSEngine.csproj" />
     <ProjectReference Include="..\..\external\TrProtocol\src\TrProtocol\TrProtocol.csproj" />
   </ItemGroup>
 

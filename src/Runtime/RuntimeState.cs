@@ -33,6 +33,7 @@ namespace MultiSEngine.Runtime
                 277 => "v1.4.4.8",
                 278 => "v1.4.4.8.1",
                 279 => "v1.4.4.9",
+                318 => "v1.4.5.5",
                 _ => "Unknown",
             };
         }

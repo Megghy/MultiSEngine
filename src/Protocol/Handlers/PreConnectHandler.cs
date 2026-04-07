@@ -154,10 +154,12 @@ namespace MultiSEngine.Protocol.Handlers
                     // 状态更新由 Join 统一处理
                     Client.SetIndex(index); //设置玩家索引
 
-                    await Parent.Client.Teleport(SpawnX, SpawnY - 3);
-                    await SendToClientDirectAsync(World);
-
+                    if (!HasBufferedPacket(MessageID.WorldData) && World is not null)
+                    {
+                        await SendToClientDirectAsync(World).ConfigureAwait(false);
+                    }
                     await Parent.SendToClientBatchAsync(recievedPackets).ConfigureAwait(false); // 将缓存的数据包批量发送给客户端, 等待客户端同步完成(客户端发送 RequestWorldInfo)
+                    await Parent.Client.Teleport(SpawnX, SpawnY - 3).ConfigureAwait(false);
 
                     await FinishedConnectingAsync().ConfigureAwait(false);
 
@@ -165,6 +167,9 @@ namespace MultiSEngine.Protocol.Handlers
             }
             return true;
         }
+
+        private bool HasBufferedPacket(MessageID messageId)
+            => recievedPackets.Any(packet => packet.Length >= 3 && (MessageID)packet.Span[2] == messageId);
     }
 }
 
