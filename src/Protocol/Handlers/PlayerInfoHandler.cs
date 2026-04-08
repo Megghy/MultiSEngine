@@ -1,4 +1,4 @@
-
+using MultiSEngine.Application.Transfers;
 namespace MultiSEngine.Protocol.Handlers
 {
     public class PlayerInfoHandler : BaseHandler
@@ -78,12 +78,7 @@ namespace MultiSEngine.Protocol.Handlers
                 case MessageID.SpawnPlayer:
                     if (context.Packet is not SpawnPlayer spawn)
                         throw new Exception("[PlayerInfoHandler] SpawnPlayer packet not found");
-                    Client.Player.SpawnX = spawn.Position.X;
-                    Client.Player.SpawnY = spawn.Position.Y;
-                    Client.Player.DeathsPVE = spawn.DeathsPVE;
-                    Client.Player.DeathsPVP = spawn.DeathsPVP;
-                    Client.Player.Timer = spawn.Timer;
-                    Client.Player.Context = spawn.Context;
+                    PlayerStateStore.ApplySpawn(Client.Player, spawn);
                     return ValueTask.FromResult(false);
             }
             return ValueTask.FromResult(false);

@@ -1,21 +1,23 @@
 using System.Buffers;
-using static MultiSEngine.Commands.CommandDispatcher;
+using MultiSEngine.Application.Extensions;
+using MultiSEngine.Application.Sessions;
 
 namespace MultiSEngine.Runtime
 {
     public static class RuntimeState
     {
-        public static List<ClientData> Clients { get; } = [];
-        public static List<CmdBase> Commands { get; } = [];
+        public static ClientRegistry ClientRegistry { get; } = new();
+        public static CommandRegistry Commands { get; } = new();
+        public static CustomPacketRegistry CustomPackets { get; } = new();
         internal static Utils.PacketMemoryRental? StaticSpawnSquareData { get; private set; }
         internal static Utils.PacketMemoryRental? StaticDeactiveAllPlayer { get; private set; }
         internal static ReadOnlyMemory<byte> SpawnSquarePacket => StaticSpawnSquareData?.Memory ?? ReadOnlyMemory<byte>.Empty;
         internal static ReadOnlyMemory<byte> DeactivateAllPlayerPacket => StaticDeactiveAllPlayer?.Memory ?? ReadOnlyMemory<byte>.Empty;
         private static string _motd = string.Empty;
         public static string Motd => _motd
-            .Replace("{online}", Clients.Count.ToString())
+            .Replace("{online}", ClientRegistry.Count.ToString())
             .Replace("{name}", Config.Instance.ServerName)
-            .Replace("{players}", string.Join(", ", Clients.Select(c => c.Name)))
+            .Replace("{players}", string.Join(", ", ClientRegistry.Snapshot().Select(c => c.Name)))
             .Replace("{servers}", string.Join(", ", Config.Instance.Servers.Where(s => s.Visible).Select(s => s.Name)));
         public static string MotdPath => Path.Combine(Environment.CurrentDirectory, "MOTD.txt");
         public static string Convert(int version)
@@ -34,10 +36,10 @@ namespace MultiSEngine.Runtime
                 278 => "v1.4.4.8.1",
                 279 => "v1.4.4.9",
                 318 => "v1.4.5.5",
+                319 => "v1.4.5.6",
                 _ => "Unknown",
             };
         }
-        public static readonly int[] Versions = { 230, 233, 234, 235, 236, 237, 238, 242, 243, 244, 245, 246, 247, 248 };
         [AutoInit(order: 0)]
         public static void Init()
         {
@@ -50,7 +52,7 @@ namespace MultiSEngine.Runtime
                 PlayerSlot = 1,
                 Active = false
             };
-            using var firstRental = playerActive.AsPacketRental();
+            using var firstRental = playerActive.AsPacketRental(true);
             var packetLength = firstRental.Memory.Length;
             var totalPlayers = 254;
             var owner = MemoryPool<byte>.Shared.Rent(packetLength * totalPlayers);
@@ -60,7 +62,7 @@ namespace MultiSEngine.Runtime
             for (int i = 2; i <= totalPlayers + 1; i++)
             {
                 playerActive.PlayerSlot = (byte)i;
-                using var rental = playerActive.AsPacketRental();
+                using var rental = playerActive.AsPacketRental(true);
                 rental.Memory.Span.CopyTo(destination[offset..]);
                 offset += rental.Memory.Length;
             }  //隐藏其他所有玩家

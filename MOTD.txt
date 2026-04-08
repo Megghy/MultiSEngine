@@ -1,0 +1,4 @@
+欢迎来到 {name} 服务器!
+当前服务器在线 [C/97ADD6:{online}] 人: {players}
+可用服务器: [C/B1DAE4:{servers}]
+使用 [C/B6E1C1:/mse tp <服务器名>] 来传送到指定服务器

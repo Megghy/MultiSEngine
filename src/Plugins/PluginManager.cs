@@ -17,14 +17,14 @@ namespace MultiSEngine.Plugins
     {
         public static readonly string PluginPath = Path.Combine(Environment.CurrentDirectory, "Plugins");
         public static readonly List<IMSEPlugin> PluginList = new();
+        public static IReadOnlyList<Assembly> LoadedAssemblies { get; private set; } = [];
         private static PluginHost<IMSEPlugin> _pluginHost;
-        [AutoInit("Loading all plugin.")]
         internal static void Load()
         {
             if (!Directory.Exists(PluginPath))
                 Directory.CreateDirectory(PluginPath);
             _pluginHost ??= new PluginHost<IMSEPlugin>();
-            _pluginHost.LoadPlugins(PluginPath, plugin => Logs.Success($"- Loaded plugin: {plugin.Name} <{plugin.Author}> V{plugin.Version}"));
+            LoadedAssemblies = _pluginHost.LoadPlugins(PluginPath, plugin => Logs.Success($"- Loaded plugin: {plugin.Name} <{plugin.Author}> V{plugin.Version}"));
 
             Logs.Info($"{PluginList.Count} Plugin(s) loaded.");
         }
@@ -38,6 +38,7 @@ namespace MultiSEngine.Plugins
             PluginList.Clear();
             _pluginHost.Unload();
             _pluginHost = null;
+            LoadedAssemblies = [];
         }
         public static void Reload()
         {
@@ -71,15 +72,17 @@ namespace MultiSEngine.Plugins
                     }
                 }
             }
-            public void LoadPlugins(string pluginPath, Action<IMSEPlugin> registerCallback = null)
+            public IReadOnlyList<Assembly> LoadPlugins(string pluginPath, Action<IMSEPlugin> registerCallback = null)
             {
-                LoadPlugins(FindAssemliesWithPlugins(pluginPath), registerCallback);
+                return LoadPlugins(FindAssemliesWithPlugins(pluginPath), registerCallback);
             }
-            public void LoadPlugins(IReadOnlyCollection<string> assembliesWithPlugins, Action<IMSEPlugin> registerCallback = null)
+            public IReadOnlyList<Assembly> LoadPlugins(IReadOnlyCollection<string> assembliesWithPlugins, Action<IMSEPlugin> registerCallback = null)
             {
+                var loadedAssemblies = new List<Assembly>(assembliesWithPlugins.Count);
                 foreach (var assemblyPath in assembliesWithPlugins)
                 {
                     var assembly = _pluginAssemblyLoadingContext.LoadFromAssemblyPath(assemblyPath);
+                    loadedAssemblies.Add(assembly);
                     var validPluginTypes = GetPluginTypes(assembly);
                     foreach (var pluginType in validPluginTypes)
                     {
@@ -87,6 +90,7 @@ namespace MultiSEngine.Plugins
                         RegisterPlugin(pluginInstance, registerCallback);
                     }
                 }
+                return loadedAssemblies;
             }
 
             /// <summary>

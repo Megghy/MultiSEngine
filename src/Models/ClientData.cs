@@ -1,12 +1,17 @@
 using System.Net;
+using MultiSEngine.Application.Sessions;
 
 namespace MultiSEngine.Models
 {
     public class ClientData
     {
+        private static long _nextSessionId;
+
         public ClientData()
         {
         }
+        public long SessionId { get; } = Interlocked.Increment(ref _nextSessionId);
+        public SessionStateMachine Session { get; } = new();
         public BaseAdapter Adapter { get; set; }
         internal PreConnectAdapter TempAdapter { get; set; } = null;
 
@@ -56,12 +61,15 @@ namespace MultiSEngine.Models
         {
             if (Disposed)
                 return;
-            Disposed = true;
-            lock (RuntimeState.Clients)
+            if (Session.State != SessionState.Disconnected)
             {
-                if (!RuntimeState.Clients.Remove(this))
-                    Logs.Warn($"Abnormal remove of client data.");
+                if (Session.State != SessionState.Disconnecting)
+                    SessionLifecycleService.BeginDisconnect(this);
+                SessionLifecycleService.CompleteDisconnect(this);
             }
+            Disposed = true;
+            if (!RuntimeState.ClientRegistry.Remove(this))
+                Logs.Warn($"Abnormal remove of client data.");
             State = ClientState.Disconnect;
             Adapter?.Dispose(true);
             TempAdapter?.Dispose(true);

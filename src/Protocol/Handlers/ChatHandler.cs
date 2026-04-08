@@ -29,7 +29,7 @@ namespace MultiSEngine.Protocol.Handlers
                             .Replace("{servername}", Client.CurrentServer?.Name ?? "Not Join")
                             .Replace("username", Client.Name)
                             .Replace("{message}", chat.Text);
-                        foreach (var c in RuntimeState.Clients.Where(c => c.CurrentServer != Client.CurrentServer))
+                        foreach (var c in RuntimeState.ClientRegistry.Where(c => c.CurrentServer != Client.CurrentServer))
                             await c.SendMessageAsync(msg).ConfigureAwait(false);
                     }
                     if (Client.CurrentServer is null)

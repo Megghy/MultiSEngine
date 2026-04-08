@@ -1,4 +1,6 @@
 
+using MultiSEngine.Application.Transfers;
+
 namespace MultiSEngine.Application.Clients
 {
     public static partial class ClientManager
@@ -17,16 +19,7 @@ namespace MultiSEngine.Application.Clients
             => Commands.CommandDispatcher.HandleCommand(client, cmd);
 
         public static async ValueTask Teleport(this ClientData client, int tileX, int tileY)
-        {
-            await client.Adapter.SendToClientDirectAsync(new Teleport
-            {
-                Bit1 = new BitsByte(),
-                PlayerSlot = client.Player.Index,
-                Position = new Vector2(tileX * 16, tileY * 16),
-                Style = 0,
-                ExtraInfo = 0,
-            }).ConfigureAwait(false);
-        }
+            => await TeleportService.SendTeleportAsync(client, tileX, tileY).ConfigureAwait(false);
 
         public static async ValueTask AddBuffAsync(this ClientData client, ushort buffID, int time = 60)
         {
@@ -77,7 +70,7 @@ namespace MultiSEngine.Application.Clients
         }
 
         public static ClientData GetClientByName(string name)
-            => RuntimeState.Clients.FirstOrDefault(c => c.Name == name);
+            => RuntimeState.ClientRegistry.Find(c => c.Name == name);
     }
 }
 

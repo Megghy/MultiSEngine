@@ -62,7 +62,7 @@ namespace MultiSEngine.Commands.BuiltIn
                         if (parma.Length < 3)
                             Console.Write("error /mse let name server");
                         else
-                            if (RuntimeState.Clients.FirstOrDefault(c => c.Name.ToLower().StartsWith(parma[1].ToLower())) is { } targetClient)
+                            if (RuntimeState.ClientRegistry.Find(c => c.Name.StartsWith(parma[1], StringComparison.CurrentCultureIgnoreCase)) is { } targetClient)
                             {
                                 await targetClient.Join(Utils.GetSingleServerInfoByName(parma[2])).ConfigureAwait(false);
                             }

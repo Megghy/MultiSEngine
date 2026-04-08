@@ -1,10 +1,19 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
+using MultiSEngine;
+using MultiSEngine.Application.Sessions;
 using MultiSEngine.IntegrationTests.Support;
 using MultiSEngine.Models;
 using MultiSEngine.Networking;
+using MultiSEngine.Protocol.Adapters;
+using MultiSEngine.Protocol.Handlers;
+using MultiSEngine.Runtime;
+using Microsoft.Xna.Framework;
+using Terraria;
+using Terraria.DataStructures;
 using TestSupport;
+using TrProtocol;
 using TrProtocol.NetPackets;
 
 namespace MultiSEngine.IntegrationTests;
@@ -122,6 +131,116 @@ public sealed class ProxyConnectionTests
         Assert.True(result, tshock.Output);
     }
 
+    [Fact]
+    public async Task FakeWorldHandshake_CompletesVanillaSequence()
+    {
+        using var workspace = new TemporaryWorkspace("integration-fake-world");
+        workspace.WriteConfig(new Config
+        {
+            ServerVersion = 319,
+            EnableCrossplayFeature = true,
+            SwitchToDefaultServerOnJoin = false,
+            SwitchTimeOut = (int)Timeout.TotalMilliseconds,
+            Servers = [],
+        });
+        RuntimeState.Init();
+
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+
+        var acceptedClient = new TaskCompletionSource<ClientData>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var unexpectedException = new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var acceptTask = Task.Run(async () =>
+        {
+            try
+            {
+                var connection = await listener.AcceptTcpClientAsync();
+                var client = new ClientData();
+                var adapter = new BaseAdapter(client, new TcpContainer(connection));
+                client.Adapter = adapter;
+                adapter.RegisterHandler(new AcceptConnectionHandler(adapter));
+                adapter.ExceptionRaised += ex =>
+                {
+                    if (ex is IOException io &&
+                        (io.Message.StartsWith("Remote closed the connection", StringComparison.Ordinal)
+                         || io.Message.StartsWith("Remote closed the connection while reading.", StringComparison.Ordinal)))
+                    {
+                        return Task.CompletedTask;
+                    }
+
+                    unexpectedException.TrySetResult(ex);
+                    return Task.CompletedTask;
+                };
+                adapter.Start();
+                acceptedClient.TrySetResult(client);
+            }
+            catch (Exception ex)
+            {
+                acceptedClient.TrySetException(ex);
+                unexpectedException.TrySetResult(ex);
+            }
+        });
+
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+
+        await using var probeClient = await ProbeClient.ConnectAsync(port, Timeout);
+
+        await probeClient.SendAsync(new ClientHello("Terraria319"));
+        var loadPlayer = await probeClient.ReadPacketAsync<LoadPlayer>(Timeout);
+        Assert.Equal((byte)0, loadPlayer.PlayerSlot);
+        Assert.False(loadPlayer.ServerWantsToRunCheckBytesInClientLoopThread);
+
+        await probeClient.SendAsync(new RequestWorldInfo());
+        var worldData = await probeClient.ReadPacketAsync<WorldData>(Timeout);
+        Assert.Equal(Config.Instance.ServerName, worldData.WorldName);
+        Assert.Equal(4200, worldData.SpawnX);
+        Assert.Equal(1200, worldData.SpawnY);
+
+        await probeClient.SendAsync(new RequestTileData(new Point(worldData.SpawnX, worldData.SpawnY), 0));
+        var status = await probeClient.ReadPacketAsync<StatusText>(Timeout);
+        Assert.Equal("Receiving tile data", status.Text.GetText());
+        await probeClient.ReadPacketAsync<TileSection>(Timeout);
+        await probeClient.ReadPacketAsync<StartPlaying>(Timeout);
+
+        var spawn = new SpawnPlayer(
+            loadPlayer.PlayerSlot,
+            new Point16(worldData.SpawnX, worldData.SpawnY),
+            0,
+            0,
+            0,
+            0,
+            PlayerSpawnContext.SpawningIntoWorld);
+
+        await probeClient.SendAsync(spawn);
+
+        var echoedSpawn = await probeClient.ReadPacketAsync<SpawnPlayer>(Timeout);
+        Assert.Equal(spawn.PlayerSlot, echoedSpawn.PlayerSlot);
+        Assert.Equal(spawn.Position.X, echoedSpawn.Position.X);
+        Assert.Equal(spawn.Position.Y, echoedSpawn.Position.Y);
+        await probeClient.ReadPacketAsync<FinishedConnectingToServer>(Timeout);
+
+        var proxyClient = await acceptedClient.Task.WaitAsync(Timeout);
+        Assert.Equal(SessionState.IdleInFakeWorld, proxyClient.Session.State);
+        Assert.Equal(1, RuntimeState.ClientRegistry.Count);
+        string? unexpectedMessage = null;
+        if (unexpectedException.Task.IsCompletedSuccessfully)
+            unexpectedMessage = (await unexpectedException.Task)?.ToString();
+
+        Assert.False(
+            unexpectedException.Task.IsCompleted,
+            unexpectedMessage ?? "Unexpected proxy exception.");
+
+        await proxyClient.Adapter!.DisposeAsync();
+        proxyClient.Dispose();
+
+        await Task.Delay(50);
+        Assert.Equal(0, RuntimeState.ClientRegistry.Count);
+
+        listener.Stop();
+        await acceptTask;
+    }
+
     private static async Task RunSuccessfulHandshakeAsync(FakeTerrariaServer fakeServer)
     {
         await fakeServer.WaitForConnectionAsync(Timeout);
@@ -195,5 +314,72 @@ public sealed class ProxyConnectionTests
         using var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
         return ((IPEndPoint)listener.LocalEndpoint).Port;
+    }
+
+    private sealed class ProbeClient(TcpClient connection) : IAsyncDisposable
+    {
+        private readonly PacketSerializer _c2s = new(false);
+        private readonly PacketSerializer _s2c = new(true);
+
+        public static async Task<ProbeClient> ConnectAsync(int port, TimeSpan timeout)
+        {
+            var connection = new TcpClient();
+            using var timeoutCts = new CancellationTokenSource(timeout);
+            await connection.ConnectAsync(IPAddress.Loopback, port, timeoutCts.Token);
+            return new ProbeClient(connection);
+        }
+
+        public async Task SendAsync(INetPacket packet, CancellationToken cancellationToken = default)
+        {
+            var bytes = _c2s.Serialize(packet);
+            await connection.GetStream().WriteAsync(bytes, cancellationToken);
+        }
+
+        public async Task<TPacket> ReadPacketAsync<TPacket>(TimeSpan timeout)
+            where TPacket : struct, INetPacket
+        {
+            using var timeoutCts = new CancellationTokenSource(timeout);
+            var packet = await ReadNextPacketAsync(timeoutCts.Token);
+            var typedPacket = Assert.IsType<TPacket>(packet);
+            return typedPacket;
+        }
+
+        private async Task<object> ReadNextPacketAsync(CancellationToken cancellationToken)
+        {
+            var header = new byte[2];
+            await ReadExactlyAsync(connection.GetStream(), header, cancellationToken);
+
+            var length = BitConverter.ToUInt16(header, 0);
+            if (length < 2)
+                throw new IOException($"Invalid packet length: {length}");
+
+            var packetBytes = new byte[length];
+            header.CopyTo(packetBytes, 0);
+            await ReadExactlyAsync(connection.GetStream(), packetBytes.AsMemory(2, length - 2), cancellationToken);
+
+            using var memory = new MemoryStream(packetBytes);
+            using var reader = new BinaryReader(memory);
+            return _s2c.Deserialize(reader);
+        }
+
+        private static async Task ReadExactlyAsync(Stream stream, Memory<byte> buffer, CancellationToken cancellationToken)
+        {
+            var offset = 0;
+            while (offset < buffer.Length)
+            {
+                var read = await stream.ReadAsync(buffer[offset..], cancellationToken);
+                if (read == 0)
+                    throw new IOException("Remote closed the connection while reading.");
+
+                offset += read;
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            connection.Close();
+            connection.Dispose();
+            await Task.CompletedTask;
+        }
     }
 }

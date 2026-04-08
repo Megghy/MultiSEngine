@@ -1,4 +1,4 @@
-
+using MultiSEngine.Application.Extensions;
 namespace MultiSEngine.Commands.BuiltIn
 {
     internal class ConsoleCommand : Commands.CommandDispatcher.CmdBase
@@ -9,7 +9,6 @@ namespace MultiSEngine.Commands.BuiltIn
         {
             if (string.IsNullOrEmpty(cmdName))
                 return true;
-            var internalCommand = RuntimeState.Commands.FirstOrDefault(c => c.Name == "mse");
             switch (cmdName)
             {
                 case "l":
@@ -19,7 +18,7 @@ namespace MultiSEngine.Commands.BuiltIn
                 case "ol":
                 case "online":
                 case "playing":
-                    Logs.Info($"{RuntimeState.Clients.Count} Player(s) Online:{Environment.NewLine}{string.Join(", ", from c in RuntimeState.Clients let text = $"{c.Name} <{c.CurrentServer?.Name ?? "FakeWorld"}>" select text)}", false);
+                    Logs.Info($"{RuntimeState.ClientRegistry.Count} Player(s) Online:{Environment.NewLine}{string.Join(", ", from c in RuntimeState.ClientRegistry.SnapshotClients() let text = $"{c.Name} <{c.CurrentServer?.Name ?? "FakeWorld"}>" select text)}", false);
                     break;
                 case "stop":
                 case "exit":
@@ -29,7 +28,7 @@ namespace MultiSEngine.Commands.BuiltIn
                     if (parma.Any())
                     {
                         var name = parma[0].Trim().ToLower();
-                        if (RuntimeState.Clients.FirstOrDefault(c => c.Name.ToLower() == name || c.Name.ToLower().StartsWith(name)) is { } c)
+                        if (RuntimeState.ClientRegistry.Find(c => c.Name.ToLower() == name || c.Name.ToLower().StartsWith(name)) is { } c)
                             await c.DisconnectAsync(Localization.Instance["Command_Kick", Config.Instance.ServerName, parma.Length > 1 ? parma[1] : "Unknown"]);
                         else
                             Logs.Error($"Specified player: [{parma[0]}] not found.");
@@ -45,7 +44,7 @@ namespace MultiSEngine.Commands.BuiltIn
                     break;
                 case "reloadplugin":
                 case "rp":
-                    Plugins.PluginManager.Reload();
+                    ExtensionBootstrap.Reload();
                     break;
                 case "broadcast":
                 case "bc":
@@ -53,7 +52,7 @@ namespace MultiSEngine.Commands.BuiltIn
                     {
                         if (Utils.GetServersInfoByName(parma[1]).FirstOrDefault() is { } server)
                         {
-                            foreach (var c in RuntimeState.Clients.Where(c => c.CurrentServer == server))
+                            foreach (var c in RuntimeState.ClientRegistry.Where(c => c.CurrentServer == server))
                                 await c.SendMessageAsync($"[Broadcast] {parma[0]}", Utils.Rgb(255, 255, 255), false).ConfigureAwait(false);
                         }
                         else
@@ -61,7 +60,7 @@ namespace MultiSEngine.Commands.BuiltIn
                     }
                     else
                     {
-                        foreach (var c in RuntimeState.Clients)
+                        foreach (var c in RuntimeState.ClientRegistry.SnapshotClients())
                             await c.SendMessageAsync($"[Broadcast] {parma.FirstOrDefault()}", Utils.Rgb(255, 255, 255), false).ConfigureAwait(false);
                     }
                     Logs.Info($"Broadcast: {(parma.Length > 1 ? parma[1] : parma[0])}");
@@ -94,7 +93,7 @@ namespace MultiSEngine.Commands.BuiltIn
                         $"- reloadplugin(rp) -- Reload Plugin.{Environment.NewLine}", false);
                     break;
             }
-            RuntimeState.Commands.FirstOrDefault(c => c.Name == "mce")?.Execute(client, cmdName, parma);
+            RuntimeState.Commands.Find(c => c.Name == "mce")?.Execute(client, cmdName, parma);
             return true;
         }
     }

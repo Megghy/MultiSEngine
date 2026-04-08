@@ -11,10 +11,10 @@ namespace MultiSEngine.Protocol.Handlers
                 case MessageID.Kick:
                     if (context.Packet is not Kick kick)
                         throw new Exception("[CommonHandler] Kick packet not found");
-                    Client.State = ClientState.Disconnect;
+                    var currentServer = Client.CurrentServer ?? throw new InvalidOperationException("[CommonHandler] Kick received without current server.");
                     var reason = kick.Reason.GetText();
-                    Logs.Info($"Player {Client.Player.Name} is removed from server {Client.CurrentServer.Name}, for the following reason:{reason}");
-                    await Client.SendErrorMessageAsync(string.Format(Localization.Instance["Prompt_Disconnect", Client.CurrentServer.Name, kick.Reason.GetText()])).ConfigureAwait(false);
+                    Logs.Info($"Player {Client.Player.Name} is removed from server {currentServer.Name}, for the following reason:{reason}");
+                    await Client.SendErrorMessageAsync(string.Format(Localization.Instance["Prompt_Disconnect", currentServer.Name, reason])).ConfigureAwait(false);
                     await Client.BackAsync();
                     return true;
             }

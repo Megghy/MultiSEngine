@@ -1,27 +1,18 @@
-using System.Text.Json;
+using MultiSEngine.Application.Transfers;
 
 namespace MultiSEngine.Protocol.Handlers
 {
-    public class PreConnectHandler(BaseAdapter parent, ServerInfo server) : BaseHandler(parent)
+    public class PreConnectHandler(BaseAdapter parent, PreConnectSession session) : BaseHandler(parent)
     {
-        public short SpawnX { get; private set; } = -1;
-        public short SpawnY { get; private set; } = -1;
-        public WorldData? World { get; private set; }
-
-        public ServerInfo TargetServer { get; init; } = server;
-        public bool IsConnecting { get; private set; } = true;
-
-        private byte index = 0;
-        private readonly TaskCompletionSource<bool> _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private List<ReadOnlyMemory<byte>> recievedPackets = [];
+        public PreConnectSession Session { get; } = session;
+        public ServerInfo TargetServer => Session.TargetServer;
+        public bool IsConnecting => Session.IsConnecting;
 
         public override void Dispose()
         {
             base.Dispose();
-            recievedPackets.Clear();
+            Session.Dispose();
         }
-
-        public Task<bool> ConnectionTask => _tcs.Task;
         public override ValueTask<bool> RecieveClientDataAsync(HandlerPacketContext context)
         {
             var msgType = context.MessageId;
@@ -33,9 +24,8 @@ namespace MultiSEngine.Protocol.Handlers
         }
         private async ValueTask FinishedConnectingAsync()
         {
-            _tcs.TrySetResult(true); //设置连接成功
+            Session.MarkSucceeded();
             Parent.DeregisterHandler(this); //转换处理模式为普通
-            IsConnecting = false;
             if (Hooks.OnPostSwitch(Client, TargetServer, out _))
             {
                 return;
@@ -47,37 +37,28 @@ namespace MultiSEngine.Protocol.Handlers
         {
             var msgType = context.MessageId;
 
-            recievedPackets.Add(context.Data.ToArray());
+            Session.BufferPacket(context.Data);
 
             switch (msgType)
             {
                 case MessageID.Kick:
                     if (context.Packet is not Kick kick)
                         throw new Exception("[PreConnectHandler] Kick packet not found");
-                    await Parent.DisposeAsync(true).ConfigureAwait(false);
-                    await Client.SendErrorMessageAsync(Localization.Instance["Prompt_Disconnect", TargetServer.Name, kick.Reason.GetText()]).ConfigureAwait(false);
                     Logs.Info($"[{Client.Name}] kicked by [{TargetServer.Name}]: {kick.Reason.GetText()}");
-                    Client.State = ClientState.Disconnect;
-                    IsConnecting = false;
-                    _tcs.TrySetResult(false);
+                    Session.MarkFailed($"PreConnect failed to {TargetServer.Name}: {kick.Reason.GetText()}");
                     Parent.DeregisterHandler(this);
                     break;
                 case MessageID.LoadPlayer:
                     if (context.Packet is not LoadPlayer slot)
                         throw new Exception("[PreConnectHandler] LoadPlayer packet not found");
-
-                    if (Client.Player.Index != slot.PlayerSlot) // 玩家索引需要更新
-                        return true; // 预连接阶段拦截，不直接下发给客户端
-
-                    index = slot.PlayerSlot;
+                    Session.SetRemotePlayerIndex(slot.PlayerSlot);
                     Logs.Info($"[{Client.Name}] remote index: {slot.PlayerSlot}");
                     if (Config.Instance.UseCrowdControlled)
                     {
                         await Client.AddBuffAsync(149, 60).ConfigureAwait(false);
                     }
 
-                    var tempInfo = JsonSerializer.Deserialize<SyncPlayer>(JsonSerializer.Serialize(Client.Player.OriginCharacter.Info ?? throw new Exception("[PreConnectHandler] Origin player info not found")));
-                    tempInfo.PlayerSlot = index;
+                    var tempInfo = PlayerStateStore.CreateRemoteSyncPlayer(Client.Player, slot.PlayerSlot);
                     await SendToServerDirectAsync(tempInfo).ConfigureAwait(false);
                     await SendToServerDirectAsync(new SyncIP()
                     {
@@ -93,8 +74,6 @@ namespace MultiSEngine.Protocol.Handlers
 #if DEBUG
                     await Client.SendInfoMessageAsync($"SSC: {worldData.EventInfo1[6]}").ConfigureAwait(false);
 #endif
-                    if (World is null)
-                        World = worldData;
                     var worldMaxX = worldData.MaxTileX;
                     var worldMaxY = worldData.MaxTileY;
 
@@ -106,8 +85,7 @@ namespace MultiSEngine.Protocol.Handlers
                         Logs.Warn($"[{Client.Name}] <Server: {TargetServer.Name}> spawn point invalid ({TargetServer.SpawnX}, {TargetServer.SpawnY} | World size: {worldMaxX}, {worldMaxY}), adjusted to ({spawnX}, {spawnY})");
                     }
 
-                    SpawnX = spawnX;
-                    SpawnY = spawnY;
+                    Session.UpdateWorldData(worldData, spawnX, spawnY);
 
                     await SendToServerDirectAsync(new RequestTileData
                     {
@@ -116,8 +94,8 @@ namespace MultiSEngine.Protocol.Handlers
 
                     await SendToServerDirectAsync(new SpawnPlayer
                     {
-                        PlayerSlot = index,
-                        Position = new Terraria.DataStructures.Point16(SpawnX, SpawnY),
+                        PlayerSlot = Session.RemotePlayerIndex,
+                        Position = new Terraria.DataStructures.Point16(Session.SpawnX, Session.SpawnY),
                         Timer = Client.Player.Timer,
                         DeathsPVE = Client.Player.DeathsPVE,
                         DeathsPVP = Client.Player.DeathsPVP,
@@ -152,14 +130,8 @@ namespace MultiSEngine.Protocol.Handlers
                     Console.WriteLine($"[PreConnectHandler] connect successed, sending data to client");
 #endif
                     // 状态更新由 Join 统一处理
-                    Client.SetIndex(index); //设置玩家索引
-
-                    if (!HasBufferedPacket(MessageID.WorldData) && World is not null)
-                    {
-                        await SendToClientDirectAsync(World).ConfigureAwait(false);
-                    }
-                    await Parent.SendToClientBatchAsync(recievedPackets).ConfigureAwait(false); // 将缓存的数据包批量发送给客户端, 等待客户端同步完成(客户端发送 RequestWorldInfo)
-                    await Parent.Client.Teleport(SpawnX, SpawnY - 3).ConfigureAwait(false);
+                    Client.SetIndex(Session.RemotePlayerIndex);
+                    await TeleportService.CompleteTargetEntryAsync(Parent, Parent.Client, Session).ConfigureAwait(false);
 
                     await FinishedConnectingAsync().ConfigureAwait(false);
 
@@ -167,9 +139,6 @@ namespace MultiSEngine.Protocol.Handlers
             }
             return true;
         }
-
-        private bool HasBufferedPacket(MessageID messageId)
-            => recievedPackets.Any(packet => packet.Length >= 3 && (MessageID)packet.Span[2] == messageId);
     }
 }
 

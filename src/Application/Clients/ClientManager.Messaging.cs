@@ -108,54 +108,12 @@ namespace MultiSEngine.Application.Clients
 
         public static async ValueTask BroadcastAsync(this ClientData client, string message, bool ignoreSelf = true)
         {
-            foreach (var c in RuntimeState.Clients.Where(c => !ignoreSelf || c != client))
+            foreach (var c in RuntimeState.ClientRegistry.Where(c => !ignoreSelf || c != client))
                 await c.SendMessageAsync(message, Utils.Rgb(255, 255, 255), false).ConfigureAwait(false);
         }
 
         public static void Broadcast(this ClientData client, string message, bool ignoreSelf = true)
             => _ = client.BroadcastAsync(message, ignoreSelf);
-
-        private static async ValueTask DispatchBatchToClientAsync(ClientData client, List<Utils.PacketMemoryRental> rentals, CancellationToken cancellationToken)
-        {
-            if (rentals.Count == 0)
-            {
-                foreach (var rental in rentals)
-                    rental.Dispose();
-                return;
-            }
-
-            var adapter = client.Adapter;
-            if (adapter is null)
-            {
-                foreach (var rental in rentals)
-                    rental.Dispose();
-                return;
-            }
-
-            var bufferArray = new ReadOnlyMemory<byte>[rentals.Count];
-            var rentalArray = new Utils.PacketMemoryRental[rentals.Count];
-            for (int i = 0; i < rentals.Count; i++)
-            {
-                rentalArray[i] = rentals[i];
-                bufferArray[i] = rentals[i].Memory;
-            }
-
-            rentals.Clear();
-
-            try
-            {
-                await adapter.SendToClientBatchAsync(bufferArray, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Logs.Warn($"Failed to send batch data to {client.Name}{Environment.NewLine}{ex}");
-            }
-            finally
-            {
-                foreach (var rental in rentalArray)
-                    rental.Dispose();
-            }
-        }
     }
 }
 

@@ -1,10 +1,13 @@
 using System.Net.Sockets;
 
+using MultiSEngine.Application.Transfers;
+
 namespace MultiSEngine.Protocol.Adapters
 {
     public class PreConnectAdapter(ClientData client, TcpContainer clientConnection, ServerInfo targetServer) : BaseAdapter(client, clientConnection, null)
     {
         public ServerInfo TargetServer { get; init; } = targetServer;
+        public PreConnectSession Session { get; private set; }
         public PreConnectHandler ConnectHandler { get; private set; }
 
         public virtual async Task TryConnect(CancellationToken cancel = default)
@@ -12,7 +15,8 @@ namespace MultiSEngine.Protocol.Adapters
             // fully async connect and handshake; TcpContainer owns the TcpClient lifecycle
             if (ConnectHandler?.IsConnecting == true)
                 return;
-            ConnectHandler = new PreConnectHandler(this, TargetServer);
+            Session = new(TargetServer);
+            ConnectHandler = new PreConnectHandler(this, Session);
             ConnectHandler.Initialize();
             RegisterHandler(ConnectHandler);
             cancel = cancel == default ? new CancellationTokenSource(Config.Instance.SwitchTimeOut).Token : cancel;
@@ -37,9 +41,9 @@ namespace MultiSEngine.Protocol.Adapters
                             UUID = Client.Player.UUID
                         }, cancel).ConfigureAwait(false);
                     }
-                    var success = await ConnectHandler.ConnectionTask.WaitAsync(cancel).ConfigureAwait(false);
+                    var success = await Session.CompletionTask.WaitAsync(cancel).ConfigureAwait(false);
                     if (!success)
-                        throw new InvalidOperationException($"PreConnect failed to {TargetServer.Name}");
+                        throw new InvalidOperationException(Session.FailureReason ?? $"PreConnect failed to {TargetServer.Name}");
                 }
                 catch
                 {

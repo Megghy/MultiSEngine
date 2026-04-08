@@ -92,9 +92,9 @@ namespace MultiSEngine
         public string ListenIP { get; set; } = "0.0.0.0";
         public int ListenPort { get; set; } = 7778;
         public string ServerName { get; set; } = "MultiSEngine";
-        public int ServerVersion { get; set; } = 318;
+        public int ServerVersion { get; set; } = 319;
         public int SwitchTimeOut { get; set; } = 10000;
-        public bool EnableCrossplayFeature { get; set; } = false;
+        public bool EnableCrossplayFeature { get; set; } = true;
         public bool EnableChatForward { get; set; } = true;
         public string ChatFormat { get; set; } = "[{servername}] {username}: {message}";
         public bool SwitchToDefaultServerOnJoin { get; set; } = false;

@@ -1,4 +1,5 @@
 using System.Reflection;
+using MultiSEngine.Application.Extensions;
 
 namespace MultiSEngine
 {
@@ -76,8 +77,9 @@ namespace MultiSEngine
         }
         public static async Task CloseAsync()
         {
+            HookRegistry.Reset();
             Plugins.PluginManager.Unload();
-            foreach (var c in RuntimeState.Clients.ToArray())
+            foreach (var c in RuntimeState.ClientRegistry.SnapshotClients())
             {
                 await c.DisconnectAsync("Server closed.").ConfigureAwait(false);
             }

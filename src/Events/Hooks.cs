@@ -30,6 +30,15 @@ namespace MultiSEngine.Events
         public static event HookDelegates.ChatEvent Chat;
         //public static event HookDelegates.SendPacketEvent SendPacket;
         //public static event HookDelegates.RecievePacketEvent RecievePacket;
+        internal static void Reset()
+        {
+            PlayerJoin = null;
+            PlayerLeave = null;
+            RecieveCustomData = null;
+            PreSwitch = null;
+            PostSwitch = null;
+            Chat = null;
+        }
         internal static bool OnPlayerJoin(ClientData client, string ip, int port, string version, out PlayerJoinEventArgs args)
         {
             args = new(client, ip, port, version);

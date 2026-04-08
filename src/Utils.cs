@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Net;
 using System.Net.Sockets;
+using TrProtocol.Interfaces;
 
 namespace MultiSEngine
 {
@@ -87,17 +88,25 @@ namespace MultiSEngine
             return (fromServer ? GetS2CSerializer() : GetC2SSerializer()).Deserialize(br);
         }
 
-        public static PacketMemoryRental AsPacketRental(this INetPacket packet, int bufferSizeHint = DefaultPacketBufferSize)
+        public static PacketMemoryRental AsPacketRental(this INetPacket packet, bool fromServer = true, int bufferSizeHint = DefaultPacketBufferSize)
         {
-            var bytes = GetC2SSerializer().Serialize(packet);
+            if (packet is ISideSpecific sideSpecific)
+                sideSpecific.IsServerSide = fromServer;
+            var bytes = (fromServer ? GetS2CSerializer() : GetC2SSerializer()).Serialize(packet);
             var owner = MemoryPool<byte>.Shared.Rent(Math.Max(bytes.Length, bufferSizeHint));
             var memory = owner.Memory;
             bytes.CopyTo(memory);
             return new PacketMemoryRental(owner, bytes.Length);
         }
-        public static ReadOnlyMemory<byte> AsReadOnlyMemory(this INetPacket packet, out PacketMemoryRental rental, int bufferSizeHint = DefaultPacketBufferSize)
+        public static PacketMemoryRental AsPacketRental(this ReadOnlyMemory<byte> buffer, int bufferSizeHint = DefaultPacketBufferSize)
         {
-            rental = packet.AsPacketRental(bufferSizeHint);
+            var owner = MemoryPool<byte>.Shared.Rent(Math.Max(buffer.Length, bufferSizeHint));
+            buffer.Span.CopyTo(owner.Memory.Span);
+            return new PacketMemoryRental(owner, buffer.Length);
+        }
+        public static ReadOnlyMemory<byte> AsReadOnlyMemory(this INetPacket packet, out PacketMemoryRental rental, bool fromServer = true, int bufferSizeHint = DefaultPacketBufferSize)
+        {
+            rental = packet.AsPacketRental(fromServer, bufferSizeHint);
             return rental.Memory;
         }
         public static Color Rgb(byte r, byte g, byte b, byte a = byte.MaxValue)
@@ -110,7 +119,7 @@ namespace MultiSEngine
             };
         public static NetworkText LiteralText(string text)
             => new(text, NetworkText.Mode.Literal);
-        public static ClientData[] Online(this ServerInfo server) => Runtime.RuntimeState.Clients.Where(c => c.CurrentServer == server).ToArray();
+        public static ClientData[] Online(this ServerInfo server) => Runtime.RuntimeState.ClientRegistry.Where(c => c.CurrentServer == server);
         public static bool TryParseAddress(string address, out IPAddress ip)
         {
             ip = default;
@@ -211,7 +220,7 @@ namespace MultiSEngine
             {
                 list[i] = tile;
             }
-            return new TileSection { Data = new SectionData { StartX = x, StartY = y, Width = width, Height = height, Tiles = list, ChestCount = 0, Chests = [], SignCount = 0, Signs = [], TileEntityCount = 0, TileEntities = [] } }.AsPacketRental();
+            return new TileSection { Data = new SectionData { StartX = x, StartY = y, Width = width, Height = height, Tiles = list, ChestCount = 0, Chests = [], SignCount = 0, Signs = [], TileEntityCount = 0, TileEntities = [] } }.AsPacketRental(true);
         }
         public static string GetText(this NetworkText text)
         {

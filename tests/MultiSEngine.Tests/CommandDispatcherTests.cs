@@ -14,7 +14,7 @@ public sealed class CommandDispatcherTests
 
         try
         {
-            RuntimeState.Commands.Add(command);
+            RuntimeState.Commands.Register(command);
 
             var (handled, continueSend) = await CommandDispatcher.HandleCommand(
                 null!,
@@ -41,7 +41,7 @@ public sealed class CommandDispatcherTests
 
         try
         {
-            RuntimeState.Commands.Add(command);
+            RuntimeState.Commands.Register(command);
 
             var (handled, continueSend) = await CommandDispatcher.HandleCommand(null!, "status remote", fromConsole: true);
 

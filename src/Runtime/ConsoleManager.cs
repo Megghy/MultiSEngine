@@ -7,6 +7,7 @@ namespace MultiSEngine.Runtime
     internal class ConsoleManager
     {
         public static readonly string Title = "[MultiSEngine]";
+        public static readonly string Version = $"v{Assembly.GetExecutingAssembly().GetName().Version}";
         private static readonly Timer ConsoleUpdateTimer = new()
         {
             Interval = 1000,
@@ -20,7 +21,7 @@ namespace MultiSEngine.Runtime
         }
         private static void Loop(object sender, ElapsedEventArgs e)
         {
-            Console.Title = $"{Title}  {RuntimeState.Clients.Count} Online @{Config.Instance.ListenIP}:{Config.Instance.ListenPort} <V{Assembly.GetExecutingAssembly().GetName().Version}, for {RuntimeState.Convert(Config.Instance.ServerVersion)}{(Config.Instance.EnableCrossplayFeature ? " + Crossplay" : "")}>";
+            Console.Title = $"{Title}  {RuntimeState.ClientRegistry.Count} Online @{Config.Instance.ListenIP}:{Config.Instance.ListenPort} <{Version}>, for {RuntimeState.Convert(Config.Instance.ServerVersion)}{(Config.Instance.EnableCrossplayFeature ? " + Crossplay" : "")}>";
         }
     }
 }

@@ -16,21 +16,6 @@ namespace MultiSEngine.Commands
             /// <returns></returns>
             public abstract ValueTask<bool> Execute(ClientData client, string cmdName, string[] parma);
         }
-        [AutoInit(postMsg: "Registed all commands.")]
-        public static void InitAllCommands()
-        {
-            AppDomain.CurrentDomain.GetAssemblies().ForEach(assembly =>
-            {
-                try
-                {
-                    assembly
-                           .GetTypes()
-                           .Where(t => t.BaseType == typeof(CmdBase))
-                           .ForEach(t => RuntimeState.Commands.Add((CmdBase)Activator.CreateInstance(t)));
-                }
-                catch { }
-            });
-        }
         public static async ValueTask<(bool handled, bool continueSend)> HandleCommand(ClientData client, string text, bool fromConsole = false)
         {
             var continueSend = true;

@@ -1,4 +1,4 @@
-using System.Buffers.Binary;
+using MultiSEngine.Application.Sessions;
 
 namespace MultiSEngine.Protocol.Handlers
 {
@@ -19,11 +19,12 @@ namespace MultiSEngine.Protocol.Handlers
                     {
                         if (context.Packet is ClientHello hello && !Hooks.OnPlayerJoin(Client, Client.IP, Client.Port, hello.Version, out var joinEvent))
                         {
+                            SessionLifecycleService.MarkFakeWorldHandshakeStarted(Client);
                             Client.ReadVersion(joinEvent.Version);
                             if (Client.Player.VersionNum < 269 || (Client.Player.VersionNum != Config.Instance.ServerVersion && !Config.Instance.EnableCrossplayFeature))
                                 await Client.DisconnectAsync(Localization.Instance["Prompt_VersionNotAllowed", $"{RuntimeState.Convert(Client.Player.VersionNum)} ({Client.Player.VersionNum})"]);
                             else
-                                await SendToClientDirectAsync(new LoadPlayer { PlayerSlot = 0, ServerWantsToRunCheckBytesInClientLoopThread = true }).ConfigureAwait(false);
+                                await SendToClientDirectAsync(new LoadPlayer { PlayerSlot = 0, ServerWantsToRunCheckBytesInClientLoopThread = false }).ConfigureAwait(false);
                         }
                         return true;
                     }
@@ -47,21 +48,35 @@ namespace MultiSEngine.Protocol.Handlers
                     await SendToClientDirectAsync(Client.Player.OriginCharacter.WorldData).ConfigureAwait(false);
                     return true;
                 case MessageID.RequestTileData:
+                    await SendToClientDirectAsync(new StatusText
+                    {
+                        Max = 1,
+                        Text = Utils.LiteralText("Receiving tile data"),
+                        Flag = 0,
+                    }).ConfigureAwait(false);
                     await SendToClientDirectAsync(RuntimeState.SpawnSquarePacket).ConfigureAwait(false);
                     await SendToClientDirectAsync(new StartPlaying()).ConfigureAwait(false);
                     return true;
                 case MessageID.SpawnPlayer:
                     Parent.DeregisterHandler(this); //移除假世界处理器
 
-                    RuntimeState.Clients.Add(Client);
+                    if (!RuntimeState.ClientRegistry.Register(Client))
+                        throw new Exception($"[AcceptConnectionHandler] Duplicate client session registration: {Client.SessionId}");
 
-                    var span = data.Span;
-                    Client.Player.SpawnX = BinaryPrimitives.ReadInt16LittleEndian(span[4..6]);
-                    Client.Player.SpawnY = BinaryPrimitives.ReadInt16LittleEndian(span[6..8]);
+                    if (context.Packet is not SpawnPlayer spawn)
+                        throw new Exception("[AcceptConnectionHandler] SpawnPlayer packet not found");
+                    Client.Player.SpawnX = spawn.Position.X;
+                    Client.Player.SpawnY = spawn.Position.Y;
+                    Client.Player.Timer = spawn.Timer;
+                    Client.Player.DeathsPVE = spawn.DeathsPVE;
+                    Client.Player.DeathsPVP = spawn.DeathsPVP;
+                    Client.Player.Context = spawn.Context;
+                    SessionLifecycleService.MarkFakeWorldEntered(Client);
+                    await SendToClientDirectAsync(spawn).ConfigureAwait(false);
                     await SendToClientDirectAsync(new FinishedConnectingToServer()).ConfigureAwait(false);
                     await Client.SendMessageAsync(RuntimeState.Motd, Utils.Rgb(255, 255, 255), false).ConfigureAwait(false);
 
-                    foreach (var c in RuntimeState.Clients.Where(c => c.CurrentServer is null && c != Client))
+                    foreach (var c in RuntimeState.ClientRegistry.Where(c => c.CurrentServer is null && c != Client))
                     {
                         await c.SendMessageAsync($"{Client.Name} has join.", Utils.Rgb(255, 255, 255), true).ConfigureAwait(false);
                     }

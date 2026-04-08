@@ -55,7 +55,7 @@ namespace MultiSEngine.Protocol.Adapters
             catch (Exception ex)
             {
                 Logs.Warn($"[{GetType().Name}] Unsubscribe server packet handler failed: {ex}");
-                try { ExceptionRaised?.Invoke(ex); } catch { }
+                await RaiseExceptionAsync(ex).ConfigureAwait(false);
             }
             if (disposeOld && ServerConnection is { })
             {
@@ -95,7 +95,7 @@ namespace MultiSEngine.Protocol.Adapters
             catch (Exception ex)
             {
                 Logs.Warn($"[{GetType().Name}] Unsubscribe client packet handler failed: {ex}");
-                try { ExceptionRaised?.Invoke(ex); } catch { }
+                await RaiseExceptionAsync(ex).ConfigureAwait(false);
             }
             try
             {
@@ -105,7 +105,7 @@ namespace MultiSEngine.Protocol.Adapters
             catch (Exception ex)
             {
                 Logs.Warn($"[{GetType().Name}] Unsubscribe server packet handler failed during dispose: {ex}");
-                try { ExceptionRaised?.Invoke(ex); } catch { }
+                await RaiseExceptionAsync(ex).ConfigureAwait(false);
             }
             foreach (var handler in _handlers)
             {
@@ -206,7 +206,7 @@ namespace MultiSEngine.Protocol.Adapters
             {
                 ErrorCount++;
                 Logs.Error($"An error occurred while processing {(fromServer ? "SERVER" : "CLIENT")} packets.{Environment.NewLine}{ex}");
-                try { ExceptionRaised?.Invoke(ex); } catch { }
+                await RaiseExceptionAsync(ex).ConfigureAwait(false);
             }
         }
         private void EnsureClientSubscribed()
@@ -224,13 +224,32 @@ namespace MultiSEngine.Protocol.Adapters
             ServerConnection.SubscribePacket(_serverPacketHandler);
         }
 
-        public event Action<Exception> ExceptionRaised;
+        public event Func<Exception, Task>? ExceptionRaised;
+
+        private async Task RaiseExceptionAsync(Exception ex)
+        {
+            var handlers = ExceptionRaised;
+            if (handlers is null)
+                return;
+
+            foreach (var handler in handlers.GetInvocationList().Cast<Func<Exception, Task>>())
+            {
+                try
+                {
+                    await handler(ex).ConfigureAwait(false);
+                }
+                catch (Exception handlerEx)
+                {
+                    Logs.Warn($"[{GetType().Name}] Exception handler failed: {handlerEx}");
+                }
+            }
+        }
 
         public virtual void OnConnectionException(Exception ex)
         {
             ErrorCount++;
             Logs.Error($"Connection error: {ex}");
-            try { ExceptionRaised?.Invoke(ex); } catch { }
+            _ = RaiseExceptionAsync(ex);
         }
 
 
@@ -241,7 +260,7 @@ namespace MultiSEngine.Protocol.Adapters
         }
         public void RegisterHandler<T>() where T : BaseHandler
         {
-            var handler = Activator.CreateInstance(typeof(T), new object[] { this }) as BaseHandler;
+            var handler = Activator.CreateInstance(typeof(T), [this]) as BaseHandler;
             RegisterHandler(handler);
         }
         public bool DeregisterHandler<T>(T handler) where T : BaseHandler
@@ -340,12 +359,12 @@ namespace MultiSEngine.Protocol.Adapters
         }
         public async ValueTask<bool> SendToClientDirectAsync(INetPacket packet, CancellationToken cancellationToken = default)
         {
-            using var rental = packet.AsPacketRental();
+            using var rental = packet.AsPacketRental(true);
             return await SendToClientDirectAsync(rental.Memory, cancellationToken).ConfigureAwait(false);
         }
         public async ValueTask<bool> SendToServerDirectAsync(INetPacket packet, CancellationToken cancellationToken = default)
         {
-            using var rental = packet.AsPacketRental();
+            using var rental = packet.AsPacketRental(false);
             return await SendToServerDirectAsync(rental.Memory, cancellationToken).ConfigureAwait(false);
         }
 

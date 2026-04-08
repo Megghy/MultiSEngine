@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using MultiSEngine.Application.Sessions;
 
 namespace MultiSEngine.Networking
 {
@@ -35,17 +36,7 @@ namespace MultiSEngine.Networking
                     var client = new ClientData();
                     client.Adapter = new(client, new(tcp));
                     client.Adapter.RegisterHandler(new AcceptConnectionHandler(client.Adapter));
-                    client.Adapter.ExceptionRaised += async ex =>
-                    {
-                        if (client.State == ClientState.InGame && client.Adapter?.ServerConnection is { } serverConnection)
-                        {
-                            await serverConnection.DisposeAsync(true);
-                        }
-                        else
-                        {
-                            await client.DisconnectAsync();
-                        }
-                    };
+                    client.Adapter.ExceptionRaised += ex => HandleClientExceptionAsync(client, ex);
                     client.Adapter.Start();
 
                     Logs.Text($"{client.Adapter.ClientConnection.RemoteEndPoint} trying to connect...");
@@ -54,6 +45,23 @@ namespace MultiSEngine.Networking
                 {
                     Logs.Error(ex);
                 }
+            }
+        }
+        private static async Task HandleClientExceptionAsync(ClientData client, Exception ex)
+        {
+            try
+            {
+                if (client.Session.State == SessionState.InGameTarget && client.Adapter?.ServerConnection is { } serverConnection)
+                {
+                    await serverConnection.DisposeAsync(true).ConfigureAwait(false);
+                    return;
+                }
+
+                await client.DisconnectAsync().ConfigureAwait(false);
+            }
+            catch (Exception cleanupEx)
+            {
+                Logs.Error($"An error occurred while handling connection cleanup for [{client.Name}]. Original: {ex}{Environment.NewLine}Cleanup: {cleanupEx}");
             }
         }
         static bool isTesting = false;

@@ -1,0 +1,27 @@
+{
+  "ListenIP": "0.0.0.0",
+  "ListenPort": 7778,
+  "ServerName": "MultiSEngine",
+  "ServerVersion": 319,
+  "SwitchTimeOut": 10000,
+  "EnableCrossplayFeature": true,
+  "EnableChatForward": true,
+  "ChatFormat": "[{servername}] {username}: {message}",
+  "SwitchToDefaultServerOnJoin": true,
+  "RestoreDataWhenJoinNonSSC": true,
+  "DisableTcpDelayWhenPipeline": true,
+  "UseCrowdControlled": false,
+  "DefaultServer": "boss",
+  "Servers": [
+    {
+      "Visible": true,
+      "Name": "boss",
+      "ShortName": "",
+      "IP": "trcn.fun",
+      "Port": 7777,
+      "SpawnX": -1,
+      "SpawnY": -1,
+      "VersionNum": -1
+    }
+  ]
+}

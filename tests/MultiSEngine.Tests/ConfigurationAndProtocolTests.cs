@@ -5,8 +5,10 @@ using System.Text;
 using MultiSEngine.Models;
 using MultiSEngine.Protocol;
 using MultiSEngine.Protocol.CustomData;
+using MultiSEngine.Runtime;
 using TestSupport;
 using TrProtocol;
+using TrProtocol.NetPackets.Modules;
 
 namespace MultiSEngine.Tests;
 
@@ -73,13 +75,40 @@ public sealed class ConfigurationAndProtocolTests
     [Fact]
     public void RegisterCustomPacket_BuildsLookupIndex()
     {
-        DataBridge.RegisterCustomPacket<SyncIP>();
-        DataBridge.RebuildCustomPacketIndex();
+        RuntimeState.CustomPackets.Clear();
+        try
+        {
+            DataBridge.RegisterCustomPacket<SyncIP>();
+            DataBridge.RebuildCustomPacketIndex();
 
-        var index = GetCustomPacketIndex();
+            var index = GetCustomPacketIndex();
 
-        Assert.True(index.ContainsKey("MultiSEngine.SyncIP"));
-        Assert.Equal(typeof(SyncIP), index["MultiSEngine.SyncIP"]);
+            Assert.True(index.ContainsKey("MultiSEngine.SyncIP"));
+            Assert.Equal(typeof(SyncIP), index["MultiSEngine.SyncIP"]);
+        }
+        finally
+        {
+            RuntimeState.CustomPackets.Clear();
+        }
+    }
+
+    [Fact]
+    public void NetTextModule_Serializes_WhenUsingServerToClientDirection()
+    {
+        var packet = new NetTextModule
+        {
+            TextS2C = new TextS2C
+            {
+                PlayerSlot = 255,
+                Text = Utils.LiteralText("hello"),
+                Color = Utils.Rgb(255, 255, 255),
+            }
+        };
+
+        using var rental = packet.AsPacketRental(true);
+
+        Assert.NotEmpty(rental.Memory.ToArray());
+        Assert.Equal((byte)MessageID.NetModules, rental.Memory.Span[2]);
     }
 
     [Fact]

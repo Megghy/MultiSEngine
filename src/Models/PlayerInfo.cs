@@ -1,3 +1,5 @@
+using MultiSEngine.Application.Transfers;
+
 namespace MultiSEngine.Models;
 
 public sealed class PlayerInfo(bool isOriginCharacter = false)
@@ -43,46 +45,5 @@ public sealed class PlayerInfo(bool isOriginCharacter = false)
     public CharacterData ServerCharacter { get; set; } = new();
 
     public void UpdateData(INetPacket packet, bool fromClient)
-    {
-        if (packet is null)
-            return;
-
-        var data = ResolveTargetData(fromClient);
-        switch (packet)
-        {
-            case SyncEquipment item:
-                data.TryStoreEquipment(item);
-                break;
-            case SyncLoadout loadout:
-                data.Loadout = loadout;
-                break;
-            case PlayerHealth health:
-                data.Health = health.StatLife;
-                data.HealthMax = health.StatLifeMax;
-                break;
-            case PlayerMana mana:
-                data.Mana = mana.StatMana;
-                data.ManaMax = mana.StatManaMax;
-                break;
-            case SyncPlayer playerInfo:
-                data.Info = playerInfo;
-                break;
-            case WorldData world:
-                world.WorldName = string.IsNullOrEmpty(Config.Instance.ServerName) ? world.WorldName : Config.Instance.ServerName;
-                ServerCharacter.WorldData = world;
-                break;
-            case PlayerControls control:
-                X = control.Position.X;
-                Y = control.Position.Y;
-                break;
-        }
-    }
-
-    private CharacterData ResolveTargetData(bool fromClient)
-    {
-        if (!fromClient)
-            return ServerCharacter;
-
-        return SSC ? ServerCharacter : OriginCharacter;
-    }
+        => PlayerStateStore.ApplyPacket(this, packet, fromClient);
 }
