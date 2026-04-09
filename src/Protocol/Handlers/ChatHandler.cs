@@ -3,6 +3,10 @@ namespace MultiSEngine.Protocol.Handlers
 {
     public class ChatHandler(BaseAdapter parent) : BaseHandler(parent)
     {
+        private static readonly MessageID[] ClientSubscriptions = [MessageID.NetModules];
+
+        public override IReadOnlyList<MessageID>? ClientMessageSubscriptions => ClientSubscriptions;
+
         public override async ValueTask<bool> RecieveClientDataAsync(HandlerPacketContext context)
         {
             if (context.Packet is NetTextModule { TextC2S: { } chat } && !Hooks.OnChat(Client, chat, out _))

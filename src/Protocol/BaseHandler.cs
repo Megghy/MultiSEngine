@@ -3,9 +3,13 @@ namespace MultiSEngine.Protocol
 {
     public abstract class BaseHandler(BaseAdapter parent)
     {
+        private static readonly MessageID[] EmptySubscriptions = [];
+
         public BaseAdapter Parent { get; init; } = parent;
         public ClientData Client => Parent.Client;
         public bool IsDisposed { get; internal set; }
+        public virtual IReadOnlyList<MessageID>? ClientMessageSubscriptions => EmptySubscriptions;
+        public virtual IReadOnlyList<MessageID>? ServerMessageSubscriptions => EmptySubscriptions;
 
         public virtual void Initialize() { }
 
@@ -33,14 +37,14 @@ namespace MultiSEngine.Protocol
     public sealed class HandlerPacketContext
     {
         private readonly bool _fromServer;
-        private readonly Lazy<object> _packet;
+        private object? _packet;
+        private bool _packetMaterialized;
 
         public HandlerPacketContext(MessageID messageId, ReadOnlyMemory<byte> data, bool fromServer)
         {
             MessageId = messageId;
             Data = data;
             _fromServer = fromServer;
-            _packet = new Lazy<object>(() => MultiSEngine.Utils.AsPacket(data, fromServer), LazyThreadSafetyMode.None);
         }
 
         public MessageID MessageId { get; }
@@ -51,10 +55,19 @@ namespace MultiSEngine.Protocol
 
         public object Packet
         {
-            get => _packet.Value;
+            get
+            {
+                if (!_packetMaterialized)
+                {
+                    _packet = MultiSEngine.Utils.AsPacket(Data.Span, _fromServer);
+                    _packetMaterialized = true;
+                }
+
+                return _packet!;
+            }
         }
 
-        public bool PacketMaterialized => _packet.IsValueCreated;
+        public bool PacketMaterialized => _packetMaterialized;
     }
 }
 

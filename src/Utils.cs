@@ -14,12 +14,22 @@ namespace MultiSEngine
         /// </summary>
         public sealed class PacketMemoryRental : IDisposable
         {
-            private IMemoryOwner<byte>? _owner;
+            private IDisposable? _owner;
 
             public PacketMemoryRental(IMemoryOwner<byte> owner, int length)
+                : this((IDisposable)owner, owner.Memory.Slice(0, length))
+            {
+            }
+
+            public PacketMemoryRental(PacketCodecRental rental)
+                : this(rental, rental.Memory)
+            {
+            }
+
+            private PacketMemoryRental(IDisposable owner, ReadOnlyMemory<byte> memory)
             {
                 _owner = owner;
-                Memory = owner.Memory.Slice(0, length);
+                Memory = memory;
             }
 
             public ReadOnlyMemory<byte> Memory { get; }
@@ -30,73 +40,81 @@ namespace MultiSEngine
                 _owner = null;
             }
         }
-        private static PacketSerializer? _s2cSerializer; // server -> client
-        private static PacketSerializer? _c2sSerializer; // client -> server
 
-        private static PacketSerializer GetS2CSerializer()
+        public sealed class PooledBufferWriter : IBufferWriter<byte>, IDisposable
         {
-            return _s2cSerializer ??= new PacketSerializer(true);
-        }
-        private static PacketSerializer GetC2SSerializer()
-        {
-            return _c2sSerializer ??= new PacketSerializer(false);
-        }
+            private byte[] _buffer;
 
-        private sealed class ReadOnlyMemoryStream : Stream
-        {
-            private readonly ReadOnlyMemory<byte> _buffer;
-            private int _position;
-            public ReadOnlyMemoryStream(ReadOnlyMemory<byte> buffer) => _buffer = buffer;
-            public override bool CanRead => true;
-            public override bool CanSeek => true;
-            public override bool CanWrite => false;
-            public override long Length => _buffer.Length;
-            public override long Position { get => _position; set => _position = (int)value; }
-            public override void Flush() { }
-            public override int Read(byte[] buffer, int offset, int count)
+            public PooledBufferWriter(int initialCapacity = PacketCodec.MaxPacketSize)
             {
-                var remaining = _buffer.Length - _position;
-                if (remaining <= 0) return 0;
-                var n = Math.Min(remaining, count);
-                _buffer.Span.Slice(_position, n).CopyTo(buffer.AsSpan(offset, n));
-                _position += n;
-                return n;
+                _buffer = ArrayPool<byte>.Shared.Rent(initialCapacity);
             }
-            public override long Seek(long offset, SeekOrigin origin)
+
+            public int WrittenCount { get; private set; }
+
+            public ReadOnlyMemory<byte> WrittenMemory => _buffer.AsMemory(0, WrittenCount);
+
+            public void Advance(int count)
             {
-                long target = origin switch
-                {
-                    SeekOrigin.Begin => offset,
-                    SeekOrigin.Current => _position + offset,
-                    SeekOrigin.End => Length + offset,
-                    _ => throw new ArgumentOutOfRangeException(nameof(origin))
-                };
-                if (target < 0 || target > Length) throw new IOException("Attempted to seek outside the buffer");
-                _position = (int)target; return _position;
+                if (count < 0)
+                    throw new ArgumentOutOfRangeException(nameof(count));
+
+                var next = WrittenCount + count;
+                if (next > _buffer.Length)
+                    throw new InvalidOperationException("Advanced beyond rented buffer length.");
+
+                WrittenCount = next;
             }
-            public override void SetLength(long value) => throw new NotSupportedException();
-            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+            public Memory<byte> GetMemory(int sizeHint = 0)
+            {
+                EnsureCapacity(sizeHint);
+                return _buffer.AsMemory(WrittenCount);
+            }
+
+            public Span<byte> GetSpan(int sizeHint = 0)
+            {
+                EnsureCapacity(sizeHint);
+                return _buffer.AsSpan(WrittenCount);
+            }
+
+            public void Dispose()
+            {
+                ArrayPool<byte>.Shared.Return(_buffer, clearArray: false);
+                _buffer = [];
+                WrittenCount = 0;
+            }
+
+            private void EnsureCapacity(int sizeHint)
+            {
+                if (sizeHint < 1)
+                    sizeHint = 1;
+
+                var required = WrittenCount + sizeHint;
+                if (required <= _buffer.Length)
+                    return;
+
+                var newSize = Math.Max(required, _buffer.Length * 2);
+                var newBuffer = ArrayPool<byte>.Shared.Rent(newSize);
+                _buffer.AsSpan(0, WrittenCount).CopyTo(newBuffer);
+                ArrayPool<byte>.Shared.Return(_buffer, clearArray: false);
+                _buffer = newBuffer;
+            }
         }
 
         public static INetPacket AsPacket(this ReadOnlySpan<byte> buf, bool fromServer = true)
-            => AsPacket((ReadOnlyMemory<byte>)buf.ToArray(), fromServer);
+            => PacketCodec.Deserialize(buf, client: fromServer);
 
         public static INetPacket AsPacket(this ReadOnlyMemory<byte> buf, bool fromServer = true)
-        {
-            using var ms = new ReadOnlyMemoryStream(buf);
-            using var br = new BinaryReader(ms);
-            return (fromServer ? GetS2CSerializer() : GetC2SSerializer()).Deserialize(br);
-        }
+            => PacketCodec.Deserialize(buf.Span, client: fromServer);
 
         public static PacketMemoryRental AsPacketRental(this INetPacket packet, bool fromServer = true, int bufferSizeHint = DefaultPacketBufferSize)
         {
             if (packet is ISideSpecific sideSpecific)
                 sideSpecific.IsServerSide = fromServer;
-            var bytes = (fromServer ? GetS2CSerializer() : GetC2SSerializer()).Serialize(packet);
-            var owner = MemoryPool<byte>.Shared.Rent(Math.Max(bytes.Length, bufferSizeHint));
-            var memory = owner.Memory;
-            bytes.CopyTo(memory);
-            return new PacketMemoryRental(owner, bytes.Length);
+
+            var rentedPacket = PacketCodec.SerializeRented(packet);
+            return new PacketMemoryRental(rentedPacket);
         }
         public static PacketMemoryRental AsPacketRental(this ReadOnlyMemory<byte> buffer, int bufferSizeHint = DefaultPacketBufferSize)
         {
@@ -109,6 +127,18 @@ namespace MultiSEngine
             rental = packet.AsPacketRental(fromServer, bufferSizeHint);
             return rental.Memory;
         }
+
+        public static int WritePacket(this IBufferWriter<byte> writer, INetPacket packet, bool fromServer = true)
+        {
+            ArgumentNullException.ThrowIfNull(writer);
+            ArgumentNullException.ThrowIfNull(packet);
+
+            if (packet is ISideSpecific sideSpecific)
+                sideSpecific.IsServerSide = fromServer;
+
+            return PacketCodec.SerializeDirect(packet, writer);
+        }
+
         public static Color Rgb(byte r, byte g, byte b, byte a = byte.MaxValue)
             => new()
             {

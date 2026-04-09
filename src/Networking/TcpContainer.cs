@@ -66,17 +66,17 @@ namespace MultiSEngine.Networking
         private readonly PipeReader _reader;
         private const int MaxPacketSize = 65535;
 
-        // 多订阅者事件：使用不可变数组快照，订阅/退订在锁内复制替换；读路径零分配
+        // 多订阅者批量回调：订阅/退订在锁内复制替换；读路径复用同一批次容器
         private readonly Lock _packetSubLock = new();
-        private Func<ReadOnlyMemory<byte>, CancellationToken, ValueTask>[] _packetSubscribers
+        private Func<IReadOnlyList<PacketRental>, CancellationToken, ValueTask>[] _packetSubscribers
             = [];
-        public void SubscribePacket(Func<ReadOnlyMemory<byte>, CancellationToken, ValueTask> handler)
+        public void SubscribePacket(Func<IReadOnlyList<PacketRental>, CancellationToken, ValueTask> handler)
         {
             ArgumentNullException.ThrowIfNull(handler);
             lock (_packetSubLock)
             {
                 var old = _packetSubscribers;
-                var n = new Func<ReadOnlyMemory<byte>, CancellationToken, ValueTask>[old.Length + 1];
+                var n = new Func<IReadOnlyList<PacketRental>, CancellationToken, ValueTask>[old.Length + 1];
                 Array.Copy(old, n, old.Length);
                 n[^1] = handler;
                 Volatile.Write(ref _packetSubscribers, n);
@@ -90,7 +90,7 @@ namespace MultiSEngine.Networking
             }
         }
 
-        public void UnsubscribePacket(Func<ReadOnlyMemory<byte>, CancellationToken, ValueTask> handler)
+        public void UnsubscribePacket(Func<IReadOnlyList<PacketRental>, CancellationToken, ValueTask> handler)
         {
             if (handler is null)
                 return;
@@ -105,7 +105,7 @@ namespace MultiSEngine.Networking
                     Volatile.Write(ref _packetSubscribers, []);
                     return;
                 }
-                var n = new Func<ReadOnlyMemory<byte>, CancellationToken, ValueTask>[old.Length - 1];
+                var n = new Func<IReadOnlyList<PacketRental>, CancellationToken, ValueTask>[old.Length - 1];
                 if (idx > 0)
                     Array.Copy(old, 0, n, 0, idx);
                 if (idx < old.Length - 1)
@@ -146,32 +146,38 @@ namespace MultiSEngine.Networking
         }
 
         /// <summary>
-        /// 后台异步读取网络流, 将完整包写入 Channel。
+        /// 后台异步读取网络流, 将完整包按批次交给订阅者或写入 Channel。
         /// </summary>
         private async Task ReceiveLoopAsync()
         {
+            List<PacketRental>? subscriberPackets = null;
             try
             {
                 while (!_cts.IsCancellationRequested)
                 {
                     var result = await _reader.ReadAsync(_cts.Token).ConfigureAwait(false);
                     var buffer = result.Buffer;
+                    var subs = Volatile.Read(ref _packetSubscribers);
 
-                    while (TryReadPacket(ref buffer, out var owner, out var length))
+                    if (subs.Length > 0)
                     {
-                        var rental = new PacketRental(owner!, length);
+                        subscriberPackets ??= [];
+                        subscriberPackets.Clear();
+
+                        while (TryReadPacket(ref buffer, out var owner, out var length))
+                        {
+                            subscriberPackets.Add(new PacketRental(owner!, length));
+                        }
+
                         try
                         {
-                            // 如果存在订阅者，则按序回调而非写入通道
-                            var subs = Volatile.Read(ref _packetSubscribers);
-                            if (subs.Length > 0)
+                            if (subscriberPackets.Count > 0)
                             {
-                                var memory = rental.ReadOnlyMemory;
                                 foreach (var handler in subs)
                                 {
                                     try
                                     {
-                                        await handler(memory, _cts.Token).ConfigureAwait(false);
+                                        await handler(subscriberPackets, _cts.Token).ConfigureAwait(false);
                                     }
                                     catch (Exception ex)
                                     {
@@ -179,15 +185,30 @@ namespace MultiSEngine.Networking
                                     }
                                 }
                             }
-                            else
+                        }
+                        finally
+                        {
+                            for (var i = 0; i < subscriberPackets.Count; i++)
+                            {
+                                subscriberPackets[i].Dispose();
+                            }
+                            subscriberPackets.Clear();
+                        }
+                    }
+                    else
+                    {
+                        while (TryReadPacket(ref buffer, out var owner, out var length))
+                        {
+                            var rental = new PacketRental(owner!, length);
+                            try
                             {
                                 await _packets.Writer.WriteAsync(rental, _cts.Token).ConfigureAwait(false);
                                 rental = null!; // 已交由通道管理
                             }
-                        }
-                        finally
-                        {
-                            rental?.Dispose();
+                            finally
+                            {
+                                rental?.Dispose();
+                            }
                         }
                     }
 

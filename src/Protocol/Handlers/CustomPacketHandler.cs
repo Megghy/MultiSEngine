@@ -3,6 +3,10 @@ namespace MultiSEngine.Protocol.Handlers
 {
     public class CustomPacketHandler(BaseAdapter parent) : BaseHandler(parent)
     {
+        private static readonly MessageID[] ServerSubscriptions = [MessageID.Unused15];
+
+        public override IReadOnlyList<MessageID>? ServerMessageSubscriptions => ServerSubscriptions;
+
         public override async ValueTask<bool> RecieveServerDataAsync(HandlerPacketContext context)
         {
             if (context.MessageId is MessageID.Unused15)

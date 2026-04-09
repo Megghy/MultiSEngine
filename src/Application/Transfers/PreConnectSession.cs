@@ -53,7 +53,11 @@ public sealed class PreConnectSession(ServerInfo targetServer) : IDisposable
         if (_bufferedPackets.Count == 0)
             return;
 
-        var buffers = _bufferedPackets.Select(static rental => rental.Memory).ToArray();
+        var buffers = new ReadOnlyMemory<byte>[_bufferedPackets.Count];
+        for (var i = 0; i < _bufferedPackets.Count; i++)
+        {
+            buffers[i] = _bufferedPackets[i].Memory;
+        }
         try
         {
             await adapter.SendToClientBatchAsync(buffers, cancellationToken).ConfigureAwait(false);

@@ -3,6 +3,10 @@ namespace MultiSEngine.Protocol.Handlers
 {
     public class CommonHandler(BaseAdapter parent) : BaseHandler(parent)
     {
+        private static readonly MessageID[] ServerSubscriptions = [MessageID.Kick];
+
+        public override IReadOnlyList<MessageID>? ServerMessageSubscriptions => ServerSubscriptions;
+
         public override async ValueTask<bool> RecieveServerDataAsync(HandlerPacketContext context)
         {
             var msgType = context.MessageId;

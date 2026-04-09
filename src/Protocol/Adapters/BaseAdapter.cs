@@ -31,8 +31,12 @@ namespace MultiSEngine.Protocol.Adapters
         private volatile bool _attached = false;
         private volatile bool _pauseClientToServer = false;
         private volatile bool _pauseServerToClient = false;
-        private Func<ReadOnlyMemory<byte>, CancellationToken, ValueTask>? _clientPacketHandler;
-        private Func<ReadOnlyMemory<byte>, CancellationToken, ValueTask>? _serverPacketHandler;
+        private Func<IReadOnlyList<TcpContainer.PacketRental>, CancellationToken, ValueTask>? _clientPacketHandler;
+        private Func<IReadOnlyList<TcpContainer.PacketRental>, CancellationToken, ValueTask>? _serverPacketHandler;
+        private Dictionary<MessageID, BaseHandler[]> _clientHandlerIndex = new();
+        private Dictionary<MessageID, BaseHandler[]> _serverHandlerIndex = new();
+        private bool _clientHasWildcardHandlers;
+        private bool _serverHasWildcardHandlers;
 
         #endregion
         protected virtual void RegisterHandlers()
@@ -112,6 +116,10 @@ namespace MultiSEngine.Protocol.Adapters
                 handler.Dispose();
             }
             _handlers.Clear();
+            _clientHandlerIndex.Clear();
+            _serverHandlerIndex.Clear();
+            _clientHasWildcardHandlers = false;
+            _serverHasWildcardHandlers = false;
             if (ClientConnection is not null)
                 ClientConnection.OnException -= OnConnectionException;
             if (ServerConnection is not null)
@@ -162,16 +170,8 @@ namespace MultiSEngine.Protocol.Adapters
         {
             try
             {
-                if (fromServer)
-                {
-                    if (_pauseServerToClient)
-                        return;
-                }
-                else
-                {
-                    if (_pauseClientToServer)
-                        return;
-                }
+                if (IsRoutingPaused(fromServer))
+                    return;
 
                 var messageId = (MessageID)memory.Span[2];
 #if DEBUG
@@ -179,22 +179,59 @@ namespace MultiSEngine.Protocol.Adapters
                     ? $"[Recieve SERVER] {messageId}"
                     : $"[Recieve CLIENT] {messageId}");
 #endif
-                var context = new HandlerPacketContext(messageId, memory, fromServer);
                 if (fromServer)
                 {
-                    for (int i = _handlers.Count - 1; i >= 0; i--)
+                    BaseHandler[] handlers = [];
+                    if (!_serverHasWildcardHandlers && !_serverHandlerIndex.TryGetValue(messageId, out handlers))
                     {
-                        if (await _handlers[i].RecieveServerDataAsync(context).ConfigureAwait(false))
-                            return;
+                        await SendToClientDirectAsync(memory, cancellationToken).ConfigureAwait(false);
+                        return;
+                    }
+
+                    var context = new HandlerPacketContext(messageId, memory, fromServer);
+                    if (_serverHasWildcardHandlers)
+                    {
+                        for (int i = _handlers.Count - 1; i >= 0; i--)
+                        {
+                            if (await _handlers[i].RecieveServerDataAsync(context).ConfigureAwait(false))
+                                return;
+                        }
+                    }
+                    else
+                    {
+                        for (int i = handlers.Length - 1; i >= 0; i--)
+                        {
+                            if (await handlers[i].RecieveServerDataAsync(context).ConfigureAwait(false))
+                                return;
+                        }
                     }
                     await SendToClientDirectAsync(memory, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
-                    for (int i = _handlers.Count - 1; i >= 0; i--)
+                    BaseHandler[] handlers = [];
+                    if (!_clientHasWildcardHandlers && !_clientHandlerIndex.TryGetValue(messageId, out handlers))
                     {
-                        if (await _handlers[i].RecieveClientDataAsync(context).ConfigureAwait(false))
-                            return;
+                        await SendToServerDirectAsync(memory, cancellationToken).ConfigureAwait(false);
+                        return;
+                    }
+
+                    var context = new HandlerPacketContext(messageId, memory, fromServer);
+                    if (_clientHasWildcardHandlers)
+                    {
+                        for (int i = _handlers.Count - 1; i >= 0; i--)
+                        {
+                            if (await _handlers[i].RecieveClientDataAsync(context).ConfigureAwait(false))
+                                return;
+                        }
+                    }
+                    else
+                    {
+                        for (int i = handlers.Length - 1; i >= 0; i--)
+                        {
+                            if (await handlers[i].RecieveClientDataAsync(context).ConfigureAwait(false))
+                                return;
+                        }
                     }
                     await SendToServerDirectAsync(memory, cancellationToken).ConfigureAwait(false);
                 }
@@ -209,18 +246,71 @@ namespace MultiSEngine.Protocol.Adapters
                 await RaiseExceptionAsync(ex).ConfigureAwait(false);
             }
         }
+        private bool IsRoutingPaused(bool fromServer)
+            => fromServer ? _pauseServerToClient : _pauseClientToServer;
+
+        private bool CanDirectForward(bool fromServer, MessageID messageId)
+        {
+            if (fromServer)
+                return !_serverHasWildcardHandlers && !_serverHandlerIndex.ContainsKey(messageId);
+
+            return !_clientHasWildcardHandlers && !_clientHandlerIndex.ContainsKey(messageId);
+        }
+
+        private async ValueTask FlushForwardBatchAsync(bool fromServer, List<ReadOnlyMemory<byte>> buffers, CancellationToken cancellationToken)
+        {
+            if (buffers.Count == 0)
+                return;
+
+            if (fromServer)
+                await SendToClientBatchAsync(buffers, cancellationToken).ConfigureAwait(false);
+            else
+                await SendToServerBatchAsync(buffers, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async ValueTask HandlePacketBatchAsync(bool fromServer, IReadOnlyList<TcpContainer.PacketRental> packets, CancellationToken cancellationToken)
+        {
+            if (packets.Count == 0 || IsRoutingPaused(fromServer))
+                return;
+
+            List<ReadOnlyMemory<byte>>? pendingForwardBatch = null;
+            for (var i = 0; i < packets.Count; i++)
+            {
+                var memory = packets[i].ReadOnlyMemory;
+                var messageId = (MessageID)memory.Span[2];
+                if (CanDirectForward(fromServer, messageId))
+                {
+                    pendingForwardBatch ??= [];
+                    pendingForwardBatch.Add(memory);
+                    continue;
+                }
+
+                if (pendingForwardBatch is { Count: > 0 })
+                {
+                    await FlushForwardBatchAsync(fromServer, pendingForwardBatch, cancellationToken).ConfigureAwait(false);
+                    pendingForwardBatch.Clear();
+                }
+
+                await HandlePacketAsync(fromServer, memory, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (pendingForwardBatch is { Count: > 0 })
+            {
+                await FlushForwardBatchAsync(fromServer, pendingForwardBatch, cancellationToken).ConfigureAwait(false);
+            }
+        }
         private void EnsureClientSubscribed()
         {
             if (ClientConnection is null || ClientConnection.IsDisposed)
                 return;
-            _clientPacketHandler ??= async (mem, token) => await HandlePacketAsync(fromServer: false, mem, token);
+            _clientPacketHandler ??= async (packets, token) => await HandlePacketBatchAsync(fromServer: false, packets, token);
             ClientConnection.SubscribePacket(_clientPacketHandler);
         }
         private void EnsureServerSubscribed()
         {
             if (ServerConnection is null || ServerConnection.IsDisposed)
                 return;
-            _serverPacketHandler ??= async (mem, token) => await HandlePacketAsync(fromServer: true, mem, token);
+            _serverPacketHandler ??= async (packets, token) => await HandlePacketBatchAsync(fromServer: true, packets, token);
             ServerConnection.SubscribePacket(_serverPacketHandler);
         }
 
@@ -257,6 +347,7 @@ namespace MultiSEngine.Protocol.Adapters
         {
             handler.Initialize();
             _handlers.Add(handler);
+            RebuildHandlerIndex();
         }
         public void RegisterHandler<T>() where T : BaseHandler
         {
@@ -266,7 +357,63 @@ namespace MultiSEngine.Protocol.Adapters
         public bool DeregisterHandler<T>(T handler) where T : BaseHandler
         {
             handler?.Dispose();
-            return _handlers.Remove(handler);
+            var removed = _handlers.Remove(handler);
+            if (removed)
+                RebuildHandlerIndex();
+            return removed;
+        }
+
+        private void RebuildHandlerIndex()
+        {
+            var clientIndex = new Dictionary<MessageID, List<BaseHandler>>();
+            var serverIndex = new Dictionary<MessageID, List<BaseHandler>>();
+            var clientHasWildcard = false;
+            var serverHasWildcard = false;
+
+            foreach (var handler in _handlers)
+            {
+                clientHasWildcard |= AddSubscriptions(handler, handler.ClientMessageSubscriptions, clientIndex);
+                serverHasWildcard |= AddSubscriptions(handler, handler.ServerMessageSubscriptions, serverIndex);
+            }
+
+            _clientHandlerIndex = FreezeSubscriptions(clientIndex);
+            _serverHandlerIndex = FreezeSubscriptions(serverIndex);
+            _clientHasWildcardHandlers = clientHasWildcard;
+            _serverHasWildcardHandlers = serverHasWildcard;
+        }
+
+        private static bool AddSubscriptions(
+            BaseHandler handler,
+            IReadOnlyList<MessageID>? subscriptions,
+            Dictionary<MessageID, List<BaseHandler>> index)
+        {
+            if (subscriptions is null)
+                return true;
+
+            for (var i = 0; i < subscriptions.Count; i++)
+            {
+                var messageId = subscriptions[i];
+                if (!index.TryGetValue(messageId, out var handlers))
+                {
+                    handlers = [];
+                    index[messageId] = handlers;
+                }
+
+                handlers.Add(handler);
+            }
+
+            return false;
+        }
+
+        private static Dictionary<MessageID, BaseHandler[]> FreezeSubscriptions(Dictionary<MessageID, List<BaseHandler>> source)
+        {
+            var frozen = new Dictionary<MessageID, BaseHandler[]>(source.Count);
+            foreach (var (messageId, handlers) in source)
+            {
+                frozen[messageId] = [.. handlers];
+            }
+
+            return frozen;
         }
 
         #region Packet Send

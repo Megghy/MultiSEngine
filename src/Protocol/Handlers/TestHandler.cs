@@ -3,6 +3,15 @@ namespace MultiSEngine.Protocol.Handlers
 {
     public class TestHandler : BaseHandler
     {
+        private static readonly MessageID[] ServerSubscriptions =
+        [
+            MessageID.Kick,
+            MessageID.LoadPlayer,
+            MessageID.WorldData,
+            MessageID.RequestPassword,
+            MessageID.StartPlaying,
+        ];
+
         public TestHandler(BaseAdapter parent) : base(parent)
         {
             if (parent is not TestAdapter)
@@ -12,6 +21,7 @@ namespace MultiSEngine.Protocol.Handlers
         }
         private TestAdapter TestParent
             => (TestAdapter)Parent;
+        public override IReadOnlyList<MessageID>? ServerMessageSubscriptions => ServerSubscriptions;
 
         byte index = 0;
 

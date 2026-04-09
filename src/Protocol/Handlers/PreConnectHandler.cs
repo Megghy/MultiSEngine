@@ -7,6 +7,8 @@ namespace MultiSEngine.Protocol.Handlers
         public PreConnectSession Session { get; } = session;
         public ServerInfo TargetServer => Session.TargetServer;
         public bool IsConnecting => Session.IsConnecting;
+        public override IReadOnlyList<MessageID>? ClientMessageSubscriptions => null;
+        public override IReadOnlyList<MessageID>? ServerMessageSubscriptions => null;
 
         public override void Dispose()
         {

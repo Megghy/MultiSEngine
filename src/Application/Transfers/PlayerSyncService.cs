@@ -7,13 +7,10 @@ public static class PlayerSyncService
         Logs.Text($"Syncing player: [{client.Name}]");
         client.Syncing = true;
 
-        var rentals = new List<Utils.PacketMemoryRental>();
+        using var batchWriter = new Utils.PooledBufferWriter();
 
         void EnqueuePacket(INetPacket packet)
-        {
-            var rental = packet.AsPacketRental(true);
-            rentals.Add(rental);
-        }
+            => batchWriter.WritePacket(packet, fromServer: true);
 
         var data = client.Player.ServerCharacter?.WorldData ?? client.Player.OriginCharacter.WorldData ?? throw new Exception("[PlayerSyncService] World data not available for sync");
         if (!client.Player.SSC && Config.Instance.RestoreDataWhenJoinNonSSC)
@@ -50,7 +47,7 @@ public static class PlayerSyncService
 
         try
         {
-            await DispatchBatchToClientAsync(client, rentals, cancellationToken).ConfigureAwait(false);
+            await DispatchBatchToClientAsync(client, batchWriter.WrittenMemory, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -58,45 +55,22 @@ public static class PlayerSyncService
         }
     }
 
-    private static async ValueTask DispatchBatchToClientAsync(ClientData client, List<Utils.PacketMemoryRental> rentals, CancellationToken cancellationToken)
+    private static async ValueTask DispatchBatchToClientAsync(ClientData client, ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
     {
-        if (rentals.Count == 0)
-        {
-            foreach (var rental in rentals)
-                rental.Dispose();
+        if (buffer.IsEmpty)
             return;
-        }
 
         var adapter = client.Adapter;
         if (adapter is null)
-        {
-            foreach (var rental in rentals)
-                rental.Dispose();
             return;
-        }
-
-        var bufferArray = new ReadOnlyMemory<byte>[rentals.Count];
-        var rentalArray = new Utils.PacketMemoryRental[rentals.Count];
-        for (var index = 0; index < rentals.Count; index++)
-        {
-            rentalArray[index] = rentals[index];
-            bufferArray[index] = rentals[index].Memory;
-        }
-
-        rentals.Clear();
 
         try
         {
-            await adapter.SendToClientBatchAsync(bufferArray, cancellationToken).ConfigureAwait(false);
+            await adapter.SendToClientDirectAsync(buffer, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             Logs.Warn($"Failed to send batch data to {client.Name}{Environment.NewLine}{ex}");
-        }
-        finally
-        {
-            foreach (var rental in rentalArray)
-                rental.Dispose();
         }
     }
 }

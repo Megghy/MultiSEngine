@@ -4,10 +4,19 @@ namespace MultiSEngine.Protocol.Handlers
 {
     public sealed class AcceptConnectionHandler(BaseAdapter parent) : BaseHandler(parent)
     {
+        private static readonly MessageID[] ClientSubscriptions =
+        [
+            MessageID.ClientHello,
+            MessageID.RequestWorldInfo,
+            MessageID.RequestTileData,
+            MessageID.SpawnPlayer,
+        ];
+
         public const int Width = 8400;
         public const int Height = 2400;
 
         public bool IsEntered { get; private set; }
+        public override IReadOnlyList<MessageID>? ClientMessageSubscriptions => ClientSubscriptions;
 
         public override async ValueTask<bool> RecieveClientDataAsync(HandlerPacketContext context)
         {

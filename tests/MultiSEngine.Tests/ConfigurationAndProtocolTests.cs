@@ -8,6 +8,7 @@ using MultiSEngine.Protocol.CustomData;
 using MultiSEngine.Runtime;
 using TestSupport;
 using TrProtocol;
+using TrProtocol.NetPackets;
 using TrProtocol.NetPackets.Modules;
 
 namespace MultiSEngine.Tests;
@@ -109,6 +110,44 @@ public sealed class ConfigurationAndProtocolTests
 
         Assert.NotEmpty(rental.Memory.ToArray());
         Assert.Equal((byte)MessageID.NetModules, rental.Memory.Span[2]);
+    }
+
+    [Fact]
+    public void Utils_AsPacketRental_AndAsPacket_RoundTripClientHello()
+    {
+        var packet = new ClientHello("Terraria319");
+        using var rental = packet.AsPacketRental(false);
+        var roundTrip = Assert.IsType<ClientHello>(Utils.AsPacket(rental.Memory.Span, fromServer: false));
+
+        Assert.Equal(packet.Version, roundTrip.Version);
+        Assert.Equal(rental.Memory.Length, BitConverter.ToUInt16(rental.Memory.Span[..2]));
+    }
+
+    [Fact]
+    public void PacketCodec_RoundTripClientHello()
+    {
+        var packet = new ClientHello("Terraria319");
+        var scratchBuffer = new byte[PacketCodec.MaxPacketSize];
+
+        var length = PacketCodec.Serialize(packet, scratchBuffer);
+        var roundTrip = Assert.IsType<ClientHello>(PacketCodec.Deserialize(scratchBuffer.AsSpan(0, length), client: false));
+
+        Assert.Equal(packet.Version, roundTrip.Version);
+        Assert.Equal(length, BitConverter.ToUInt16(scratchBuffer, 0));
+    }
+
+    [Fact]
+    public void Utils_AsPacketRental_WritesExpectedHeader()
+    {
+        var packet = new LoadPlayer
+        {
+            PlayerSlot = 7,
+        };
+        using var rental = packet.AsPacketRental(true);
+        var payload = rental.Memory.Span;
+
+        Assert.Equal(payload.Length, BitConverter.ToUInt16(payload[..2]));
+        Assert.Equal((byte)MessageID.LoadPlayer, payload[2]);
     }
 
     [Fact]

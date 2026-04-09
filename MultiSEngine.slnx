@@ -8,6 +8,7 @@
     <File Path=".editorconfig" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/MultiSEngine.Benchmarks/MultiSEngine.Benchmarks.csproj" />
     <Project Path="tests/MultiSEngine.IntegrationTests/MultiSEngine.IntegrationTests.csproj" />
     <Project Path="tests/MultiSEngine.Tests/MultiSEngine.Tests.csproj" />
   </Folder>

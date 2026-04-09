@@ -3,9 +3,38 @@ namespace MultiSEngine.Protocol.Handlers
 {
     public class PlayerInfoHandler : BaseHandler
     {
+        private static readonly MessageID[] ClientSubscriptions =
+        [
+            MessageID.SyncPlayer,
+            MessageID.SyncEquipment,
+            MessageID.SyncLoadout,
+            MessageID.PlayerHealth,
+            MessageID.PlayerMana,
+            MessageID.PlayerBuffs,
+            MessageID.PlayerControls,
+            MessageID.ClientUUID,
+        ];
+
+        private static readonly MessageID[] ServerSubscriptions =
+        [
+            MessageID.LoadPlayer,
+            MessageID.WorldData,
+            MessageID.SyncPlayer,
+            MessageID.SyncEquipment,
+            MessageID.SyncLoadout,
+            MessageID.PlayerHealth,
+            MessageID.PlayerMana,
+            MessageID.PlayerBuffs,
+            MessageID.PlayerControls,
+            MessageID.SpawnPlayer,
+        ];
+
         public PlayerInfoHandler(BaseAdapter parent) : base(parent)
         {
         }
+
+        public override IReadOnlyList<MessageID>? ClientMessageSubscriptions => ClientSubscriptions;
+        public override IReadOnlyList<MessageID>? ServerMessageSubscriptions => ServerSubscriptions;
         public override async ValueTask<bool> RecieveClientDataAsync(HandlerPacketContext context)
         {
             var msgType = context.MessageId;

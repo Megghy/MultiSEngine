@@ -45,3 +45,37 @@ Slightly more specific deployment methods and configuration file instructions:ht
 
 ## 引用项目 Reference project
 [TrProtocol](https://github.com/CedaryCat/TrProtocol)
+
+## Benchmark
+This repository includes a simple BenchmarkDotNet benchmark project:
+
+```bash
+dotnet run -c Release --project tests/MultiSEngine.Benchmarks/MultiSEngine.Benchmarks.csproj -- --filter *
+dotnet run -c Release --project tests/MultiSEngine.Benchmarks/MultiSEngine.Benchmarks.csproj -- --load-report
+```
+
+Environment:
+* CPU: `AMD Ryzen 9 9950X`
+* Runtime: `.NET 9.0.14`
+* OS: `Windows 11 25H2`
+
+`player-sync` means one full synchronization pass for a single player, combining multiple low-level Terraria protocol packets, including:
+- `WorldData`
+- `PlayerInfo`
+- `PlayerHealth`
+- `PlayerMana`
+- `Loadout`
+- a sequence of `Equipment` packets
+- one more `WorldData`
+
+| Scenario | Result | Approx. throughput | Allocated |
+|---|---:|---:|---:|
+| One-way forwarding: Server -> Client (`512` packets/batch) | `115.0 us/batch` | `~4.4511 M packets/s` | `48.8 KB/batch` |
+| One-way forwarding: Client -> Server (`512` packets/batch) | `114.3 us/batch` | `~4.4802 M packets/s` | `48.8 KB/batch` |
+
+| Sustained multi-player / multi-server sync load (`10s/scenario`) | Player syncs/s | Low-level Terraria packets/s | Avg CPU | Peak working set | Peak managed heap |
+|---|---:|---:|---:|---:|---:|
+| `16` players / `1` server | `31198` | `11106568` | `2.22 cores (7.0%)` | `58.9 MiB` | `4.2 MiB` |
+| `16` players / `4` servers | `32394` | `11532378` | `2.28 cores (7.1%)` | `62.2 MiB` | `4.5 MiB` |
+| `64` players / `1` server | `32781` | `11670166` | `2.23 cores (7.0%)` | `73.2 MiB` | `12.0 MiB` |
+| `64` players / `4` servers | `32955` | `11732143` | `2.27 cores (7.1%)` | `71.2 MiB` | `12.1 MiB` |
