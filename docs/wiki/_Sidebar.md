@@ -1,0 +1,7 @@
+- [Home](Home.md)
+- [Quick Start](Quick-Start.md)
+- [Configuration](Configuration.md)
+- [Commands](Commands.md)
+- [Architecture](Architecture.md)
+- [Plugin Development](Plugin-Development.md)
+- [Hooks and Custom Packets](Hooks-and-Custom-Packets.md)

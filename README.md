@@ -3,6 +3,16 @@
 
 A Terraria server-independent proxy service for cross-server transfers, based on .Net 9
 
+## Notice
+
+> 我已经不再推荐使用这个项目. 如果你的技术力足够, 我更推荐使用 [CedaryCat/UnifierTSL](https://github.com/CedaryCat/UnifierTSL) 来获得更接近 Minecraft Dimensions 的游戏体验.
+> 它使用了比较 hacky 的方式实现单进程内的多世界系统, 不再需要启动多个实例, 并且自带了一个魔改版本的 TShock.
+> 唯一明显的缺点是不再兼容现有的 TShock 插件, 如果想实现额外功能, 通常需要自行编写插件.
+
+> I no longer recommend this project for new setups. If you have enough technical ability, I recommend [CedaryCat/UnifierTSL](https://github.com/CedaryCat/UnifierTSL) instead for a gameplay model that is much closer to Minecraft Dimensions.
+> It uses a fairly hacky single-process multi-world design, so you no longer need to run multiple server instances, and it ships with a heavily modified TShock build.
+> The main downside is that it is no longer compatible with existing TShock plugins, so any extra functionality usually needs to be implemented through custom plugins.
+
 [![CI](https://github.com/Megghy/MultiSEngine/actions/workflows/dotnet.yml/badge.svg)](https://github.com/Megghy/MultiSEngine/actions/workflows/dotnet.yml)
 ## 独特功能 Unique features
 * 引用豚豚的协议库

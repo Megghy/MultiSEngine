@@ -363,6 +363,8 @@ MigrationBackup/
 FodyWeavers.xsd
 /.vscode
 .serena/
-docs/
+docs/*
+!docs/wiki/
+!docs/wiki/**
 *.zip
 .*/
