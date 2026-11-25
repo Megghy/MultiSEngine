@@ -5,6 +5,7 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -63,3 +64,99 @@ jobs:
           name: MultiSEngine-${{ matrix.runtime }}
           path: ./src/MultiSEngine/bin/Release/net10.0/${{ matrix.runtime }}/publish/MultiSEngine*
           if-no-files-found: error
+
+  release:
+    needs: publish
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Resolve version and check existing release
+        id: meta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="$(dotnet msbuild ./src/MultiSEngine/MultiSEngine.csproj -nologo -v:q -getProperty:Version | tr -d '[:space:]')"
+          if [[ -z "$VERSION" ]]; then
+            echo "Failed to resolve <Version> from Directory.Build.props / MultiSEngine.csproj." >&2
+            exit 1
+          fi
+          TAG="v${VERSION}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+          if [[ "$VERSION" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release ${TAG} already exists. Bump <Version> in Directory.Build.props to publish a new release."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Release ${TAG} does not exist yet; will package and publish."
+          fi
+
+      - name: Download published artifacts
+        if: steps.meta.outputs.exists == 'false'
+        uses: actions/download-artifact@v6
+        with:
+          pattern: MultiSEngine-*
+          path: ./release-staging
+
+      - name: Package release archives
+        if: steps.meta.outputs.exists == 'false'
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.meta.outputs.tag }}"
+          mkdir -p ./dist
+
+          (
+            cd ./release-staging/MultiSEngine-win-x64
+            zip -q "../../dist/MultiSEngine-${TAG}-win-x64.zip" MultiSEngine.exe
+          )
+
+          for rid in linux-x64 linux-arm64; do
+            chmod +x "./release-staging/MultiSEngine-${rid}/MultiSEngine"
+            tar -czf "./dist/MultiSEngine-${TAG}-${rid}.tar.gz" -C "./release-staging/MultiSEngine-${rid}" MultiSEngine
+          done
+
+          (
+            cd ./dist
+            sha256sum MultiSEngine-* > SHA256SUMS.txt
+            ls -la
+            cat SHA256SUMS.txt
+          )
+
+      - name: Create GitHub Release
+        if: steps.meta.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.meta.outputs.tag }}"
+          EXTRA_ARGS=()
+          if [[ "${{ steps.meta.outputs.prerelease }}" == "true" ]]; then
+            EXTRA_ARGS+=(--prerelease)
+          fi
+
+          gh release create "$TAG" \
+            ./dist/MultiSEngine-* \
+            ./dist/SHA256SUMS.txt \
+            --target "$GITHUB_SHA" \
+            --title "MultiSEngine ${TAG}" \
+            --generate-notes \
+            "${EXTRA_ARGS[@]}"
