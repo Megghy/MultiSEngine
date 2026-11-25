@@ -59,6 +59,34 @@ internal sealed class ExecuteCommandCustomPacketHandler(
     }
 }
 
+internal sealed class SwitchServerCustomPacketHandler(
+    IConfigStore configStore,
+    IProxyLogger logger) : ICustomPacketDefinition
+{
+    public string PacketType => BuiltInCustomPacketTypes.SwitchServer;
+    public bool AllowFromClient => false;
+    public bool AllowFromServer => true;
+
+    public ValueTask HandleAsync(CustomPacketContext context, CancellationToken cancellationToken)
+    {
+        var targetName = BuiltInCustomPacketTypes.DecodeSwitchServerPayload(context.Payload);
+        if (string.IsNullOrWhiteSpace(targetName))
+            return ValueTask.CompletedTask;
+
+        var target = configStore.Current.FindServer(targetName);
+        if (target is null)
+        {
+            logger.Warn(
+                $"Ignored mse.switch_server from [{context.SourceServer?.Name ?? "unknown"}] for [{context.Session.PlayerName}]: unknown target '{targetName}'.",
+                "CustomPacket");
+            return ValueTask.CompletedTask;
+        }
+
+        context.Session.TryRequestTransfer(target);
+        return ValueTask.CompletedTask;
+    }
+}
+
 public sealed class MsePlayerCommand(
     IConfigStore configStore,
     ILocalizationStore localization) : ICommand

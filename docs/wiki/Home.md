@@ -28,5 +28,6 @@ This wiki reflects the v2 architecture: startup, configuration, commands, four-l
 - `src/MultiSEngine.Protocol`: `FramedConnection`, `PacketFrameCodec`, `FastPathClassifier`, `PlayerStateTracker`, `LobbyProtocol`, `TerrariaSyncEngine`, `TerrariaVersions`, and `CustomPacketCodec` (`MSE2`)
 - `src/MultiSEngine.Runtime`: `MultiSEngineHost`, `PlayerSessionActor`, `TransferWorkflow`, `ServerProbeService`, `PluginHost`, `HookBus`, `CommandRouter`, `BuiltInCommands`, `ConfigStore`, and `AsyncProxyLogger`
 - `src/MultiSEngine`: thin CLI entrypoint with signal handling and non-interactive daemon support
+- `src/MultiSEngine.TShock`: official TShock 6 (`net9.0`) companion plugin sharing the `MSE2` codec for real IP restoration, IP ban enforcement, and backend-initiated server switches/custom packets
 - `tests/`: parallel unit tests (`MultiSEngine.Tests`), real-TCP end-to-end tests (`MultiSEngine.IntegrationTests`), reloadable sample plugin (`MultiSEngine.TestPlugin`), and production-path benchmarks (`MultiSEngine.Benchmarks`)
 - `external/TrProtocol`: Terraria 1.4.6.1 (`329`) binary protocol library

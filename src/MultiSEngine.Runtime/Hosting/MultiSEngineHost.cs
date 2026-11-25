@@ -287,6 +287,7 @@ public sealed class MultiSEngineHost : IAsyncDisposable
     private void RegisterBuiltInExtensions()
     {
         _builtInRegistrations.Add(CustomPackets.Register(new ExecuteCommandCustomPacketHandler(Sessions, Commands, Logger)));
+        _builtInRegistrations.Add(CustomPackets.Register(new SwitchServerCustomPacketHandler(ConfigStore, Logger)));
         _builtInRegistrations.Add(Commands.Register(new MsePlayerCommand(ConfigStore, Localization)));
         _builtInRegistrations.Add(Commands.Register(new ConsoleListCommand(ConfigStore, Sessions, Logger)));
         _builtInRegistrations.Add(Commands.Register(new ConsoleKickCommand(Sessions, Logger)));

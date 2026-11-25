@@ -2,8 +2,6 @@ using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
-using MultiSEngine.Protocol.Framing;
-using TrProtocol;
 
 namespace MultiSEngine.Protocol.CustomPackets;
 
@@ -41,6 +39,8 @@ public sealed record CustomPacketDecodeResult(
 public sealed class CustomPacketCodec
 {
     private static readonly byte[] MagicPrefix = [(byte)'M', (byte)'S', (byte)'E'];
+    public const byte Unused15MessageId = 15;
+    public const int MaxFrameLength = ushort.MaxValue;
     public const byte ProtocolVersion = 2;
     public const int HmacSize = 32;
 
@@ -70,14 +70,14 @@ public sealed class CustomPacketCodec
         // Header(3) + Magic(3) + Version(1) + TypeLen(2) + Type + Timestamp(8) + Nonce(8) + PayloadLen(4) + Payload + HMAC(32)
         var signedLength = 1 + 2 + typeBytes.Length + 8 + 8 + 4 + payload.Length;
         var totalLength = 3 + 3 + signedLength + HmacSize;
-        if (totalLength > PacketFrameCodec.MaxFrameLength)
-            throw new InvalidOperationException($"Custom packet exceeds maximum Terraria packet size ({totalLength} > {PacketFrameCodec.MaxFrameLength}).");
+        if (totalLength > MaxFrameLength)
+            throw new InvalidOperationException($"Custom packet exceeds maximum Terraria packet size ({totalLength} > {MaxFrameLength}).");
 
         var frame = GC.AllocateUninitializedArray<byte>(totalLength);
         var span = frame.AsSpan();
 
         BinaryPrimitives.WriteUInt16LittleEndian(span[0..2], (ushort)totalLength);
-        span[2] = (byte)MessageID.Unused15;
+        span[2] = Unused15MessageId;
         MagicPrefix.CopyTo(span[3..6]);
 
         var signedStart = 6;
@@ -116,42 +116,58 @@ public sealed class CustomPacketCodec
         TimeSpan maxClockSkew,
         bool allowUnsigned)
     {
-        const int minLength = 3 + 3 + 1 + 2 + 8 + 8 + 4 + HmacSize;
-        if (frame.Length < minLength || frame[2] != (byte)MessageID.Unused15)
+        if (frame.Length < 3 || frame[2] != Unused15MessageId)
             return new(CustomPacketDecodeStatus.InvalidFormat, Error: "Frame too short or wrong message ID.");
 
-        if (!frame[3..6].SequenceEqual(MagicPrefix))
+        return DecodePayload(frame[3..], expectedSecret, maxClockSkew, allowUnsigned);
+    }
+
+    /// <summary>
+    /// Decodes an MSE2 packet directly from the body slice immediately following Terraria's 3-byte frame header
+    /// (2-byte length + 1-byte MessageID 15). Ideal for TShock/OTAPI NetGetData buffers.
+    /// </summary>
+    public CustomPacketDecodeResult DecodePayload(
+        ReadOnlySpan<byte> bodyAfterMessageId,
+        string? expectedSecret,
+        TimeSpan maxClockSkew,
+        bool allowUnsigned)
+    {
+        const int minBodyLength = 3 + 1 + 2 + 8 + 8 + 4 + HmacSize;
+        if (bodyAfterMessageId.Length < minBodyLength)
+            return new(CustomPacketDecodeStatus.InvalidFormat, Error: "Custom packet body too short.");
+
+        if (!bodyAfterMessageId[0..3].SequenceEqual(MagicPrefix))
             return new(CustomPacketDecodeStatus.InvalidFormat, Error: "Missing MSE2 magic header.");
 
-        var signedStart = 6;
+        var signedStart = 3;
         var cursor = signedStart;
-        var version = frame[cursor++];
+        var version = bodyAfterMessageId[cursor++];
         if (version != ProtocolVersion)
             return new(CustomPacketDecodeStatus.UnsupportedVersion, Error: $"Unsupported custom packet version: {version}.");
 
-        var typeLen = BinaryPrimitives.ReadUInt16LittleEndian(frame[cursor..(cursor + 2)]);
+        var typeLen = BinaryPrimitives.ReadUInt16LittleEndian(bodyAfterMessageId[cursor..(cursor + 2)]);
         cursor += 2;
-        if (typeLen == 0 || cursor + typeLen + 8 + 8 + 4 + HmacSize > frame.Length)
+        if (typeLen == 0 || cursor + typeLen + 8 + 8 + 4 + HmacSize > bodyAfterMessageId.Length)
             return new(CustomPacketDecodeStatus.InvalidFormat, Error: "Invalid packet type length.");
 
-        var packetType = Encoding.UTF8.GetString(frame[cursor..(cursor + typeLen)]);
+        var packetType = Encoding.UTF8.GetString(bodyAfterMessageId[cursor..(cursor + typeLen)]);
         cursor += typeLen;
 
-        var timestampMs = BinaryPrimitives.ReadInt64LittleEndian(frame[cursor..(cursor + 8)]);
+        var timestampMs = BinaryPrimitives.ReadInt64LittleEndian(bodyAfterMessageId[cursor..(cursor + 8)]);
         cursor += 8;
-        var nonce = BinaryPrimitives.ReadUInt64LittleEndian(frame[cursor..(cursor + 8)]);
+        var nonce = BinaryPrimitives.ReadUInt64LittleEndian(bodyAfterMessageId[cursor..(cursor + 8)]);
         cursor += 8;
-        var payloadLen = BinaryPrimitives.ReadInt32LittleEndian(frame[cursor..(cursor + 4)]);
+        var payloadLen = BinaryPrimitives.ReadInt32LittleEndian(bodyAfterMessageId[cursor..(cursor + 4)]);
         cursor += 4;
 
-        if (payloadLen < 0 || cursor + payloadLen + HmacSize != frame.Length)
+        if (payloadLen < 0 || cursor + payloadLen + HmacSize != bodyAfterMessageId.Length)
             return new(CustomPacketDecodeStatus.InvalidFormat, Error: "Payload length mismatch.");
 
-        var payloadSpan = frame[cursor..(cursor + payloadLen)];
+        var payloadSpan = bodyAfterMessageId[cursor..(cursor + payloadLen)];
         cursor += payloadLen;
 
-        var signedRegion = frame[signedStart..cursor];
-        var receivedHmac = frame[cursor..(cursor + HmacSize)];
+        var signedRegion = bodyAfterMessageId[signedStart..cursor];
+        var receivedHmac = bodyAfterMessageId[cursor..(cursor + HmacSize)];
 
         var isAuthenticated = false;
         if (!string.IsNullOrEmpty(expectedSecret))
@@ -218,6 +234,7 @@ public static class BuiltInCustomPacketTypes
 {
     public const string SyncIp = "mse.sync_ip";
     public const string ExecuteCommand = "mse.execute_command";
+    public const string SwitchServer = "mse.switch_server";
 
     public static byte[] EncodeSyncIpPayload(string playerName, string ipAddress)
     {
@@ -249,5 +266,20 @@ public static class BuiltInCustomPacketTypes
         using var ms = new MemoryStream(payload.ToArray(), writable: false);
         using var br = new BinaryReader(ms, Encoding.UTF8, leaveOpen: true);
         return (br.ReadString(), br.ReadString());
+    }
+
+    public static byte[] EncodeSwitchServerPayload(string targetServerName)
+    {
+        using var ms = new MemoryStream(32);
+        using var bw = new BinaryWriter(ms, Encoding.UTF8, leaveOpen: true);
+        bw.Write(targetServerName ?? string.Empty);
+        return ms.ToArray();
+    }
+
+    public static string DecodeSwitchServerPayload(ReadOnlyMemory<byte> payload)
+    {
+        using var ms = new MemoryStream(payload.ToArray(), writable: false);
+        using var br = new BinaryReader(ms, Encoding.UTF8, leaveOpen: true);
+        return br.ReadString();
     }
 }

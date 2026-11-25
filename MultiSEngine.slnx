@@ -18,6 +18,7 @@
     <Project Path="src/MultiSEngine.Core/MultiSEngine.Core.csproj" />
     <Project Path="src/MultiSEngine.Protocol/MultiSEngine.Protocol.csproj" />
     <Project Path="src/MultiSEngine.Runtime/MultiSEngine.Runtime.csproj" />
+    <Project Path="src/MultiSEngine.TShock/MultiSEngine.TShock.csproj" />
     <Project Path="src/MultiSEngine/MultiSEngine.csproj" />
   </Folder>
   <Folder Name="/tests/">

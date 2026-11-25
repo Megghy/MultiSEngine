@@ -65,4 +65,19 @@ public sealed class CustomPacketSecurityTests
         var noSecret = codec.Decode(frame, expectedSecret: null, TimeSpan.FromSeconds(30), allowUnsigned: false);
         Assert.Equal(CustomPacketDecodeStatus.AuthenticationRequired, noSecret.Status);
     }
+
+    [Fact]
+    public void DecodePayload_MatchesTShockNetGetDataSlice_AndRoundTripsSwitchServer()
+    {
+        var codec = new CustomPacketCodec();
+        var payload = BuiltInCustomPacketTypes.EncodeSwitchServerPayload("boss");
+        var frame = codec.Encode(BuiltInCustomPacketTypes.SwitchServer, payload, "tshock-shared-secret");
+
+        // Simulate Terraria MessageBuffer: frame[0..2]=len, frame[2]=15, args.Index points at frame[3], args.Length = totalLen - 2.
+        var bodyLength = frame.Length - 3;
+        var decoded = codec.DecodePayload(frame.AsSpan(3, bodyLength), "tshock-shared-secret", TimeSpan.FromSeconds(30), allowUnsigned: false);
+        Assert.True(decoded.IsSuccess);
+        Assert.Equal(BuiltInCustomPacketTypes.SwitchServer, decoded.Envelope!.PacketType);
+        Assert.Equal("boss", BuiltInCustomPacketTypes.DecodeSwitchServerPayload(decoded.Envelope.Payload));
+    }
 }

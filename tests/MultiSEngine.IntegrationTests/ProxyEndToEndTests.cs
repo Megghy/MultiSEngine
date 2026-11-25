@@ -260,6 +260,51 @@ public sealed class ProxyEndToEndTests
     }
 
     [Fact]
+    public async Task BackendSwitchServerPacket_ValidSignatureTransfersAndRejectsBadSignature()
+    {
+        const string secret = "tshock-bridge-secret";
+        await using var serverA = new FakeTerrariaServer(new FakeServerOptions { WorldName = "WorldA", AssignedPlayerSlot = 3 });
+        await using var serverB = new FakeTerrariaServer(new FakeServerOptions { WorldName = "WorldB", AssignedPlayerSlot = 8 });
+
+        var config = new ProxyConfig
+        {
+            ServerVersion = 329,
+            CustomPackets = new CustomPacketSecurityConfig { GlobalSharedSecret = secret },
+            Servers =
+            [
+                new ServerDescriptor { Name = "srvA", Host = "127.0.0.1", Port = serverA.Port, Visible = true },
+                new ServerDescriptor { Name = "srvB", Host = "127.0.0.1", Port = serverB.Port, Visible = true },
+            ],
+        };
+
+        await using var host = await StartHostAsync(config);
+        await using var client = await FakeTerrariaClient.ConnectAsync(host.BoundEndPoint!.Port);
+        await client.CompleteLobbyHandshakeAsync("Dana", "uuid-dana");
+
+        var session = host.Sessions.FindByName("Dana")!;
+        Assert.True((await session.TransferToAsync(config.Servers[0])).IsSuccess);
+        Assert.Equal("srvA", session.CurrentServer?.Name);
+
+        // Wrong secret must be ignored.
+        var badFrame = host.CustomPacketCodec.Encode(
+            BuiltInCustomPacketTypes.SwitchServer,
+            BuiltInCustomPacketTypes.EncodeSwitchServerPayload("srvB"),
+            sharedSecret: "wrong-secret");
+        await serverA.SendRawToLatestAsync(badFrame);
+        await Task.Delay(150);
+        Assert.Equal("srvA", session.CurrentServer?.Name);
+
+        // Valid signed mse.switch_server from TShock backend must transfer player to srvB.
+        var validFrame = host.CustomPacketCodec.Encode(
+            BuiltInCustomPacketTypes.SwitchServer,
+            BuiltInCustomPacketTypes.EncodeSwitchServerPayload("srvB"),
+            sharedSecret: secret);
+        await serverA.SendRawToLatestAsync(validFrame);
+        await WaitUntilAsync(() => session.CurrentServer?.Name == "srvB" && session.CurrentState.Phase == SessionPhase.InServer, TimeSpan.FromSeconds(5));
+        Assert.Equal((byte)8, session.CurrentState.ActivePlayerSlot);
+    }
+
+    [Fact]
     public async Task ServerProbeService_ConcurrentlyProbesMultipleServersWithoutStaticLockFailure()
     {
         await using var ok1 = new FakeTerrariaServer(new FakeServerOptions { WorldName = "OK1" });

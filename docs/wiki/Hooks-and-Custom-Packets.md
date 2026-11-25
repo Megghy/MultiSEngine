@@ -63,3 +63,25 @@ context.RegisterCustomPacketHandler("myplugin.ping", async (packetCtx, ct) =>
     await ValueTask.CompletedTask;
 });
 ```
+
+## Official TShock 6 companion plugin (`MultiSEngine.TShock`)
+
+`src/MultiSEngine.TShock` targets **TShock 6.2.1 (`net9.0`)**, shares the exact `MSE2` codec at compile time, and is published as a single zero-dependency DLL (`MultiSEngine.TShock-v*.dll`) on every GitHub Release.
+
+### Setup on backend TShock 6 servers
+
+1. Copy `MultiSEngine.TShock-v*.dll` into TShock's `ServerPlugins/` directory and start the server once to generate `tshock/MultiSEngine.json`.
+2. Set `SharedSecret` in `tshock/MultiSEngine.json` to match `CustomPackets.GlobalSharedSecret` (or the backend's `Servers[].SharedSecret`) in MultiSEngine's `Config.json`.
+3. Optionally set `AllowDirectJoin` to `false` and configure `TrustedProxyIps` (defaults to `["127.0.0.1", "::1"]`) so players cannot bypass the proxy.
+
+### Capabilities & public API
+
+- **Real IP restoration (`mse.sync_ip`)**: Verifies the HMAC signature and trusted proxy IP, updates both Terraria's `TcpSocket._remoteAddress` and TShock's cached `TSPlayer.IP` without reflection, and immediately re-checks TShock IP bans (`EnforceIpBansAfterSync = true`).
+- **Built-in commands**: `/mseswitch <server>` (`mse.switch`) to request a transfer via `mse.switch_server`, and `/msereload` (`mse.admin`).
+- **Plugin bridge API (`MultiSEngine.TShock.MultiSEngineBridge`)**:
+  - `MultiSEngineBridge.IsProxied(int playerIndex)` / `GetSyncedIp(int playerIndex)`
+  - `MultiSEngineBridge.SendSwitchServer(TSPlayer player, string targetServerName)`
+  - `MultiSEngineBridge.SendExecuteCommand(TSPlayer player, string commandText, string? targetPlayerName = null)`
+  - `MultiSEngineBridge.SendCustomPacket(TSPlayer player, string packetType, ReadOnlySpan<byte> payload)`
+  - `MultiSEngineBridge.CustomPacketReceived` event for verified incoming `MSE2` packets
+

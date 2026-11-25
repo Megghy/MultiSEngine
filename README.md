@@ -23,6 +23,7 @@ A Terraria server-independent cross-server proxy service built on **.NET 10**, t
 * 基于 `System.IO.Pipelines` 的零拷贝有界帧管线 + `O(1)` 他人广播包快路径直通
 * 可回收 `AssemblyLoadContext` 插件热重载（`IMsePlugin` + `IPluginContext` 受管注册，零文件锁与真卸载）
 * 升级版 `MSE2` 集群自定义包协议（HMAC-SHA256 签名、时钟偏斜校验与防重放滑动窗口）
+* 内置配套 **TShock 6 插件**（`src/MultiSEngine.TShock`，随 Release 同步发布单文件 `MultiSEngine.TShock-v*.dll`）：自动验签还原玩家真实 IP、复检 IP 封禁，并提供 `/mseswitch` 命令与 `MultiSEngineBridge` C# API
 * 开箱即用的单文件部署与完整本地化支持（详情见 [Wiki](docs/wiki/Home.md)）
 
 ---
@@ -32,6 +33,7 @@ A Terraria server-independent cross-server proxy service built on **.NET 10**, t
 * Zero-copy bounded `System.IO.Pipelines` framing with O(1) broadcast fast-path forwarding
 * Collectible `AssemblyLoadContext` plugin hot-reload (`IMsePlugin` + `IPluginContext` managed subscriptions, zero file locks)
 * Authenticated `MSE2` cluster custom packets (HMAC-SHA256, clock-skew enforcement, and replay window)
+* Official **TShock 6 companion plugin** (`src/MultiSEngine.TShock`, shipped alongside every GitHub Release as `MultiSEngine.TShock-v*.dll`) for verified real-IP restoration, IP-ban enforcement, and cross-server transfer bridging
 * Single-file deployment and customizable localization (see [Wiki](docs/wiki/Home.md))
 
 ## 单文件发布与构建 Single-File Publish & Build

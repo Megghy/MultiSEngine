@@ -22,7 +22,9 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: |
+            9.0.x
+            10.0.x
 
       - name: Restore
         run: dotnet restore ./MultiSEngine.slnx
@@ -53,7 +55,9 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: |
+            9.0.x
+            10.0.x
 
       - name: Publish
         run: dotnet publish ./src/MultiSEngine/MultiSEngine.csproj -c Release -r ${{ matrix.runtime }} -p:PublishSingleFile=true --self-contained false
@@ -65,8 +69,33 @@ jobs:
           path: ./src/MultiSEngine/bin/Release/net10.0/${{ matrix.runtime }}/publish/MultiSEngine*
           if-no-files-found: error
 
+  publish-tshock:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            9.0.x
+            10.0.x
+
+      - name: Build MultiSEngine.TShock
+        run: dotnet build ./src/MultiSEngine.TShock/MultiSEngine.TShock.csproj -c Release
+
+      - name: Upload TShock plugin artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: MultiSEngine-TShock
+          path: ./src/MultiSEngine.TShock/bin/Release/net9.0/MultiSEngine.TShock.dll
+          if-no-files-found: error
+
   release:
-    needs: publish
+    needs: [publish, publish-tshock]
     if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:
@@ -79,7 +108,9 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: |
+            9.0.x
+            10.0.x
 
       - name: Resolve version and check existing release
         id: meta
@@ -134,9 +165,11 @@ jobs:
             tar -czf "./dist/MultiSEngine-${TAG}-${rid}.tar.gz" -C "./release-staging/MultiSEngine-${rid}" MultiSEngine
           done
 
+          cp ./release-staging/MultiSEngine-TShock/MultiSEngine.TShock.dll "./dist/MultiSEngine.TShock-${TAG}.dll"
+
           (
             cd ./dist
-            sha256sum MultiSEngine-* > SHA256SUMS.txt
+            sha256sum MultiSEngine* > SHA256SUMS.txt
             ls -la
             cat SHA256SUMS.txt
           )
@@ -154,7 +187,7 @@ jobs:
           fi
 
           gh release create "$TAG" \
-            ./dist/MultiSEngine-* \
+            ./dist/MultiSEngine* \
             ./dist/SHA256SUMS.txt \
             --target "$GITHUB_SHA" \
             --title "MultiSEngine ${TAG}" \
