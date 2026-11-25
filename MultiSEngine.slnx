@@ -4,13 +4,26 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
+  <Folder Name="/external/" />
+  <Folder Name="/external/TrProtocol/" />
+  <Folder Name="/external/TrProtocol/src/">
+    <Project Path="external/TrProtocol/src/TrProtocol.SerializerGenerator/TrProtocol.SerializerGenerator.csproj" />
+    <Project Path="external/TrProtocol/src/TrProtocol/TrProtocol.csproj" />
+  </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/MultiSEngine.Core/MultiSEngine.Core.csproj" />
+    <Project Path="src/MultiSEngine.Protocol/MultiSEngine.Protocol.csproj" />
+    <Project Path="src/MultiSEngine.Runtime/MultiSEngine.Runtime.csproj" />
+    <Project Path="src/MultiSEngine/MultiSEngine.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/MultiSEngine.Benchmarks/MultiSEngine.Benchmarks.csproj" />
     <Project Path="tests/MultiSEngine.IntegrationTests/MultiSEngine.IntegrationTests.csproj" />
+    <Project Path="tests/MultiSEngine.TestPlugin/MultiSEngine.TestPlugin.csproj" />
     <Project Path="tests/MultiSEngine.Tests/MultiSEngine.Tests.csproj" />
   </Folder>
-  <Project Path="src/MultiSEngine.csproj" />
 </Solution>

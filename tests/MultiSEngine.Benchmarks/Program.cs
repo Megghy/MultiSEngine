@@ -1,9 +1,17 @@
 using BenchmarkDotNet.Running;
-using MultiSEngine.Benchmarks;
 
-if (await ScenarioLoadReporter.TryRunAsync(args).ConfigureAwait(false))
-    return;
+namespace MultiSEngine.Benchmarks;
 
-BenchmarkSwitcher
-    .FromAssembly(typeof(Program).Assembly)
-    .Run(args);
+internal static class Program
+{
+    private static async Task Main(string[] args)
+    {
+        if (args.Contains("--load-report", StringComparer.OrdinalIgnoreCase))
+        {
+            await ProxyLoadReport.RunAsync().ConfigureAwait(false);
+            return;
+        }
+
+        BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
+    }
+}

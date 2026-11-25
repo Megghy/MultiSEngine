@@ -1,7 +1,33 @@
-﻿[*.cs]
+﻿root = true
 
-# CA1707: Identifiers should not contain underscores
+[*.cs]
+charset = utf-8
+indent_style = space
+indent_size = 4
+end_of_line = lf
+
+# Allow underscores in xUnit test method names
 dotnet_diagnostic.CA1707.severity = none
-
-# CS4014: 由于此调用不会等待，因此在调用完成前将继续执行当前方法
-dotnet_diagnostic.CS4014.severity = none
+# Keep CS4014 active as error via Directory.Build.props (never suppress fire-and-forget bugs)
+dotnet_diagnostic.CS4014.severity = error
+# Avoid noisy globalization/design rules that don't fit proxy code
+dotnet_diagnostic.CA1031.severity = none
+dotnet_diagnostic.CA1303.severity = none
+dotnet_diagnostic.CA1305.severity = none
+dotnet_diagnostic.CA1307.severity = none
+dotnet_diagnostic.CA1308.severity = none
+dotnet_diagnostic.CA1848.severity = none
+dotnet_diagnostic.CA2007.severity = none
+dotnet_diagnostic.CA1716.severity = none
+dotnet_diagnostic.CA1711.severity = none
+dotnet_diagnostic.CA1720.severity = none
+dotnet_diagnostic.CA1062.severity = none
+dotnet_diagnostic.CA1819.severity = none
+dotnet_diagnostic.CA1002.severity = none
+dotnet_diagnostic.CA1051.severity = none
+dotnet_diagnostic.CA1815.severity = none
+dotnet_diagnostic.CA1034.severity = none
+dotnet_diagnostic.CA1852.severity = none
+dotnet_diagnostic.CA1822.severity = none
+dotnet_diagnostic.CA1515.severity = none
+dotnet_diagnostic.CA5394.severity = none

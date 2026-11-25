@@ -1,4 +1,4 @@
 [submodule "TrProtocol"]
 	path = external/TrProtocol
-	url = https://github.com/CedaryCat/TrProtocol.git
-	branch = main
+	url = https://github.com/Megghy/TrProtocol-1.git
+	branch = feat/terraria-1.4.6.1

@@ -1,8 +1,8 @@
 # MultiSEngine
 
-MultiSEngine is a .NET 9 proxy layer for Terraria servers. It accepts player connections, keeps a central runtime state, and moves players between backend servers without turning the proxy itself into a full game server.
+MultiSEngine v2 is a **.NET 10** standalone proxy layer for **Terraria v1.4.6.1 (protocol `329`)** servers. It accepts player connections, isolates each session inside a single-connection actor, and transfers players across backend servers with zero packet loss and O(1) broadcast fast-path forwarding.
 
-This wiki is written from the current repository state. It focuses on how the project works today: startup, configuration, runtime behavior, commands, and the built-in plugin model.
+This wiki reflects the v2 architecture: startup, configuration, commands, four-layer architecture, collectible plugin hot-reload, and HMAC-authenticated `MSE2` custom packets.
 
 ## Start here
 
@@ -15,33 +15,18 @@ This wiki is written from the current repository state. It focuses on how the pr
 
 ## Core ideas
 
-- MultiSEngine is a standalone proxy process targeting `net9.0`.
-- Backend servers are defined in `Config.json` and addressed by logical names.
-- Player commands and console commands are runtime-discovered command classes.
-- Plugins are loaded from the `Plugins` folder and can add hooks, commands, and custom packet types.
-- Runtime extension discovery scans both the main assembly and loaded plugin assemblies.
-
-## Typical workflow
-
-1. Start MultiSEngine once to generate `Config.json`, `MOTD.txt`, and the `Plugins` folder if they do not exist.
-2. Edit `Config.json` to point at your backend Terraria servers.
-3. Start the proxy and verify connectivity with the console `test` command.
-4. Let players join the proxy instead of joining a backend server directly.
-5. Use `/mse` commands for server switching.
-6. Drop plugin DLLs into `Plugins` and reload them from the console when needed.
+- **Target runtime & protocol**: `.NET 10` (`net10.0`), Terraria `v1.4.6.1` (`ServerVersion = 329`, with crossplay support down to `269`).
+- **Four-layer Clean Architecture**: `MultiSEngine.Core` -> `MultiSEngine.Protocol` -> `MultiSEngine.Runtime` -> `MultiSEngine` (CLI).
+- **Zero-copy bounded framing**: `FramedConnection` enforces strict frame validation (`length >= 3`), bounded `System.IO.Pipelines` backpressure with flush timeouts, and `PauseReading`/`ResumeReading` gates for lossless server transfers.
+- **Single-connection actor**: `PlayerSessionActor` owns a single discriminated-union `SessionState` and serializes lifecycle, transfer, password prompt, and disconnect transitions without locks or re-entrancy deadlocks.
+- **Collectible plugin sandbox**: Plugins implement `IMsePlugin`, register managed subscriptions via `IPluginContext`, load from memory streams, and truly unload via collectible `AssemblyLoadContext`.
+- **Authenticated cluster packets**: `MSE2` custom packets over `Unused15` use HMAC-SHA256 signatures, clock-skew checks, and a replay-protection window.
 
 ## Repository map
 
-- `src/Program.cs`: process startup and auto-initialization
-- `src/Config.cs`: configuration load, validation, save, and reload
-- `src/Application/Transfers`: cross-server transfer flow
-- `src/Application/Extensions`: command and custom-packet registries
-- `src/Plugins/PluginManager.cs`: plugin loading and unloading
-- `src/Events`: hook definitions and event arguments
-- `external/TrProtocol`: Terraria protocol dependency
-
-## Notes
-
-- The main README is bilingual. This wiki is English only.
-- These pages are stored inside the repository under `docs/wiki` so they can be versioned with code changes.
-- The file names are GitHub Wiki-compatible, so they can be mirrored into a separate `.wiki.git` repository later if needed.
+- `src/MultiSEngine.Core`: immutable config records, `SessionState` discriminated union, `ISessionHandle`, `IMsePlugin`, `IPluginContext`, `HookEvents`, and command contracts
+- `src/MultiSEngine.Protocol`: `FramedConnection`, `PacketFrameCodec`, `FastPathClassifier`, `PlayerStateTracker`, `LobbyProtocol`, `TerrariaSyncEngine`, `TerrariaVersions`, and `CustomPacketCodec` (`MSE2`)
+- `src/MultiSEngine.Runtime`: `MultiSEngineHost`, `PlayerSessionActor`, `TransferWorkflow`, `ServerProbeService`, `PluginHost`, `HookBus`, `CommandRouter`, `BuiltInCommands`, `ConfigStore`, and `AsyncProxyLogger`
+- `src/MultiSEngine`: thin CLI entrypoint with signal handling and non-interactive daemon support
+- `tests/`: parallel unit tests (`MultiSEngine.Tests`), real-TCP end-to-end tests (`MultiSEngine.IntegrationTests`), reloadable sample plugin (`MultiSEngine.TestPlugin`), and production-path benchmarks (`MultiSEngine.Benchmarks`)
+- `external/TrProtocol`: Terraria 1.4.6.1 (`329`) binary protocol library

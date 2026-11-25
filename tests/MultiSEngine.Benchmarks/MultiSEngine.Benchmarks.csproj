@@ -2,10 +2,6 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
@@ -14,7 +10,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\MultiSEngine.csproj" />
+    <ProjectReference Include="..\..\src\MultiSEngine.Core\MultiSEngine.Core.csproj" />
+    <ProjectReference Include="..\..\src\MultiSEngine.Protocol\MultiSEngine.Protocol.csproj" />
+    <ProjectReference Include="..\..\src\MultiSEngine.Runtime\MultiSEngine.Runtime.csproj" />
     <ProjectReference Include="..\..\external\TrProtocol\src\TrProtocol\TrProtocol.csproj" />
   </ItemGroup>
 

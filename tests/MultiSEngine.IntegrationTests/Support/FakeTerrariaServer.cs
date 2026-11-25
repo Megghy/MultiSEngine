@@ -1,158 +1,200 @@
+using System.Buffers;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Channels;
+using MultiSEngine.Protocol.Framing;
+using MultiSEngine.Protocol.Terraria;
+using Terraria;
 using TrProtocol;
+using TrProtocol.NetPackets;
 
 namespace MultiSEngine.IntegrationTests.Support;
 
+internal sealed record FakeServerOptions
+{
+    public string WorldName { get; init; } = "FakeWorld";
+    public byte AssignedPlayerSlot { get; init; } = 5;
+    public bool IsServerSideCharacter { get; init; }
+    public string? RequiredPassword { get; init; }
+    public short SpawnX { get; init; } = 2100;
+    public short SpawnY { get; init; } = 600;
+    public INetPacket[] PostConnectPackets { get; init; } = [];
+}
+
 internal sealed class FakeTerrariaServer : IAsyncDisposable
 {
+    private readonly FakeServerOptions _options;
     private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
-    private readonly PacketSerializer _serverDeserializer = new(false);
-    private readonly PacketSerializer _serverSerializer = new(true);
-    private readonly Channel<object> _receivedPackets = Channel.CreateUnbounded<object>(
-        new UnboundedChannelOptions
-        {
-            SingleReader = false,
-            SingleWriter = true,
-            AllowSynchronousContinuations = false,
-        });
     private readonly CancellationTokenSource _cts = new();
-    private readonly TaskCompletionSource<TcpClient> _acceptedClient = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly ConcurrentBag<FramedConnection> _connections = [];
+    private readonly Channel<(MessageID MessageId, byte[] RawFrame)> _receivedFrames = Channel.CreateUnbounded<(MessageID, byte[])>();
     private readonly Task _acceptTask;
 
-    private TcpClient? _client;
+    private FramedConnection? _latestConnection;
 
-    public FakeTerrariaServer()
+    public FakeTerrariaServer(FakeServerOptions? options = null)
     {
+        _options = options ?? new FakeServerOptions();
         _listener.Start();
         Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
-        _acceptTask = AcceptAndReadAsync();
+        _acceptTask = AcceptLoopAsync();
     }
 
     public int Port { get; }
+    public int ConnectionCount => _connections.Count;
 
-    public async Task WaitForConnectionAsync(TimeSpan timeout)
-        => await _acceptedClient.Task.WaitAsync(timeout);
-
-    public async Task<TPacket> WaitForPacketAsync<TPacket>(TimeSpan timeout)
-        where TPacket : struct, INetPacket
+    public async Task<byte[]> WaitForFrameAsync(MessageID expectedId, TimeSpan timeout)
     {
-        using var timeoutCts = new CancellationTokenSource(timeout);
-
-        while (await _receivedPackets.Reader.WaitToReadAsync(timeoutCts.Token))
+        using var cts = new CancellationTokenSource(timeout);
+        while (await _receivedFrames.Reader.WaitToReadAsync(cts.Token).ConfigureAwait(false))
         {
-            while (_receivedPackets.Reader.TryRead(out var packet))
+            while (_receivedFrames.Reader.TryRead(out var item))
             {
-                if (packet is TPacket typedPacket)
+                if (item.MessageId == expectedId)
+                    return item.RawFrame;
+            }
+        }
+        throw new TimeoutException($"Timed out waiting for {expectedId} on FakeTerrariaServer '{_options.WorldName}'.");
+    }
+
+    public bool TryHasReceived(MessageID id)
+    {
+        // Peek via snapshot is not needed when caller checks recorded list.
+        return _recordedMessageIds.ContainsKey(id);
+    }
+
+    private readonly ConcurrentDictionary<MessageID, int> _recordedMessageIds = new();
+
+    public async Task SendToLatestAsync(INetPacket packet, CancellationToken ct = default)
+    {
+        var conn = Volatile.Read(ref _latestConnection) ?? throw new InvalidOperationException("No connected client.");
+        await conn.WritePacketAsync(packet, fromServer: true, ct).ConfigureAwait(false);
+    }
+
+    public async Task SendRawToLatestAsync(ReadOnlyMemory<byte> frame, CancellationToken ct = default)
+    {
+        var conn = Volatile.Read(ref _latestConnection) ?? throw new InvalidOperationException("No connected client.");
+        await conn.WriteFrameAsync(frame, ct).ConfigureAwait(false);
+    }
+
+    public async Task CloseLatestConnectionAsync()
+    {
+        var conn = Interlocked.Exchange(ref _latestConnection, null);
+        if (conn is not null)
+            await conn.DisposeAsync().ConfigureAwait(false);
+    }
+
+    private async Task AcceptLoopAsync()
+    {
+        while (!_cts.IsCancellationRequested)
+        {
+            TcpClient? tcp = null;
+            try
+            {
+                tcp = await _listener.AcceptTcpClientAsync(_cts.Token).ConfigureAwait(false);
+                var conn = FramedConnection.FromTcpClient(tcp);
+                tcp = null;
+                _connections.Add(conn);
+                Volatile.Write(ref _latestConnection, conn);
+
+                var passwordAccepted = string.IsNullOrEmpty(_options.RequiredPassword);
+                conn.SetInboundHandler((frame, ct) => HandleFrameAsync(conn, frame, () => passwordAccepted, v => passwordAccepted = v, ct));
+                conn.Start();
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (ObjectDisposedException)
+            {
+                break;
+            }
+            catch
+            {
+                tcp?.Dispose();
+            }
+        }
+    }
+
+    private async ValueTask HandleFrameAsync(
+        FramedConnection conn,
+        ReadOnlySequence<byte> frame,
+        Func<bool> isPasswordAccepted,
+        Action<bool> setPasswordAccepted,
+        CancellationToken ct)
+    {
+        var copy = PacketFrameCodec.CopyToArray(frame);
+        var msgId = (MessageID)copy[2];
+        _recordedMessageIds.AddOrUpdate(msgId, 1, (_, c) => c + 1);
+        _receivedFrames.Writer.TryWrite((msgId, copy));
+
+        switch (msgId)
+        {
+            case MessageID.ClientHello:
+                if (!isPasswordAccepted())
                 {
-                    return typedPacket;
+                    await conn.WritePacketAsync(new RequestPassword(), fromServer: true, ct).ConfigureAwait(false);
+                    return;
                 }
-            }
-        }
+                await conn.WritePacketAsync(new LoadPlayer { PlayerSlot = _options.AssignedPlayerSlot }, fromServer: true, ct).ConfigureAwait(false);
+                return;
 
-        throw new TimeoutException($"Timed out waiting for packet {typeof(TPacket).Name}.");
-    }
-
-    public async Task SendAsync(INetPacket packet, CancellationToken cancellationToken = default)
-    {
-        var client = await _acceptedClient.Task.WaitAsync(cancellationToken);
-        var bytes = _serverSerializer.Serialize(packet);
-        await client.GetStream().WriteAsync(bytes, cancellationToken);
-    }
-
-    private async Task AcceptAndReadAsync()
-    {
-        try
-        {
-            var client = await _listener.AcceptTcpClientAsync(_cts.Token);
-            _client = client;
-            _acceptedClient.TrySetResult(client);
-
-            while (!_cts.IsCancellationRequested)
-            {
-                var packet = await ReadPacketAsync(client.GetStream(), _cts.Token);
-                if (packet is null)
+            case MessageID.SendPassword:
+                var pwd = (SendPassword)PacketFrameCodec.Deserialize(copy, fromServer: false);
+                if (pwd.Password == _options.RequiredPassword)
                 {
-                    break;
+                    setPasswordAccepted(true);
+                    await conn.WritePacketAsync(new LoadPlayer { PlayerSlot = _options.AssignedPlayerSlot }, fromServer: true, ct).ConfigureAwait(false);
                 }
+                else
+                {
+                    await conn.WritePacketAsync(new RequestPassword(), fromServer: true, ct).ConfigureAwait(false);
+                }
+                return;
 
-                await _receivedPackets.Writer.WriteAsync(packet, _cts.Token);
-            }
+            case MessageID.RequestWorldInfo:
+                var bits = new BitsByte();
+                bits[6] = _options.IsServerSideCharacter;
+                await conn.WritePacketAsync(new WorldData
+                {
+                    MaxTileX = 4200,
+                    MaxTileY = 1200,
+                    SpawnX = _options.SpawnX,
+                    SpawnY = _options.SpawnY,
+                    WorldName = _options.WorldName,
+                    WorldUniqueID = Guid.NewGuid(),
+                    EventInfo1 = bits,
+                    ExtraSpawnPoints = [],
+                }, fromServer: true, ct).ConfigureAwait(false);
+                return;
+
+            case MessageID.RequestTileData:
+                await conn.WritePacketAsync(new StatusText
+                {
+                    Max = 1,
+                    Text = TerrariaPacketFactory.LiteralText("Tile data"),
+                    Flag = 0,
+                }, fromServer: true, ct).ConfigureAwait(false);
+                await conn.WritePacketAsync(new StartPlaying(), fromServer: true, ct).ConfigureAwait(false);
+                return;
+
+            case MessageID.SpawnPlayer:
+                await conn.WritePacketAsync(new FinishedConnectingToServer(), fromServer: true, ct).ConfigureAwait(false);
+                // Immediately send post-connect packets back-to-back to verify zero packet loss across transfer gate!
+                foreach (var pkt in _options.PostConnectPackets)
+                    await conn.WritePacketAsync(pkt, fromServer: true, ct).ConfigureAwait(false);
+                return;
         }
-        catch (OperationCanceledException)
-        {
-            _acceptedClient.TrySetCanceled(_cts.Token);
-        }
-        catch (Exception ex)
-        {
-            _acceptedClient.TrySetException(ex);
-            _receivedPackets.Writer.TryComplete(ex);
-            return;
-        }
-
-        _receivedPackets.Writer.TryComplete();
-    }
-
-    private async Task<object?> ReadPacketAsync(NetworkStream stream, CancellationToken cancellationToken)
-    {
-        var header = new byte[2];
-        if (!await ReadExactlyOrEndAsync(stream, header, cancellationToken))
-        {
-            return null;
-        }
-
-        var length = BitConverter.ToUInt16(header, 0);
-        if (length < 2)
-        {
-            throw new IOException($"Invalid packet length: {length}");
-        }
-
-        var packetBytes = new byte[length];
-        header.CopyTo(packetBytes, 0);
-        if (!await ReadExactlyOrEndAsync(stream, packetBytes.AsMemory(2, length - 2), cancellationToken))
-        {
-            return null;
-        }
-
-        using var memory = new MemoryStream(packetBytes);
-        using var reader = new BinaryReader(memory);
-        return _serverDeserializer.Deserialize(reader);
-    }
-
-    private static async Task<bool> ReadExactlyOrEndAsync(Stream stream, Memory<byte> buffer, CancellationToken cancellationToken)
-    {
-        var offset = 0;
-        while (offset < buffer.Length)
-        {
-            var read = await stream.ReadAsync(buffer[offset..], cancellationToken);
-            if (read == 0)
-            {
-                return false;
-            }
-
-            offset += read;
-        }
-
-        return true;
     }
 
     public async ValueTask DisposeAsync()
     {
-        _cts.Cancel();
+        await _cts.CancelAsync().ConfigureAwait(false);
         _listener.Stop();
-
-        try
-        {
-            _client?.Dispose();
-            await _acceptTask.ConfigureAwait(false);
-        }
-        catch
-        {
-        }
-        finally
-        {
-            _cts.Dispose();
-        }
+        try { await _acceptTask.ConfigureAwait(false); } catch { }
+        foreach (var conn in _connections)
+            await conn.DisposeAsync().ConfigureAwait(false);
+        _cts.Dispose();
     }
 }

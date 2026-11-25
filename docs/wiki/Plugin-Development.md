@@ -1,152 +1,110 @@
 # Plugin Development
 
-## Plugin model
+MultiSEngine v2 uses an explicit, managed plugin SDK designed for clean **collectible `AssemblyLoadContext` hot-reload** with zero leaked event handlers or locked DLL files.
 
-The built-in plugin system is intentionally simple:
+## Plugin contract
 
-- MultiSEngine loads DLLs from the `Plugins` folder in the current working directory.
-- A DLL is treated as a plugin assembly when it contains at least one type assignable to `IMSEPlugin`.
-- The plugin instance receives `Initialize()` on load and `Dispose()` on unload.
-- The same assembly can also contribute commands and custom packet types.
-
-The core contract is:
+Every plugin implements `IMsePlugin` (`MultiSEngine.Core.Extensions`):
 
 ```csharp
-public interface IMSEPlugin
+public interface IMsePlugin : IAsyncDisposable
 {
     string Name { get; }
     string Description { get; }
     string Author { get; }
     Version Version { get; }
-    void Initialize();
-    void Dispose();
+    ValueTask InitializeAsync(IPluginContext context, CancellationToken cancellationToken);
 }
 ```
 
-## Minimum project setup
+## Project setup
 
-Create a class library targeting the same runtime as MultiSEngine:
+Target `net10.0` and reference `MultiSEngine.Core` (plus `TrProtocol` if inspecting typed packets):
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\MultiSEngine.csproj" />
+    <ProjectReference Include="..\..\src\MultiSEngine.Core\MultiSEngine.Core.csproj" />
+    <ProjectReference Include="..\..\external\TrProtocol\src\TrProtocol\TrProtocol.csproj" />
   </ItemGroup>
 </Project>
 ```
 
-If your plugin project lives outside this repository, reference the built `MultiSEngine.dll` instead of using a project reference.
-
 ## Minimal plugin example
 
+All subscriptions registered through `IPluginContext` are tracked automatically and revoked before `DisposeAsync()` and `ALC.Unload()`:
+
 ```csharp
-using MultiSEngine.Events;
-using MultiSEngine.Plugins;
+using MultiSEngine.Core.Extensions;
+using MultiSEngine.Core.Security;
+using TrProtocol;
 
 namespace ExamplePlugin;
 
-public sealed class SamplePlugin : IMSEPlugin
+public sealed class SamplePlugin : IMsePlugin
 {
     public string Name => "Sample Plugin";
-    public string Description => "Logs lifecycle events.";
+    public string Description => "Demonstrates managed hooks, packet middleware, and commands.";
     public string Author => "YourName";
-    public Version Version => new(1, 0, 0);
+    public Version Version => new(2, 0, 0);
 
-    public void Initialize()
+    public ValueTask InitializeAsync(IPluginContext context, CancellationToken cancellationToken)
     {
-        Hooks.PlayerJoin += OnPlayerJoin;
-        Hooks.PreSwitch += OnPreSwitch;
-        Logs.Info("Sample Plugin initialized.");
+        context.OnPlayerJoin(ev =>
+        {
+            context.Logger.Info($"{ev.Session.PlayerName} joined ({ev.RemoteEndPoint}).", Name);
+            return ValueTask.CompletedTask;
+        });
+
+        context.OnPreSwitch(ev =>
+        {
+            context.Logger.Info($"{ev.Session.PlayerName} -> {ev.TargetServer.Name}", Name);
+            return ValueTask.CompletedTask;
+        });
+
+        context.RegisterPacketMiddleware(
+            PacketDirection.ClientToServer,
+            [MessageID.PlayerControls],
+            static (ctx, ct) => ValueTask.FromResult(PacketMiddlewareResult.Continue));
+
+        context.RegisterCommand(new StatusCommand());
+        return ValueTask.CompletedTask;
     }
 
-    public void Dispose()
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
+    private sealed class StatusCommand : IMseCommand
     {
-        Hooks.PlayerJoin -= OnPlayerJoin;
-        Hooks.PreSwitch -= OnPreSwitch;
-        Logs.Info("Sample Plugin disposed.");
-    }
+        public string Name => "status";
+        public IReadOnlyList<string> Aliases => [];
+        public bool AllowPlayer => true;
+        public bool AllowConsole => true;
 
-    private static void OnPlayerJoin(PlayerJoinEventArgs args)
-        => Logs.Info($"[Sample Plugin] {args.Client.Name} joined from {args.IP}:{args.Port}");
-
-    private static void OnPreSwitch(SwitchEventArgs args)
-        => Logs.Info($"[Sample Plugin] {args.Client.Name} -> {args.TargetServer.Name}");
-}
-```
-
-## Packaging and deployment
-
-1. Build the plugin DLL.
-2. Copy the plugin DLL into the proxy's `Plugins` folder.
-3. Restart the proxy or run `reloadplugin` in the console.
-
-If your plugin depends on extra assemblies, keep the current loader limitations in mind:
-
-- the loader only scans `Plugins/*.dll` at the top level
-- plugin discovery does not isolate or resolve complex dependency graphs
-- a broken or incompatible DLL in `Plugins` can break the load pass
-
-In practice, simple plugins that only depend on MultiSEngine and its shared runtime surface are the safest fit.
-
-## How commands from plugins work
-
-Any public, non-abstract, parameterless type in the same plugin assembly that directly inherits `CommandDispatcher.CmdBase` is auto-registered when extensions are rebuilt.
-
-Example:
-
-```csharp
-using MultiSEngine.Commands;
-
-namespace ExamplePlugin;
-
-public sealed class WhoAmICommand : CommandDispatcher.CmdBase
-{
-    public override string Name => "whoami";
-
-    public override async ValueTask<bool> Execute(ClientData client, string cmdName, string[] parma)
-    {
-        if (client is null)
-            return false;
-
-        await client.SendInfoMessageAsync($"You are {client.Name}.").ConfigureAwait(false);
-        return false;
+        public async ValueTask ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
+        {
+            if (context.Session is not null)
+                await context.Session.SendChatAsync("Proxy is healthy.", 120, 230, 140, true, cancellationToken);
+        }
     }
 }
 ```
 
-## Lifecycle expectations
+## Hot-reload lifecycle
 
-Write plugins as if reload is normal, because it is:
+1. `PluginHost` reads each `Plugins/*.dll` (and optional `.pdb`) into memory so files on disk are never locked on Windows.
+2. Each plugin loads into its own collectible `AssemblyLoadContext`.
+3. On `reloadplugin` or host shutdown, `PluginHost`:
+   - cancels `context.UnloadToken`,
+   - automatically revokes all hooks, middleware, commands, and custom packet handlers registered through `IPluginContext`,
+   - invokes `DisposeAsync()` with exception isolation,
+   - unloads the collectible `AssemblyLoadContext`.
 
-- `Initialize()` should subscribe hooks and start only the resources you actually need.
-- `Dispose()` should stop timers, release files, cancel background work, and unsubscribe hooks.
-- Do not rely on static process-lifetime state unless you own its cleanup.
-
-## Type requirements for discovery
-
-To be discovered reliably, extension types should be:
-
-- public
-- non-abstract
-- parameterless
-
-This applies to:
-
-- `IMSEPlugin` implementations
-- command classes
-- custom packet classes
-
-## Recommended plugin boundaries
-
-- Put hook wiring in the plugin class.
-- Put command logic in dedicated command classes.
-- Put packet wire format in dedicated `BaseCustomData` classes.
-- Keep each plugin focused on one job instead of building a large framework inside the plugin.
+Avoid storing references to plugin types in host statics or uncancelled background tasks so GC can reclaim the old ALC immediately.
 
 See also: [Hooks and Custom Packets](Hooks-and-Custom-Packets.md)

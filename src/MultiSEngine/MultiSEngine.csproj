@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>MultiSEngine</RootNamespace>
+    <AssemblyName>MultiSEngine</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MultiSEngine.Core\MultiSEngine.Core.csproj" />
+    <ProjectReference Include="..\MultiSEngine.Protocol\MultiSEngine.Protocol.csproj" />
+    <ProjectReference Include="..\MultiSEngine.Runtime\MultiSEngine.Runtime.csproj" />
+  </ItemGroup>
+
+</Project>

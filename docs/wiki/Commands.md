@@ -1,82 +1,65 @@
 # Commands
 
-MultiSEngine has two command surfaces:
-
-- player chat commands
-- proxy console commands
-
-The command runtime discovers command classes from the main assembly and all loaded plugin assemblies.
+MultiSEngine v2 separates player chat commands and proxy console commands cleanly inside `CommandRouter`. Both built-in commands and plugin commands implement `IMseCommand` (`MultiSEngine.Core.Extensions`).
 
 ## Player commands
 
-Player commands are routed through the built-in `/mse` command.
+Player commands are invoked in chat via `/mse` (or custom plugin commands registered with `AllowPlayer = true`).
 
 | Command | Aliases | Description |
 | --- | --- | --- |
-| `/mse tp <server>` | `to`, `t` | Switch to another backend server. |
-| `/mse back` | `b` | Return to the default backend server. |
-| `/mse list` | `l` | List available backend servers. |
-| `/mse password <password>` | `pass`, `p` | Send a password to the current backend when the player is in password-request state. |
+| `/mse tp <server>` | `to`, `t` | Transfer to a configured backend server. |
+| `/mse back` | `b` | Fall back to the previous server, default server, or Lobby. |
+| `/mse list` | `l` | List visible backend servers. |
+| `/mse password <password>` | `pass`, `p` | Submit a password when a backend server requests one (supports spaces and quoted strings). |
 
 ## Console commands
 
-The proxy console accepts commands with or without a leading slash. Internally, the console loop normalizes input to command format before dispatch.
+The proxy console accepts commands with or without a leading `/`, and supports quoted arguments and escaped characters.
 
 | Command | Aliases | Description |
 | --- | --- | --- |
 | `list` | `l` | List configured backend servers. |
-| `online` | `ol`, `playing` | List online players and their current backend. |
-| `kick <player> [reason]` | `k` | Disconnect a player. |
-| `reload` | `rl` | Reload configuration and localization. |
-| `reloadplugin` | `rp` | Reset hooks, unload plugins, load plugins again, then rebuild command and custom-packet registries. |
-| `broadcast [server] <message>` | `bc` | Broadcast to all players or only players on a named backend server. |
-| `test <server>` | `t` | Test connectivity to one backend server. |
-| `test all` | `t` | Test all backend servers. |
-| `stop` | `exit` | Shut down the proxy process. |
+| `online` | `ol`, `playing` | List active sessions, states, and current backends. |
+| `kick <player> [reason]` | `k` | Disconnect an online player cleanly. |
+| `reload` | `rl` | Reload `Config.json` and localization. |
+| `reloadplugin` | `rp` | Cancel unload tokens, revoke plugin registrations, unload collectible ALCs, and reload `Plugins/*.dll`. |
+| `broadcast [server] <message>` | `bc` | Broadcast a chat message to all players or players on a specific backend server. |
+| `test <server>` | `t` | Probe connectivity to a single backend server. |
+| `test all` | `t` | Concurrently probe all configured backend servers. |
+| `stop` | `exit` | Gracefully drain sessions, unload plugins, and shut down the host. |
 
-## Command matching rules
+## Security & error handling
 
-- Player commands are exact-name matches against non-console commands.
-- Console commands are matched against commands where `ServerCommand` is `true`.
-- Plugin commands can participate in the same dispatch model by inheriting `CommandDispatcher.CmdBase`.
+- **No password leakage**: When any player command throws an exception, `CommandRouter` logs the failure and still marks the chat command as intercepted so sensitive arguments (such as `/mse password ...`) are **never** forwarded to the backend server.
+- **No console command hijacking**: Console commands are dispatched exclusively against commands with `AllowConsole = true` using `CommandSource.Console`.
 
-## Error handling
+## Registering a plugin command
 
-- Command exceptions are logged.
-- Players receive a generic failure message when command execution throws.
-- The console receives the failure message through logs.
-
-## Adding commands in a plugin
-
-A plugin command is any non-abstract type in the plugin assembly that:
-
-- directly inherits `CommandDispatcher.CmdBase`
-- has a public parameterless constructor
-
-The extension registry instantiates these command classes automatically during startup and plugin reload.
-
-Example:
+Plugins register commands explicitly through `IPluginContext.RegisterCommand(...)` — no reflection scanning is required, and registrations are automatically revoked on plugin unload.
 
 ```csharp
-using MultiSEngine.Commands;
+using MultiSEngine.Core.Extensions;
+using MultiSEngine.Core.Security;
 
-namespace ExamplePlugin;
-
-public sealed class HelloCommand : CommandDispatcher.CmdBase
+public sealed class HelloCommand : IMseCommand
 {
-    public override string Name => "hello";
+    public string Name => "hello";
+    public IReadOnlyList<string> Aliases => ["hi"];
+    public bool AllowPlayer => true;
+    public bool AllowConsole => true;
 
-    public override async ValueTask<bool> Execute(ClientData client, string cmdName, string[] parma)
+    public async ValueTask ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
-        if (client is null)
-            return false;
+        if (context.Source == CommandSource.Player && context.Session is not null)
+        {
+            await context.Session.SendChatAsync("Hello from plugin!", 120, 230, 140, withPrefix: true, cancellationToken);
+            return;
+        }
 
-        await client.SendSuccessMessageAsync("Hello from plugin.").ConfigureAwait(false);
-        return false;
+        context.Logger.Info("Hello from console!", "ExamplePlugin");
     }
 }
 ```
-
-This command becomes available to players as `/hello`. If you want a console-only command, override `ServerCommand` and design it for console dispatch.
 
 Next page: [Architecture](Architecture.md)

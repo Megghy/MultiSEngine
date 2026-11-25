@@ -10,7 +10,30 @@ permissions:
   contents: read
 
 jobs:
-  build-test-publish:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore ./MultiSEngine.slnx
+
+      - name: Build
+        run: dotnet build ./MultiSEngine.slnx -c Release --no-restore
+
+      - name: Test
+        run: dotnet test ./MultiSEngine.slnx -c Release --no-build --collect:"XPlat Code Coverage"
+
+  publish:
+    needs: build-and-test
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -31,21 +54,12 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Restore
-        run: dotnet restore ./MultiSEngine.slnx
-
-      - name: Build
-        run: dotnet build ./MultiSEngine.slnx -c Release --no-restore
-
-      - name: Test
-        run: dotnet test ./MultiSEngine.slnx -c Release --no-build
-
       - name: Publish
-        run: dotnet publish ./src/MultiSEngine.csproj -c Release -r ${{ matrix.runtime }} -p:PublishSingleFile=true --self-contained false
+        run: dotnet publish ./src/MultiSEngine/MultiSEngine.csproj -c Release -r ${{ matrix.runtime }} -p:PublishSingleFile=true --self-contained false
 
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
           name: MultiSEngine-${{ matrix.runtime }}
-          path: ./src/bin/Release/net9.0/${{ matrix.runtime }}/publish/MultiSEngine*
+          path: ./src/MultiSEngine/bin/Release/net10.0/${{ matrix.runtime }}/publish/MultiSEngine*
           if-no-files-found: error

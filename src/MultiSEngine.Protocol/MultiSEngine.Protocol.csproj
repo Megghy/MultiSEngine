@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>MultiSEngine.Protocol</RootNamespace>
+    <AssemblyName>MultiSEngine.Protocol</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MultiSEngine.Core\MultiSEngine.Core.csproj" />
+    <ProjectReference Include="..\..\external\TrProtocol\src\TrProtocol\TrProtocol.csproj" />
+  </ItemGroup>
+
+</Project>

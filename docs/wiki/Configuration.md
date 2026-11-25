@@ -1,81 +1,76 @@
 # Configuration
 
+MultiSEngine v2 stores configuration as an immutable `ProxyConfig` snapshot (`MultiSEngine.Core.Configuration.ProxyConfig`) loaded and atomically saved by `ConfigStore`.
+
 ## Runtime files
 
-MultiSEngine uses a small set of files in its working directory:
-
-- `Config.json`: runtime configuration
-- `MOTD.txt`: text template for the proxy MOTD
+- `Config.json`: proxy, limits, security, and backend server definitions
+- `MOTD.txt`: lobby MOTD template
 - `Plugins/`: plugin DLL drop folder
+- `Logs/`: daily async log files
 
 ## Root settings
 
-| Setting | Type | Meaning |
+| Setting | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `ListenIP` | `string` | `"0.0.0.0"` | Bind IP address (`localhost` binds strictly to `127.0.0.1`). |
+| `ListenPort` | `int` | `7778` | TCP listener port. |
+| `ServerName` | `string` | `"MultiSEngine"` | Proxy display name used in Lobby world and MOTD. |
+| `ServerVersion` | `int` | `329` | Default Terraria protocol number (`329` = `v1.4.6.1`, `326` = `v1.4.5.8`, `319` = `v1.4.5.6`). |
+| `SwitchTimeoutMs` | `int` | `10000` | Backend pre-connect timeout in milliseconds. |
+| `PasswordTimeoutMs` | `int` | `60000` | Timeout for entering a backend password via `/mse pass`. |
+| `HandshakeTimeoutMs` | `int` | `15000` | Maximum duration allowed for initial client lobby handshake. |
+| `EnableCrossplay` | `bool` | `true` | Allows clients whose protocol version differs from `ServerVersion` (above minimum `269`). |
+| `EnableChatForward` | `bool` | `true` | Forwards chat across backend servers using `ChatFormat`. |
+| `ChatFormat` | `string` | `"[{servername}] {username}: {message}"` | Cross-server chat template. |
+| `SwitchToDefaultServerOnJoin` | `bool` | `false` | Automatically transfers newly joined players to `DefaultServer`. |
+| `RestoreDataWhenJoinNonSsc` | `bool` | `true` | Restores origin character data when joining a non-SSC backend server. |
+| `DisableTcpDelay` | `bool` | `true` | Enables `TCP_NODELAY` on client and upstream sockets. |
+| `UseCrowdControlled` | `bool` | `false` | Applies a brief crowd-control buff during server transfer handshakes. |
+| `DefaultServer` | `string` | `"lobby"` | Logical `Name` of the default fallback backend server. |
+| `Limits` | `object` | see below | Connection, backpressure, and buffer safety limits. |
+| `CustomPackets` | `object` | see below | `MSE2` HMAC-SHA256 authentication settings. |
+| `Servers` | `array` | `[lobby]` | Backend Terraria server descriptors. |
+
+## `Limits` settings
+
+| Field | Default | Meaning |
 | --- | --- | --- |
-| `ListenIP` | `string` | Bind address for the proxy listener. |
-| `ListenPort` | `int` | Bind port for the proxy listener. |
-| `ServerName` | `string` | Public-facing proxy name shown to players and logs. |
-| `ServerVersion` | `int` | Default Terraria protocol version number used by the proxy. `319` maps to `v1.4.5.6`. |
-| `SwitchTimeOut` | `int` | Transfer timeout in milliseconds. |
-| `EnableCrossplayFeature` | `bool` | Allows joining even when the player version differs from `ServerVersion`, instead of hard-rejecting version mismatch. |
-| `EnableChatForward` | `bool` | Forwards normal chat across the proxy flow. |
-| `ChatFormat` | `string` | Chat forwarding template. Supported placeholders are `{servername}`, `{username}`, and `{message}`. |
-| `SwitchToDefaultServerOnJoin` | `bool` | Sends newly joined players to the configured default server automatically. |
-| `RestoreDataWhenJoinNonSSC` | `bool` | Restores player data when joining a non-SSC backend server. |
-| `DisableTcpDelayWhenPipeline` | `bool` | Disables Nagle-style delay in the send pipeline. Useful for lower-latency packet forwarding. |
-| `UseCrowdControlled` | `bool` | Enables the alternate pre-connect branch used by the current transfer pipeline. |
-| `DefaultServer` | `string` | Logical name of the backend server treated as the default target. |
-| `Servers` | `array` | List of backend Terraria servers. |
+| `MaxConnections` | `256` | Maximum concurrent client connections accepted by the listener. |
+| `SendPipePauseThresholdBytes` | `524288` | Outbound pipe backpressure pause threshold (512 KiB). |
+| `SendPipeResumeThresholdBytes` | `262144` | Outbound pipe resume threshold (256 KiB). |
+| `SendFlushTimeoutMs` | `10000` | Slow-peer flush timeout before disconnecting the stalled connection. |
+| `MaxPreConnectBufferedBytes` | `8388608` | Maximum world/chunk bytes buffered during a single pre-connect handshake (8 MiB). |
+| `MaxHandshakePacketsPerSecond` | `256` | Per-connection rate limit during pre-lobby handshake. |
+| `SessionMailboxCapacity` | `256` | Bounded actor mailbox capacity per session. |
 
-## Backend server entry
+## `CustomPackets` settings
 
-Each item in `Servers` has this shape:
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `GlobalSharedSecret` | `""` | Default HMAC-SHA256 secret shared with trusted backend servers. |
+| `MaxClockSkewSeconds` | `30` | Allowed timestamp drift for `MSE2` packets before replay rejection. |
+| `AllowUnsignedInDevelopment` | `false` | Permits unsigned `MSE2` packets for local development only (keep `false` in production). |
+
+## Backend server entry (`Servers[]`)
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `Visible` | `bool` | If `false`, the server is hidden from MOTD placeholders and `/mse list`, but it still exists as a target. |
-| `Name` | `string` | Canonical backend name. This must be unique and non-empty. |
-| `ShortName` | `string` | Optional alias accepted by the server lookup logic. |
-| `IP` | `string` | Target host name or IP address. |
-| `Port` | `int` | Target Terraria server port. |
-| `SpawnX` | `short` | Optional forced spawn X coordinate. Use `-1` to use the backend world spawn. |
-| `SpawnY` | `short` | Optional forced spawn Y coordinate. Use `-1` to use the backend world spawn. |
-| `VersionNum` | `int` | Optional per-server Terraria version override. Use `-1` to fall back to the global version logic. |
+| `Name` | `string` | Unique canonical backend name. |
+| `ShortName` | `string` | Optional short alias for `/mse tp` lookup. |
+| `Host` | `string` | Backend hostname or IP address. |
+| `Port` | `int` | Backend TCP port. |
+| `VersionNum` | `int` | Optional per-server Terraria protocol override (`-1` inherits client/global version). |
+| `Visible` | `bool` | Controls visibility in `{servers}` MOTD placeholder and `/mse list`. |
+| `SpawnX` / `SpawnY` | `short` | Optional forced spawn tile coordinates (`-1` uses backend world spawn). |
+| `SharedSecret` | `string?` | Optional per-server HMAC secret overriding `CustomPackets.GlobalSharedSecret`. |
+| `AllowClusterCommands` | `bool` | Must be `true` to allow `mse.execute_command` from this backend to control other players' sessions. |
 
-## Validation rules on load
+## Lookup priority & validation
 
-When `Config.json` is loaded:
-
-- Duplicate backend names are reduced to a single entry.
-- Backend entries with empty names are removed.
-- The file is rewritten in normalized JSON format on first successful load.
-- Unknown version numbers are logged as warnings.
-
-## Configuration behavior notes
-
-- `DefaultServer` is resolved by exact backend `Name`.
-- Server matching for commands also accepts prefix matches, substring matches, and `ShortName`.
-- Forced spawn coordinates are validated against backend world bounds during transfer. Invalid coordinates are adjusted and logged.
-- If `VersionNum` is set on a backend server, adapters prefer it over the global `ServerVersion`.
-
-## MOTD placeholders
-
-`MOTD.txt` supports these placeholders:
-
-- `{online}`
-- `{name}`
-- `{players}`
-- `{servers}`
-
-`{servers}` only includes backends where `Visible` is `true`.
-
-## Reload behavior
-
-Use the console command `reload` to reload:
-
-- `Config.json`
-- localization resources
-
-Plugin state is not reloaded by `reload`. Use `reloadplugin` for extension reloads.
+- Duplicate or empty server names are normalized out on load.
+- `ProxyConfig.FindServer(query)` resolves in strict order: **exact `Name`** -> **exact `ShortName`** -> **prefix match** -> **substring match**.
+- `MOTD.txt` supports `{online}`, `{name}`, `{players}`, and `{servers}` (visible servers only).
+- Run `reload` in the console to atomically swap `Config.json` and localization; run `reloadplugin` to hot-reload plugins.
 
 Next page: [Commands](Commands.md)

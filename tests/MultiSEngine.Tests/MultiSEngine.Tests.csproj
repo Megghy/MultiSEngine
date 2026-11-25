@@ -1,9 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
@@ -19,12 +16,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\MultiSEngine.csproj" />
+    <ProjectReference Include="..\..\src\MultiSEngine.Core\MultiSEngine.Core.csproj" />
+    <ProjectReference Include="..\..\src\MultiSEngine.Protocol\MultiSEngine.Protocol.csproj" />
+    <ProjectReference Include="..\..\src\MultiSEngine.Runtime\MultiSEngine.Runtime.csproj" />
     <ProjectReference Include="..\..\external\TrProtocol\src\TrProtocol\TrProtocol.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Include="..\Shared\TemporaryWorkspace.cs" Link="Support\TemporaryWorkspace.cs" />
+    <ProjectReference Include="..\MultiSEngine.TestPlugin\MultiSEngine.TestPlugin.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

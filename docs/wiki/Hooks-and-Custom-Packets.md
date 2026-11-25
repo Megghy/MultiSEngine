@@ -1,129 +1,65 @@
 # Hooks and Custom Packets
 
-## Available hooks
+## Lifecycle hooks
 
-The public hook surface is defined in `src/Events/Hooks.cs`.
+Plugins subscribe to async hooks via `IPluginContext`. Subscriber exceptions are isolated so one faulty plugin cannot break other subscribers or crash the proxy.
 
-| Hook | Event args | When it fires |
+| Registration | Event type | When it fires |
 | --- | --- | --- |
-| `Hooks.PlayerJoin` | `PlayerJoinEventArgs` | When a client sends `ClientHello` and enters the join flow. |
-| `Hooks.PlayerLeave` | `PlayerLeaveEventArgs` | When a client is leaving through the transfer/runtime path. |
-| `Hooks.PreSwitch` | `SwitchEventArgs` | Before a server switch starts. |
-| `Hooks.PostSwitch` | `SwitchEventArgs` | After the target backend is selected for the switch path. |
-| `Hooks.Chat` | `ChatEventArgs` | When chat is received and before normal chat handling continues. |
+| `context.OnPlayerJoin` | `PlayerJoinEvent` | When a client completes initial `ClientHello` validation. Set `Handled = true` to reject the join. |
+| `context.OnPlayerLeave` | `PlayerLeaveEvent` | When a session closes and cleans up. |
+| `context.OnPreSwitch` | `PreSwitchEvent` | Before an upstream pre-connect starts. Set `Handled = true` to cancel the transfer. |
+| `context.OnPostSwitch` | `PostSwitchEvent` | Only **after** the sync batch succeeds and upstream ownership has atomically switched. |
+| `context.OnChat` | `ChatEvent` | When player chat arrives. Set `Handled = true` to suppress forwarding. |
 
-`Hooks.RecieveCustomData` exists in the hook class, but it is not currently wired by the active custom packet handler path. Treat it as dormant unless the runtime implementation changes.
+## Packet middleware
 
-## The `Handled` flag
+Use `context.RegisterPacketMiddleware(direction, messageIds, middleware)` to intercept specific `MessageID` frames on `ClientToServer`, `ServerToClient`, or `Both`.
 
-Most event args implement `IEventArgs` and expose:
+- Subscribing only to the exact `MessageID`s you need keeps all other packets on the zero-copy O(1) fast path.
+- Middleware returns:
+  - `PacketMiddlewareResult.Continue` — forward unmodified
+  - `PacketMiddlewareResult.Drop` — suppress the frame
+  - `PacketMiddlewareResult.Replace(ReadOnlyMemory<byte>)` — replace the wire frame
+
+## `MSE2` authenticated custom packets
+
+MultiSEngine v2 replaces the unauthenticated legacy custom-data format with **`MSE2`**, transported inside Terraria `MessageID.Unused15` (`15`).
+
+### Security rules
+- **Client -> Server `Unused15` is dropped by default** so clients can never forge cluster packets.
+- Every `MSE2` packet carries a **32-byte HMAC-SHA256** tag verified in constant time, a UTC millisecond timestamp checked against `CustomPackets.MaxClockSkewSeconds` (default `30s`), and an 8-byte random nonce tracked in a replay-protection sliding window.
+- Secret resolution uses `ServerDescriptor.SharedSecret` if configured, falling back to `CustomPackets.GlobalSharedSecret`.
+
+### Wire layout (`Unused15` payload)
+
+| Field | Size | Description |
+| --- | --- | --- |
+| Terraria header | 3 bytes | `ushort Length` (LE) + `byte 15` (`MessageID.Unused15`) |
+| Magic | 4 bytes | ASCII `"MSE2"` (`0x4D 0x53 0x45 0x32`) |
+| Version | 1 byte | `0x02` |
+| Type length + UTF-8 Type | 1 + N bytes | Packet type name (e.g. `mse.sync_ip`) |
+| TimestampMs | 8 bytes | Int64 little-endian UTC Unix milliseconds |
+| Nonce | 8 bytes | Cryptographically random 64-bit nonce |
+| Payload length + Payload | 4 + M bytes | Int32 little-endian length + binary payload |
+| Signature | 32 bytes | `HMAC-SHA256(secret, Magic..Payload)` |
+
+### Built-in `MSE2` packet types
+
+| Type | Direction | Purpose |
+| --- | --- | --- |
+| `mse.sync_ip` | Proxy -> Backend | Sends the player's real client IP address (`string playerName`, `string clientIp`) during handshake. |
+| `mse.execute_command` | Backend -> Proxy | Requests a proxy command on a session (`string targetPlayerName`, `string commandLine`). Cross-player execution is denied unless the source server has `AllowClusterCommands = true`. |
+| `mse.switch_server` | Backend -> Proxy | Requests transferring the player to a named target server (`string targetServerName`). |
+
+### Handling custom packet types in a plugin
 
 ```csharp
-bool Handled { get; set; }
-```
-
-When a hook handler sets `Handled = true`, the runtime uses that to skip the default logic for that stage. This is the main interception mechanism for join, switch, and chat behavior.
-
-## Event args overview
-
-| Type | Useful properties |
-| --- | --- |
-| `PlayerJoinEventArgs` | `Client`, `IP`, `Port`, `Version`, `Handled` |
-| `PlayerLeaveEventArgs` | `Client`, `Handled` |
-| `SwitchEventArgs` | `Client`, `TargetServer`, `PreSwitch`, `Handled` |
-| `ChatEventArgs` | `Client`, `Message`, `Handled` |
-
-## Example hook usage
-
-```csharp
-using MultiSEngine.Events;
-
-namespace ExamplePlugin;
-
-public static class ChatHooks
+context.RegisterCustomPacketHandler("myplugin.ping", async (packetCtx, ct) =>
 {
-    public static void OnChat(ChatEventArgs args)
-    {
-        if (!args.Message.Equals("!proxy", StringComparison.OrdinalIgnoreCase))
-            return;
-
-        Logs.Info($"Proxy trigger from {args.Client.Name}");
-        args.Handled = true;
-    }
-}
+    context.Logger.Info(
+        $"Verified packet from {packetCtx.SourceServer.Name} for {packetCtx.Session.PlayerName} ({packetCtx.Payload.Length} bytes).",
+        "MyPlugin");
+    await ValueTask.CompletedTask;
+});
 ```
-
-## Custom packet model
-
-Custom packet types are discovered from all extension assemblies. A valid custom packet type:
-
-- directly inherits `BaseCustomData`
-- is non-abstract
-- has a public parameterless constructor
-
-The base contract is:
-
-```csharp
-public abstract class BaseCustomData
-{
-    public abstract string Name { get; }
-    public abstract void InternalWrite(BinaryWriter writer);
-    public abstract void InternalRead(BinaryReader reader);
-    public virtual ValueTask OnRecievedData(ClientData client);
-}
-```
-
-The runtime serializes these packets over Terraria message ID `Unused15`.
-
-## Example custom packet
-
-```csharp
-using MultiSEngine.Protocol.CustomData;
-
-namespace ExamplePlugin;
-
-public sealed class EchoPacket : BaseCustomData
-{
-    public override string Name => "ExamplePlugin.Echo";
-
-    public string Message { get; set; } = string.Empty;
-
-    public override void InternalWrite(BinaryWriter writer)
-        => writer.Write(Message);
-
-    public override void InternalRead(BinaryReader reader)
-        => Message = reader.ReadString();
-
-    public override ValueTask OnRecievedData(ClientData client)
-    {
-        Logs.Info($"Echo packet from {client.Name}: {Message}");
-        return ValueTask.CompletedTask;
-    }
-}
-```
-
-## Registration behavior
-
-Custom packet registration is automatic during extension rebuild:
-
-- MultiSEngine scans the main assembly and loaded plugin assemblies.
-- Types are indexed by `packet.Name`.
-- Duplicate packet names are rejected with a warning.
-
-## Practical guidance
-
-- Keep packet names globally unique, for example `YourPlugin.FeatureName`.
-- Use packets for explicit extension protocol, not for general state dumping.
-- Keep payloads simple and versionable.
-- If you change packet shape, update both sender and receiver together.
-
-## Reload behavior
-
-When `reloadplugin` runs:
-
-- hook subscriptions are reset
-- plugins are unloaded
-- plugins are loaded again
-- custom packet registration is rebuilt from scratch
-
-That means packet types should be treated as runtime-discovered state, not as permanent registrations.

@@ -2,26 +2,44 @@
   "ListenIP": "0.0.0.0",
   "ListenPort": 7778,
   "ServerName": "MultiSEngine",
-  "ServerVersion": 319,
-  "SwitchTimeOut": 10000,
-  "EnableCrossplayFeature": true,
+  "ServerVersion": 329,
+  "SwitchTimeoutMs": 10000,
+  "PasswordTimeoutMs": 60000,
+  "HandshakeTimeoutMs": 15000,
+  "EnableCrossplay": true,
   "EnableChatForward": true,
   "ChatFormat": "[{servername}] {username}: {message}",
-  "SwitchToDefaultServerOnJoin": true,
-  "RestoreDataWhenJoinNonSSC": true,
-  "DisableTcpDelayWhenPipeline": true,
+  "SwitchToDefaultServerOnJoin": false,
+  "RestoreDataWhenJoinNonSsc": true,
+  "DisableTcpDelay": true,
   "UseCrowdControlled": false,
-  "DefaultServer": "boss",
+  "DefaultServer": "lobby",
+  "Limits": {
+    "MaxConnections": 256,
+    "SendPipePauseThresholdBytes": 524288,
+    "SendPipeResumeThresholdBytes": 262144,
+    "SendFlushTimeoutMs": 10000,
+    "MaxPreConnectBufferedBytes": 8388608,
+    "MaxHandshakePacketsPerSecond": 256,
+    "SessionMailboxCapacity": 256
+  },
+  "CustomPackets": {
+    "GlobalSharedSecret": "",
+    "MaxClockSkewSeconds": 30,
+    "AllowUnsignedInDevelopment": false
+  },
   "Servers": [
     {
-      "Visible": true,
-      "Name": "boss",
-      "ShortName": "",
-      "IP": "trcn.fun",
+      "Name": "lobby",
+      "ShortName": "l",
+      "Host": "127.0.0.1",
       "Port": 7777,
+      "VersionNum": -1,
+      "Visible": true,
       "SpawnX": -1,
       "SpawnY": -1,
-      "VersionNum": -1
+      "SharedSecret": null,
+      "AllowClusterCommands": false
     }
   ]
 }

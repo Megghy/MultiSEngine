@@ -1,85 +1,48 @@
 # Architecture
 
-## Startup sequence
+MultiSEngine v2 is organized into four strict, acyclic layers targeting `.NET 10` (`net10.0`) with zero global static runtime singletons.
 
-MultiSEngine starts in `Program.Main` and performs three core steps:
+## Layer dependency graph
 
-1. print the banner
-2. discover and invoke static methods marked with `[AutoInit]`
-3. enter the console command loop
+```text
+MultiSEngine (CLI)
+  └── MultiSEngine.Runtime (Host, Actor sessions, TransferWorkflow, PluginHost, Commands, Probing)
+        ├── MultiSEngine.Protocol (FramedConnection, FastPathClassifier, SyncEngine, Lobby, MSE2)
+        │     ├── MultiSEngine.Core (Contracts, Immutable Config, SessionState union, Hooks)
+        │     └── TrProtocol (Terraria 1.4.6.1 / protocol 329 codec)
+        └── MultiSEngine.Core
+```
 
-`[AutoInit]` methods are collected from the main assembly, ordered by `order`, and invoked with optional pre/post log messages.
+## Core runtime subsystems
 
-## Important runtime components
+### 1. Bounded zero-copy framing (`FramedConnection`)
+- Built on `System.IO.Pipelines` with a single-writer outbound pipe (`SendPipePauseThresholdBytes` / `SendPipeResumeThresholdBytes`) and `SendFlushTimeout`.
+- Uses a zero-allocation synchronous fast path for uncontended, non-backpressured writes (`~1 B/packet`, `0 Gen0 GC` over 512-packet TCP bursts), only allocating a linked timeout `CancellationTokenSource` when write contention or slow-peer backpressure actually occurs.
+- Validates every incoming frame header (`length >= 3`) before dispatch to prevent out-of-bounds DoS crashes.
+- Uses `AsyncLocal<FramedConnection?>` to detect self-disposal inside the read loop and prevent shutdown deadlocks.
+- Exposes `PauseReading()` / `ResumeReading()` at exact Terraria frame boundaries (with a lock-free fast check when unpaused) for zero-packet-loss handoff during server switches.
 
-| Area | Responsibility |
-| --- | --- |
-| `src/Program.cs` | Process startup, console loop, graceful shutdown. |
-| `src/Runtime/RuntimeState.cs` | Global runtime state such as players, command registry, custom packet registry, MOTD, and cached packet buffers. |
-| `src/Config.cs` | Load, validate, save, and reload `Config.json`. |
-| `src/Application/Transfers` | Player transfer orchestration, state restore, session tracking, and teleport flow. |
-| `src/Protocol` | Packet handlers, adapters, bridging, and custom packet transport. |
-| `src/Application/Extensions` | Runtime registries for commands and custom packets. |
-| `src/Plugins/PluginManager.cs` | Plugin discovery, initialization, unload, and reload. |
-| `src/Events` | Hook definitions and event argument types exposed to plugins. |
+### 2. O(1) fast-path classification (`FastPathClassifier`)
+- Inspects only raw frame bytes (`Span[2]` message ID and `Span[3]` player slot).
+- High-frequency broadcast packets for **other** players (`PlayerControls`, `PlayerHealth`, `SyncEquipment`, `PlayerBuffs`, etc.) bypass deserialization and stream directly to the peer unless a plugin registers middleware for that `MessageID`.
+- Strictly isolates `PlayerStateTracker` updates to the session's own active `PlayerSlot` and permanently locks `Name` and `ClientUUID` after handshake.
 
-## Runtime extension model
+### 3. Single-connection actor (`PlayerSessionActor`)
+- Each client socket is owned by one `PlayerSessionActor` with a bounded `Channel<SessionMessage>` mailbox.
+- Replaces split state flags with a single discriminated union (`SessionState`):
+  - `Connecting` -> `Lobby` -> `Switching` -> `InServer` -> `ReturningToLobby` -> `Closed`
+- Uses `AsyncLocal<PlayerSessionActor?>` so hook callbacks or `/mse` commands running inline on the actor never deadlock when interacting with `ISessionHandle`.
+- Explicitly tracks disconnect origin (`Client` vs `Upstream(linkId)`) so abrupt client disconnects always tear down the session with zero leaked entries.
 
-Extension loading is centralized in `ExtensionBootstrap`:
+### 4. Atomic transfer workflow (`TransferWorkflow`)
+- Opens an independent upstream `FramedConnection` to the target backend without detaching the client from its current server/lobby.
+- Handles `RequestPassword` asynchronously without blocking the client read loop.
+- Replays `SyncPlayer`, `ClientUUID`, `PlayerPlatformInfo` (on Terraria `>= 329` backends), and signed `MSE2` `SyncIP` packets.
+- Buffers post-`WorldData` world/chunk packets up to `MaxPreConnectBufferedBytes`, pauses upstream reading at `FinishedConnectingToServer`, emits a minimal `TerrariaSyncEngine` batch (1 `WorldData` for SSC targets, 2 for non-SSC restore; all slots rewritten), swaps active upstream ownership, and resumes reading with zero packet loss.
+- Fallback returns clear `PreviousServer` to prevent `A <-> B` ping-pong kick loops.
 
-- `PluginManager.Load()` loads plugin assemblies from `Plugins`.
-- `CommandRegistry.LoadFromAssemblies(...)` discovers command classes.
-- `CustomPacketRegistry.LoadFromAssemblies(...)` discovers custom packet classes.
-
-The registry scan includes:
-
-- the main MultiSEngine assembly
-- all plugin assemblies successfully loaded by `PluginManager`
-
-## Plugin loading model
-
-Plugin loading is assembly-based:
-
-- the loader scans `Plugins/*.dll`
-- an assembly counts as a plugin assembly if it contains at least one type assignable to `IMSEPlugin`
-- each plugin instance gets `Initialize()` called after creation
-- `Dispose()` is called during unload and reload
-
-The plugin host uses a collectible `AssemblyLoadContext`, so reload is modeled as unload plus load.
-
-## Transfer model at a high level
-
-The transfer pipeline is split across application and protocol layers:
-
-1. a player joins the proxy
-2. the proxy validates version and session state
-3. a target backend server is selected
-4. player state is synchronized or restored as needed
-5. the player is switched to the target backend and teleported to the chosen spawn
-
-The exact packet flow is handled by protocol adapters and handlers under `src/Protocol`.
-
-## Hooks and interception
-
-Plugins can intercept parts of the lifecycle through `Hooks`:
-
-- player join
-- player leave
-- pre-switch
-- post-switch
-- chat
-
-Most hook event args expose a `Handled` flag. Setting `Handled = true` short-circuits the default runtime path for that stage.
-
-## Reload behavior
-
-`reloadplugin` performs these steps in order:
-
-1. reset hook subscriptions
-2. unload current plugins
-3. load plugin assemblies again
-4. rebuild command and custom-packet registries
-
-This means plugin reload affects both hook wiring and runtime-discovered command/custom-packet types.
+### 5. Concurrent backend probing & host lifecycle
+- `ServerProbeService` runs independent lightweight TCP handshakes in parallel (`test all`).
+- `MultiSEngineHost` is fully instantiable (enabling parallel real-TCP integration tests) and shuts down gracefully on `SIGINT`/`SIGTERM` or EOF in headless container environments.
 
 Next page: [Plugin Development](Plugin-Development.md)
